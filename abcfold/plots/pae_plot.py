@@ -7,13 +7,12 @@ from multiprocessing import Process
 from pathlib import Path
 from typing import Dict, List, Union
 
+import pandas as pd
+
 from abcfold.processoutput.alphafold3 import AlphafoldOutput
 from abcfold.processoutput.boltz import BoltzOutput
 from abcfold.processoutput.chai import ChaiOutput
-import pandas as pd
 from abcfold.processoutput.file_handlers import CifFile
-import tempfile
-
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +128,8 @@ def create_pae_plots(
                         output.af3_pae_files[seed],
                         plots_dir,
                         pathway_plot,
-                        True,
                         template_file,
+                        True,
                     )
                 )
 
@@ -145,8 +144,8 @@ def create_pae_plots(
                 output.af3_pae_files,
                 plots_dir,
                 pathway_plot,
-                False,
                 template_file,
+                False,
             )
         )
 
@@ -166,10 +165,12 @@ def create_pae_plots(
 
 
 def prepare_scripts(
-    cif_files, pae_files, plots_dir, pathway_plot, is_af3, template_file
+    cif_files, pae_files, plots_dir, pathway_plot, template_file, is_af3=False
 ):
+
     scripts = []
     for cif_file, pae_file in zip(cif_files, pae_files):
+
         name_stem = f"{pae_file.pathway.stem}\
 {'_' + pae_file.pathway.parent.stem if is_af3 else ''}_{'af3_' if is_af3 else ''}"
 
@@ -186,7 +187,7 @@ def prepare_scripts(
             template_file,
             clashes_csv_file,
         )
-        pathway_plot[str(plot_pathway)] = str(plot_pathway)
+        pathway_plot[str(cif_file.pathway)] = str(plot_pathway)
         scripts.append(pae_viewer_script)
     return scripts
 

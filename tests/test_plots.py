@@ -39,5 +39,39 @@ def test_pae_plots(output_objs):
 
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
-        create_pae_plots(outputs, output_dir=temp_dir)
+        plot_pathways = create_pae_plots(outputs, output_dir=temp_dir)
+
+        assert len(plot_pathways) == 6
+        values = [Path(value).name for value in plot_pathways.values()]
+
+        assert "confidences_seed-1_sample-0_af3_pae_plot.html" in values
+        assert "confidences_seed-1_sample-1_af3_pae_plot.html" in values
+        assert "test_mmseqs_model_0_af3_pae_pae_plot.html" in values
+        assert "test_mmseqs_model_1_af3_pae_pae_plot.html" in values
+        assert "pred.model_idx_0_af3_pae_pae_plot.html" in values
+        assert "pred.model_idx_1_af3_pae_pae_plot.html" in values
+
+        assert (
+            "tests/test_data/alphafold3_6BJ9/seed-1_sample-0/\
+model.cif"
+            in plot_pathways
+        )
+        assert (
+            "tests/test_data/alphafold3_6BJ9/seed-1_sample-1/\
+model.cif"
+            in plot_pathways
+        )
+        assert (
+            "tests/test_data/boltz-1_6BJ9/predictions/test_mmseqs/\
+test_mmseqs_model_0.cif"
+            in plot_pathways
+        )
+        assert (
+            "tests/test_data/boltz-1_6BJ9/predictions/test_mmseqs/\
+test_mmseqs_model_1.cif"
+            in plot_pathways
+        )
+        assert "tests/test_data/chai1_6BJ9/pred.model_idx_0.cif" in plot_pathways
+        assert "tests/test_data/chai1_6BJ9/pred.model_idx_1.cif" in plot_pathways
+
         assert len(list(temp_dir.glob("*.html"))) == 6
