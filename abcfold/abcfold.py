@@ -271,7 +271,7 @@ by default"
         os.chdir(args.output_dir)
 
         # Make a script to open the output HTML file in the default web browser
-        output_open_html_script(args.output_dir.joinpath("open_output.py"))
+        output_open_html_script("open_output.py")
 
         # Start the server
         with socketserver.TCPServer(("", PORT),
@@ -334,7 +334,7 @@ def render_template(in_file_path, out_file_path, **kwargs):
         f.write(output)
 
 
-def output_open_html_script(file_out: Path):
+def output_open_html_script(file_out: str):
     """
     Make a python script to open the output HTML file in the default web browser
     """
