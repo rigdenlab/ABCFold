@@ -149,6 +149,7 @@ def create_pae_plots(
             )
         )
 
+    
     processes = [Process(target=run_script, args=(script,)) for script in run_scripts]
     for process in processes:
         process.start()

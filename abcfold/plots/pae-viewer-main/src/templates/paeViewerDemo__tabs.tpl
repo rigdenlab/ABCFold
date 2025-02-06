@@ -34,11 +34,7 @@
       -->
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="citation-tab" data-bs-toggle="tab"
-                data-bs-target="#citation" type="button" role="tab"
-                aria-controls="citation" aria-selected="false">
-          Citation
-        </button>
+          <h2 id="header-title">ABCFold Results</h2>
       </li>
 
     </ul>
@@ -51,4 +47,5 @@
     {{paeViewerDemo__tab__offline.tpl}}
     {{paeViewerDemo__tab__citation.tpl}}
   </div>
+</div>
 </div>

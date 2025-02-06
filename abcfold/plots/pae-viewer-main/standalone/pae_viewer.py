@@ -50,9 +50,9 @@ def load_pae_viewer(
         structure_path.stem, data, output_file, template_file
     )
 
-    webbrowser.open(
-        f"localhost:{port}/{Path(*session_path.parts[-2:])}", new=0, autoraise=True
-    )
+    # webbrowser.open(
+    #     f"localhost:{port}/{Path(*session_path.parts[-2:])}", new=0, autoraise=True
+    # )
 
 
 def get_session_data(
