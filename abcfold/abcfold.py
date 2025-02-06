@@ -7,9 +7,10 @@ import socketserver
 import sys
 import tempfile
 import webbrowser
-from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 from typing import Dict
+
+from jinja2 import Environment, FileSystemLoader
 
 from abcfold.abc_script_utils import make_dir, setup_logger
 from abcfold.add_mmseqs_msa import add_msa_to_json
@@ -172,56 +173,67 @@ by default"
         plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
 
         # Compile data to make output page
+
         alphafold_models = {'models': []}
-        sequence_data = None
-        for seed in ao.output.keys():
-            for idx in ao.output[seed].keys():
-                model = ao.output[seed][idx]['cif']
-                model.check_clashes()
-                if sequence_data is None:
-                    sequence_data = model.get_model_sequence_data()
-                model_data = {"model_id": model.name, 
-                                "model_source": "AlphaFold3", 
-                                "model_path": model.pathway.as_posix(),
-                                "plddt_regions": model.plddt_regions, 
-                                "avg_plddt": model.average_plddt, 
-                                "h_score": model.h_score,
-                                "clashes": model.clashes,
-                                "pae_path": Path(plot_dict[model.pathway.as_posix()]).relative_to(args.output_dir).as_posix()}
-                alphafold_models['models'].append(model_data)
+        if args.alphafold3:
+            sequence_data = None
+            for seed in ao.output.keys():
+                for idx in ao.output[seed].keys():
+                    model = ao.output[seed][idx]['cif']
+                    model.check_clashes()
+                    if sequence_data is None:
+                        sequence_data = model.get_model_sequence_data()
+                    model_data = {"model_id": model.name,
+                                    "model_source": "AlphaFold3",
+                                    "model_path": model.pathway.as_posix(),
+                                    "plddt_regions": model.plddt_regions,
+                                    "avg_plddt": model.average_plddt,
+                                    "h_score": model.h_score,
+                                    "clashes": model.clashes,
+                                    "pae_path": Path(
+                                        plot_dict[model.pathway.as_posix()]
+                                        ).relative_to(args.output_dir).as_posix()}
+                    alphafold_models['models'].append(model_data)
+
 
         boltz_models = {'models': []}
-        for idx in bo.output.keys():
-            model = bo.output[idx]['cif']
-            model.check_clashes()
-            if sequence_data is None:
-                sequence_data = model.get_model_sequence_data()
-            model_data = {"model_id": model.name, 
-                            "model_source": "Boltz-1", 
-                            "model_path": model.pathway.as_posix(),
-                            "plddt_regions": model.plddt_regions, 
-                            "avg_plddt": model.average_plddt, 
-                            "h_score": model.h_score,
-                            "clashes": model.clashes,
-                            "pae_path": Path(plot_dict[model.pathway.as_posix()]).relative_to(args.output_dir).as_posix()}
-            boltz_models['models'].append(model_data)
-
-        chai_models = {'models': []}
-        for idx in co.output.keys():
-            if idx >= 0:
-                model = co.output[idx]['cif']
+        if args.boltz1:
+            for idx in bo.output.keys():
+                model = bo.output[idx]['cif']
                 model.check_clashes()
                 if sequence_data is None:
                     sequence_data = model.get_model_sequence_data()
-                model_data = {"model_id": model.name, 
-                                "model_source": "Chai-1", 
+                model_data = {"model_id": model.name,
+                                "model_source": "Boltz-1",
                                 "model_path": model.pathway.as_posix(),
-                                "plddt_regions": model.plddt_regions, 
-                                "avg_plddt": model.average_plddt, 
+                                "plddt_regions": model.plddt_regions,
+                                "avg_plddt": model.average_plddt,
                                 "h_score": model.h_score,
                                 "clashes": model.clashes,
-                                "pae_path": Path(plot_dict[model.pathway.as_posix()]).relative_to(args.output_dir).as_posix()}
-                chai_models['models'].append(model_data)
+                                "pae_path": Path(
+                                    plot_dict[model.pathway.as_posix()]
+                                    ).relative_to(args.output_dir).as_posix()}
+                boltz_models['models'].append(model_data)
+
+        chai_models = {'models': []}
+        if args.chai1:
+            for idx in co.output.keys():
+                if idx >= 0:
+                    model = co.output[idx]['cif']
+                    model.check_clashes()
+                    if sequence_data is None:
+                        sequence_data = model.get_model_sequence_data()
+                    model_data = {"model_id": model.name,
+                                    "model_source": "Chai-1",
+                                    "model_path": model.pathway.as_posix(),
+                                    "plddt_regions": model.plddt_regions,
+                                    "avg_plddt": model.average_plddt,
+                                    "h_score": model.h_score,
+                                    "clashes": model.clashes,
+                                    "pae_path": Path(
+                                        plot_dict[model.pathway.as_posix()]
+                                        ).relative_to(args.output_dir).as_posix()}
+                    chai_models['models'].append(model_data)
 
         combined_models = alphafold_models["models"] + boltz_models["models"] + chai_models["models"]
 
@@ -235,9 +247,10 @@ by default"
             chain_data['Chain ' + key] = (ref, len(sequence_data[key]) + ref -1)
             ref += len(sequence_data[key])
 
-        results_dict = {"sequence": sequence, 
-                        "models": combined_models, 
-                        "plotly_path" : plot_dict['plddt'].relative_to(args.output_dir).as_posix(), 
+        results_dict = {"sequence": sequence,
+                        "models": combined_models,
+                        "plotly_path" : plot_dict['plddt'].relative_to(
+                            args.output_dir).as_posix(),
                         "chain_data": chain_data}
         results_json = json.dumps(results_dict)
 
@@ -253,12 +266,13 @@ by default"
                         results_json=results_json,
                         version=0.1)
         logger.info(f"Output page written to {HTML_OUT}")
-        
+
         # Change to the output directory to run the server
         os.chdir(args.output_dir)
 
         # Start the server
-        with socketserver.TCPServer(("", PORT), http.server.SimpleHTTPRequestHandler) as httpd:
+        with socketserver.TCPServer(("", PORT),
+                                    http.server.SimpleHTTPRequestHandler) as httpd:
             logger.info(f"Serving at port {PORT}")
             # Open the main HTML page in the default web browser
             webbrowser.open(f"http://localhost:{PORT}/{MAIN_PAGE}")
