@@ -249,7 +249,7 @@ by default"
 
         results_dict = {"sequence": sequence,
                         "models": combined_models,
-                        "plotly_path": plot_dict['plddt'].relative_to(
+                        "plotly_path": Path(plot_dict['plddt']).relative_to(
                             args.output_dir.resolve()).as_posix(),
                         "chain_data": chain_data}
         results_json = json.dumps(results_dict)
@@ -269,6 +269,9 @@ by default"
 
         # Change to the output directory to run the server
         os.chdir(args.output_dir)
+
+        # Make a script to open the output HTML file in the default web browser
+        output_open_html_script(args.output_dir.joinpath("open_output.py"))
 
         # Start the server
         with socketserver.TCPServer(("", PORT),
@@ -329,6 +332,30 @@ def render_template(in_file_path, out_file_path, **kwargs):
     output = template.render(**kwargs)
     with open(str(out_file_path), "w") as f:
         f.write(output)
+
+
+def output_open_html_script(file_out: Path):
+    """
+    Make a python script to open the output HTML file in the default web browser
+    """
+
+    script = """
+    import http.server
+    import socketserver
+    import webbrowser
+
+    PORT = 8000
+
+    with socketserver.TCPServer(("", PORT),
+        http.server.SimpleHTTPRequestHandler) as httpd:
+        # Open the main HTML page in the default web browser
+        webbrowser.open(f"http://localhost:{PORT}/index.html")
+        # Keep the server running
+        httpd.serve_forever()
+    """
+
+    with open(file_out, "w") as f:
+        f.write(script)
 
 
 def main():
