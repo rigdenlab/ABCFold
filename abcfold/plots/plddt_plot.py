@@ -50,6 +50,7 @@ def plot_plddt(
 
     colours = list(px.colors.qualitative.T10)
     colour_index = 0
+    added_lines = []
 
     cif_models = [
         cif_file for cif_files in cif_models_dict.values() for cif_file in cif_files
@@ -65,14 +66,23 @@ def plot_plddt(
             counter = 0
             for chain, chain_range in chain_ranges.items():
                 counter += chain_range[-1]
-                fig.add_vline(
-                    x=counter,
-                    line=dict(color=colours[colour_index % len(colours)], dash="dash"),
-                    opacity=chain_line_occupancy,
-                    annotation_text=f"Chain {chain}",
-                    annotation_position="top left",
-                )
-                colour_index += 1
+                chain_name = f"Chain {chain}"
+
+                if chain_name not in added_lines:
+                    fig.add_vline(
+                        x=counter,
+                        line=dict(
+                            color=colours[colour_index % len(colours)], dash="dash"
+                        ),
+                        opacity=chain_line_occupancy,
+                        annotation_text=Bold(chain_name),
+                        annotation_font_size=15,
+                        annotation_position="top left",
+                        annotation_textangle=-90,
+                    )
+
+                    colour_index += 1
+                    added_lines.append(chain_name)
 
             fig.add_trace(
                 go.Scatter(

@@ -43,6 +43,12 @@ def prediction_argparse_util(parser):
         default=5,
         help="Number of models to generate",
     )
+    parser.add_argument(
+        "--num_recycles",
+        type=int,
+        default=10,
+        help="Number of recycles to use during the inference",
+    )
     return parser
 
 
@@ -60,6 +66,7 @@ def boltz_argparse_util(parser):
             help="Save the input json file",
             default=False,
         )
+
     return parser
 
 
@@ -70,16 +77,6 @@ def chai_argparse_util(parser):
         action="store_true",
         help="Run Chai-1",
     )
-    # check if save input is in the parser
-    if "--save_input" not in parser._option_string_actions:
-
-        parser.add_argument(
-            "--save_input",
-            action="store_true",
-            help="Save the input json file",
-            default=False,
-        )
-    # add more arguments here
     return parser
 
 
@@ -104,7 +101,7 @@ def alphafold_argparse_util(parser):
         "-a",
         "--alphafold3",
         action="store_true",
-        help="Run Alphafold",
+        help="Run Alphafold3",
     )
 
     parser.add_argument(
@@ -112,6 +109,5 @@ def alphafold_argparse_util(parser):
         help="Override the existing output directory, if it exists",
         action="store_true",
     )
-    # add more arguments here
 
     return parser

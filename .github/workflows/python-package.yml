@@ -38,7 +38,7 @@ jobs:
         pip install coverage-badge
         coverage-badge -o .blob/coverage.svg -f
     - name: Upload coverage badge
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-badge
         path: coverage.svg

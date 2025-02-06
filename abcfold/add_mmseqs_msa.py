@@ -13,7 +13,7 @@ from typing import Sequence
 import requests  # type: ignore
 from tqdm.autonotebook import tqdm
 
-from abcfold.af3_script_utils import (align_and_map,
+from abcfold.abc_script_utils import (align_and_map,
                                       extract_sequence_from_mmcif,
                                       get_custom_template, get_mmcif)
 from abcfold.argparse_utils import (custom_template_argpase_util,

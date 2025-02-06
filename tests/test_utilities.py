@@ -1,6 +1,9 @@
-from abcfold.af3_script_utils import (align_and_map,
+from pathlib import Path
+
+from abcfold.abc_script_utils import (align_and_map,
                                       extract_sequence_from_mmcif, get_chains,
                                       get_mmcif)
+from abcfold.processoutput.file_handlers import CifFile
 
 
 def test_get_chains(test_data):
@@ -50,3 +53,14 @@ def test_get_mmcif(test_data):
 
     cif_str = get_mmcif(test_data.test_1G03_cif, "1G03", "A", 1, 100)
     assert cif_str.startswith("data_1G03")
+
+
+def test_clash_checker(test_data):
+    cif_file = Path(test_data.test_boltz_1_6BJ9_).joinpath(
+        "predictions", "test_mmseqs", "test_mmseqs_model_0.cif"
+    )
+
+    structure = CifFile(cif_file)
+    clashes = structure.check_clashes()
+    assert isinstance(clashes, list)
+    assert len(clashes) == 2

@@ -17,6 +17,7 @@ def run_boltz(
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
+    num_recycles: int = 10,
 ):
     """
     Run Boltz1 using the input JSON file
@@ -56,7 +57,7 @@ def run_boltz(
         boltz_yaml.write_yaml(out_file)
         logger.info("Running Boltz1")
         cmd = (
-            generate_boltz_command(out_file, output_dir, number_of_models)
+            generate_boltz_command(out_file, output_dir, number_of_models, num_recycles)
             if not test
             else generate_boltz_test_command()
         )
@@ -80,6 +81,7 @@ def generate_boltz_command(
     input_yaml: Union[str, Path],
     output_dir: Union[str, Path],
     number_of_models: int = 5,
+    num_recycles: int = 10,
 ) -> list:
     """
     Generate the Boltz1 command
@@ -103,6 +105,8 @@ def generate_boltz_command(
         "--write_full_pde",
         "--diffusion_samples",
         str(number_of_models),
+        "--recycling_steps",
+        str(num_recycles),
     ]
 
 

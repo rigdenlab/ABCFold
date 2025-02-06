@@ -11,8 +11,8 @@ from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 from typing import Dict
 
+from abcfold.abc_script_utils import make_dir, setup_logger
 from abcfold.add_mmseqs_msa import add_msa_to_json
-from abcfold.af3_script_utils import make_dir, setup_logger
 from abcfold.argparse_utils import (alphafold_argparse_util,
                                     boltz_argparse_util, chai_argparse_util,
                                     custom_template_argpase_util,
@@ -131,6 +131,7 @@ by default"
                 model_params=args.model_params,
                 database_dir=args.database_dir,
                 number_of_models=args.number_of_models,
+                num_recycles=args.num_recycles,
             )
 
             # Need to find the name of the af3_dir
@@ -146,6 +147,7 @@ by default"
                 output_dir=args.output_dir,
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
+                num_recycles=args.num_recycles,
             )
             bolt_out_dir = list(args.output_dir.glob("boltz_results*"))[0]
             bo = BoltzOutput(bolt_out_dir, input_params, name)
@@ -161,6 +163,7 @@ by default"
                 output_dir=chai_output_dir,
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
+                num_recycles=args.num_recycles,
             )
 
             co = ChaiOutput(chai_output_dir, input_params, name)

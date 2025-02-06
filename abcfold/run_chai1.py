@@ -17,6 +17,7 @@ def run_chai(
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
+    num_recycles: int = 10,
 ) -> None:
     """
     Run Chai-1 using the input JSON file
@@ -80,6 +81,7 @@ def generate_chai_command(
     input_constraints: Union[str, Path],
     output_dir: Union[str, Path],
     number_of_models: int = 5,
+    num_recycles: int = 10,
 ) -> list:
     """
     Generate the Chai-1 command
@@ -105,6 +107,7 @@ def generate_chai_command(
         cmd += ["--constraint-path", str(input_constraints)]
 
     cmd += ["--num-diffn-samples", str(number_of_models)]
+    cmd += ["--num-trunk-recycles", str(num_recycles)]
     cmd += [str(output_dir)]
 
     return cmd

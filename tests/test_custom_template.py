@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from abcfold.abc_script_utils import get_custom_template
 from abcfold.add_custom_template import main, run_custom_template
-from abcfold.af3_script_utils import get_custom_template
 
 
 def test_get_custom_template(test_data):
