@@ -180,7 +180,7 @@ rect{
     box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
 }
 
-.multiple-variant-container { 
+.multiple-variant-container {
     display: flex;
 }
 
@@ -242,7 +242,7 @@ rect{
     height: 2rem !important;
     outline: none;
     padding: 0.3rem;
-    text-align: center;   
+    text-align: center;
     background-color: #f9f9f9;
     border: 2px solid rgb(230, 230, 230);
     outline: none;
@@ -288,8 +288,8 @@ rect{
     justify-content: center;
 }
 
-.single-add-variant-btn:disabled, 
-.add-variant-btn:disabled, 
+.single-add-variant-btn:disabled,
+.add-variant-btn:disabled,
 .get-predictions-btn
  {
      background-color: #7D7D7D;
@@ -351,7 +351,7 @@ rect{
     position: relative;
     display: flex;
   }
-  
+
   .dropdown-content, #single-dropdown-content {
     display: none;
     position: absolute;
@@ -405,7 +405,7 @@ rect{
       width: 1.3rem;
       cursor: pointer;
   }
-    
+
 
   .bottom-arrow-icon {
     height: 0.5rem;

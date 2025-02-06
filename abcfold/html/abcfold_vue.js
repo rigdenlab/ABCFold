@@ -64,7 +64,7 @@ Vue.component('abc-table', {
         }
     },
     template: `
-    <div id="abc-table-container"> 
+    <div id="abc-table-container">
         <table id="abc_table">
             <thead>
                 <tr>

@@ -215,7 +215,7 @@ html {
     pre,
     blockquote {
       border: 1px solid #999;
-  
+
       page-break-inside: avoid;
     }
     thead {
@@ -262,7 +262,7 @@ html {
   }
   @font-face {
     font-family: 'Glyphicons Halflings';
-  
+
     src: url('../fonts/glyphicons-halflings-regular.eot');
     src: url('../fonts/glyphicons-halflings-regular.eot?#iefix') format('embedded-opentype'), url('../fonts/glyphicons-halflings-regular.woff2') format('woff2'), url('../fonts/glyphicons-halflings-regular.woff') format('woff'), url('../fonts/glyphicons-halflings-regular.ttf') format('truetype'), url('../fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular') format('svg');
   }
@@ -274,7 +274,7 @@ html {
     font-style: normal;
     font-weight: normal;
     line-height: 1;
-  
+
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -1078,7 +1078,7 @@ html {
   }
   html {
     font-size: 10px;
-  
+
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   }
   body {
@@ -6054,7 +6054,7 @@ html {
     white-space: normal;
     filter: alpha(opacity=0);
     opacity: 0;
-  
+
     line-break: auto;
   }
   .tooltip.in {
@@ -6179,7 +6179,7 @@ html {
     border-radius: 6px;
     -webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, .2);
     box-shadow: 0 5px 10px rgba(0, 0, 0, .2);
-  
+
     line-break: auto;
   }
   .popover.top {
@@ -6305,7 +6305,7 @@ html {
       -webkit-transition: -webkit-transform .6s ease-in-out;
       -o-transition:      -o-transform .6s ease-in-out;
       transition:         transform .6s ease-in-out;
-  
+
       -webkit-backface-visibility: hidden;
       backface-visibility: hidden;
       -webkit-perspective: 1000px;
@@ -6798,4 +6798,3 @@ html {
     }
   }
   /* sourceMappingURL=bootstrap.css.map */
-  

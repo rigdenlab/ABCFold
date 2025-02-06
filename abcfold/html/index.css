@@ -69,25 +69,25 @@ table {
     font-family: 'Lato', sans-serif;
     color: #333;
   }
-  
+
   th, td {
     border-bottom: 1px solid #ddd;
     min-width: 100px;
     padding: 8px;
     text-align: center;
   }
-  
+
   th {
     background-color: white;
     color: #333;
     border-bottom: 1px solid #222;
   }
-  
+
   tr {
     background-color: white;
   }
 
-  
+
   tr:hover {
     background-color: #f5f5f5;
   }
@@ -174,7 +174,7 @@ body.dark-mode {
 }
 
 body.dark-mode .header {
-  background-color: #1e1e1e; 
+  background-color: #1e1e1e;
 }
 
 /* Smaller Toggle Switch Styles */

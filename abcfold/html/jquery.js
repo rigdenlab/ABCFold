@@ -9255,7 +9255,7 @@ function sortTable(table_id, n) {
 
     switching = true;
     // Set the sorting direction based on the current value in sortOrder
-    dir = sortOrder[table_id][n] == -1 ? "desc" : "asc"; 
+    dir = sortOrder[table_id][n] == -1 ? "desc" : "asc";
 
     while (switching) {
         switching = false;
