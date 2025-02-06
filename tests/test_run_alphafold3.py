@@ -18,6 +18,7 @@ def test_generate_af3_command(test_data):
         output_dir=output_dir,
         model_params=model_params,
         database_dir=database_dir,
+        interactive=True,
     )
     assert "docker run -it" in cmd
     assert f"--volume {input_json.parent.resolve()}:/root/af_input" in cmd
