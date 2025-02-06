@@ -154,7 +154,8 @@ class CifFile(FileBase):
         self.residue_plddt_per_chain = self.get_plddt_per_residue()
         self.ligand_plddt = self.get_plddt_per_ligand()
         self.__plddts = [
-            plddts for plddts in self.atom_plddt_per_chain.values() for plddts in plddts
+            plddts for plddts in self.atom_plddt_per_chain.values()
+            for plddts in plddts
         ]
         self.__residue_plddts = [
             plddts
@@ -185,35 +186,35 @@ class CifFile(FileBase):
         The pLDDT scores for each atom in the model
         """
         return self.__plddts
-    
+
     @property
     def residue_plddts(self):
         """
         The pLDDT scores for each residue in the model
         """
         return self.__residue_plddts
-    
+
     @property
     def average_plddt(self):
         """
         The average pLDDT score for the model
         """
         return float(np.mean(self.__plddts))
-    
+
     @property
     def ligand_plddts(self):
         """
         The pLDDT scores for each ligand in the model
         """
         return self.__ligand_plddts
-    
+
     @property
     def h_score(self):
         """
         The H score for the model
         """
         return self._h_score
-    
+
     @property
     def plddt_regions(self):
         """
@@ -292,7 +293,7 @@ class CifFile(FileBase):
             ]
 
         return residue_ids
-    
+
     def calculate_h_score(self):
         """
         Calculate the H score for the model
@@ -300,17 +301,18 @@ class CifFile(FileBase):
         Returns:
             float: The H score for the model
         """
-       
+
         score = 0
         for i in reversed(range(1, 101)):
             if (100.0 / len(self.plddts)) * np.sum(np.array(self.plddts) >= i) >= i:
                 score = i
                 break
         return score
-    
+
     def get_model_sequence_data(self) -> dict:
         """
-        Get the sequence for each chain and ligand in the model, used internally for plotting
+        Get the sequence for each chain and ligand in the model, used internally
+        for plotting
 
         Returns:
             dict : Chain ID and sequence data
@@ -318,9 +320,13 @@ class CifFile(FileBase):
         sequence_data = {}
         for chain in self.model[0]:
             if self.check_ligand(chain):
-                sequence_data[chain.id] = "".join([atom.id[0] for residue in chain for atom in residue])
+                sequence_data[chain.id] = "".join(
+                    [atom.id[0] for residue in chain for atom in residue]
+                    )
             else:
-                sequence_data[chain.id] = "".join([seq1(residue.get_resname()) for residue in chain])
+                sequence_data[chain.id] = "".join(
+                    [seq1(residue.get_resname()) for residue in chain]
+                    )
         return sequence_data
 
     def get_plddt_per_atom(self) -> dict:
@@ -390,7 +396,7 @@ class CifFile(FileBase):
                     plddts[chain.id] = [score]
 
         return plddts
-    
+
     def get_plddt_per_ligand(self) -> dict:
         """
         Get the pLDDT scores for each ligand in the model
@@ -408,10 +414,10 @@ class CifFile(FileBase):
                         else:
                             plddt[chain.id] = [atom.bfactor]
         return plddt
-    
+
     def get_plddt_regions(self) -> dict:
         """
-        Get the pLDDT regions for the model 
+        Get the pLDDT regions for the model
         """
         regions = {}
 
@@ -426,7 +432,7 @@ class CifFile(FileBase):
         regions['v_high'] = self._get_regions(v_confident)
 
         return regions
-    
+
     def _get_regions(self, indices):
         """
         Get the regions from the indices
@@ -437,7 +443,6 @@ class CifFile(FileBase):
             group = list(map(int, group))
             regions.append((group[0], group[-1]))
         return regions
-
 
     def check_ligand(self, chain: Chain) -> bool:
         """
@@ -465,7 +470,7 @@ class CifFile(FileBase):
                         if chain.id in sequence_data["id"]:
                             return True
         return False
-    
+
     def to_file(self, output_file: Union[str, Path]) -> None:
         """
         Save the cif file
