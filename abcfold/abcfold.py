@@ -184,17 +184,16 @@ by default"
                     if sequence_data is None:
                         sequence_data = model.get_model_sequence_data()
                     model_data = {"model_id": model.name,
-                                    "model_source": "AlphaFold3",
-                                    "model_path": model.pathway.as_posix(),
-                                    "plddt_regions": model.plddt_regions,
-                                    "avg_plddt": model.average_plddt,
-                                    "h_score": model.h_score,
-                                    "clashes": model.clashes,
-                                    "pae_path": Path(
-                                        plot_dict[model.pathway.as_posix()]
-                                        ).relative_to(args.output_dir).as_posix()}
+                                  "model_source": "AlphaFold3",
+                                  "model_path": model.pathway.as_posix(),
+                                  "plddt_regions": model.plddt_regions,
+                                  "avg_plddt": model.average_plddt,
+                                  "h_score": model.h_score,
+                                  "clashes": model.clashes,
+                                  "pae_path": Path(
+                                      plot_dict[model.pathway.as_posix()]
+                                      ).relative_to(args.output_dir).as_posix()}
                     alphafold_models['models'].append(model_data)
-
 
         boltz_models = {'models': []}
         if args.boltz1:
@@ -204,15 +203,15 @@ by default"
                 if sequence_data is None:
                     sequence_data = model.get_model_sequence_data()
                 model_data = {"model_id": model.name,
-                                "model_source": "Boltz-1",
-                                "model_path": model.pathway.as_posix(),
-                                "plddt_regions": model.plddt_regions,
-                                "avg_plddt": model.average_plddt,
-                                "h_score": model.h_score,
-                                "clashes": model.clashes,
-                                "pae_path": Path(
-                                    plot_dict[model.pathway.as_posix()]
-                                    ).relative_to(args.output_dir).as_posix()}
+                              "model_source": "Boltz-1",
+                              "model_path": model.pathway.as_posix(),
+                              "plddt_regions": model.plddt_regions,
+                              "avg_plddt": model.average_plddt,
+                              "h_score": model.h_score,
+                              "clashes": model.clashes,
+                              "pae_path": Path(
+                                  plot_dict[model.pathway.as_posix()]
+                                  ).relative_to(args.output_dir).as_posix()}
                 boltz_models['models'].append(model_data)
 
         chai_models = {'models': []}
@@ -224,18 +223,19 @@ by default"
                     if sequence_data is None:
                         sequence_data = model.get_model_sequence_data()
                     model_data = {"model_id": model.name,
-                                    "model_source": "Chai-1",
-                                    "model_path": model.pathway.as_posix(),
-                                    "plddt_regions": model.plddt_regions,
-                                    "avg_plddt": model.average_plddt,
-                                    "h_score": model.h_score,
-                                    "clashes": model.clashes,
-                                    "pae_path": Path(
-                                        plot_dict[model.pathway.as_posix()]
-                                        ).relative_to(args.output_dir).as_posix()}
+                                  "model_source": "Chai-1",
+                                  "model_path": model.pathway.as_posix(),
+                                  "plddt_regions": model.plddt_regions,
+                                  "avg_plddt": model.average_plddt,
+                                  "h_score": model.h_score,
+                                  "clashes": model.clashes,
+                                  "pae_path": Path(
+                                      plot_dict[model.pathway.as_posix()]
+                                      ).relative_to(args.output_dir).as_posix()}
                     chai_models['models'].append(model_data)
 
-        combined_models = alphafold_models["models"] + boltz_models["models"] + chai_models["models"]
+        combined_models = alphafold_models["models"] + \
+            boltz_models["models"] + chai_models["models"]
 
         sequence = ""
         for key in sequence_data.keys():
@@ -244,13 +244,13 @@ by default"
         chain_data = {}
         ref = 0
         for key in sequence_data.keys():
-            chain_data['Chain ' + key] = (ref, len(sequence_data[key]) + ref -1)
+            chain_data['Chain ' + key] = (ref, len(sequence_data[key]) + ref - 1)
             ref += len(sequence_data[key])
 
         results_dict = {"sequence": sequence,
                         "models": combined_models,
-                        "plotly_path" : plot_dict['plddt'].relative_to(
-                            args.output_dir).as_posix(),
+                        "plotly_path": plot_dict['plddt'].relative_to(
+                            args.output_dir.resolve()).as_posix(),
                         "chain_data": chain_data}
         results_json = json.dumps(results_dict)
 
@@ -275,7 +275,7 @@ by default"
                                     http.server.SimpleHTTPRequestHandler) as httpd:
             logger.info(f"Serving at port {PORT}")
             # Open the main HTML page in the default web browser
-            webbrowser.open(f"http://localhost:{PORT}/{MAIN_PAGE}")
+            webbrowser.open(f"http://localhost:{PORT}/index.html")
             # Keep the server running
             httpd.serve_forever()
 
@@ -310,23 +310,25 @@ def plots(outputs: list, output_dir: Path):
 
 
 def render_template(in_file_path, out_file_path, **kwargs):
-   """
-   Templates the given file with the keyword arguments.
+    """
+    Templates the given file with the keyword arguments.
 
-   Parameters
-   ----------
-   in_file_path : Path
-      The path to the template
-   out_file_path : Path
-      The path to output the templated file
-   **kwargs : dict
-      Variables to use in templating
-   """
-   env = Environment(loader=FileSystemLoader(in_file_path.parent), keep_trailing_newline=True)
-   template = env.get_template(in_file_path.name)
-   output = template.render(**kwargs)
-   with open(str(out_file_path), "w") as f:
-      f.write(output)
+    Parameters
+    ----------
+    in_file_path : Path
+        The path to the template
+    out_file_path : Path
+        The path to output the templated file
+    **kwargs : dict
+        Variables to use in templating
+    """
+    env = Environment(
+        loader=FileSystemLoader(in_file_path.parent),
+        keep_trailing_newline=True)
+    template = env.get_template(in_file_path.name)
+    output = template.render(**kwargs)
+    with open(str(out_file_path), "w") as f:
+        f.write(output)
 
 
 def main():
