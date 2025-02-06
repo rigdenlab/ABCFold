@@ -6,6 +6,7 @@ import shutil
 import socketserver
 import sys
 import tempfile
+import textwrap
 import webbrowser
 from pathlib import Path
 from typing import Dict
@@ -354,6 +355,7 @@ def output_open_html_script(file_out: str):
         httpd.serve_forever()
     """
 
+    script = textwrap.dedent(script)
     with open(file_out, "w") as f:
         f.write(script)
 
