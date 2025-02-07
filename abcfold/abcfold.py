@@ -174,10 +174,9 @@ by default"
         plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
 
         # Compile data to make output page
-
+        sequence_data = None
         alphafold_models = {'models': []}
         if args.alphafold3:
-            sequence_data = None
             for seed in ao.output.keys():
                 for idx in ao.output[seed].keys():
                     model = ao.output[seed][idx]['cif']
