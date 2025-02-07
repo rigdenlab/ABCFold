@@ -175,8 +175,10 @@ by default"
 
         # Compile data to make output page
         sequence_data = None
+        programs_run = []
         alphafold_models = {'models': []}
         if args.alphafold3:
+            programs_run.append("AlphaFold3")
             for seed in ao.output.keys():
                 for idx in ao.output[seed].keys():
                     model = ao.output[seed][idx]['cif']
@@ -197,6 +199,7 @@ by default"
 
         boltz_models = {'models': []}
         if args.boltz1:
+            programs_run.append("Boltz-1")
             for idx in bo.output.keys():
                 model = bo.output[idx]['cif']
                 model.check_clashes()
@@ -216,6 +219,7 @@ by default"
 
         chai_models = {'models': []}
         if args.chai1:
+            programs_run.append("Chai-1")
             for idx in co.output.keys():
                 if idx >= 0:
                     model = co.output[idx]['cif']
@@ -257,12 +261,19 @@ by default"
         if not args.output_dir.joinpath('.feature_viewer').exists():
             shutil.copytree(HTML_DIR, args.output_dir / '.feature_viewer')
 
+        if len(programs_run) > 1:
+            programs = "Structure predictions for: " + ", ".join(programs_run[:-1]) + \
+                " and " + programs_run[-1]
+        else:
+            programs = "Structure predictions for: " + programs_run[0]
+
         # Create the index page
         HTML_OUT = args.output_dir.joinpath("index.html")
         html_out = Path(HTML_OUT).resolve()
         render_template(HTML_TEMPLATE, html_out,
                         # kwargs appear as variables in the template
                         abcfold_html_dir='.feature_viewer',
+                        programs=programs,
                         results_json=results_json,
                         version=0.1)
         logger.info(f"Output page written to {HTML_OUT}")
@@ -276,7 +287,7 @@ by default"
         # Start the server
         with socketserver.TCPServer(("", PORT),
                                     http.server.SimpleHTTPRequestHandler) as httpd:
-            logger.info(f"Serving at port {PORT}")
+            logger.info(f"Serving at port {PORT}: http://localhost:{PORT}/index.html")
             # Open the main HTML page in the default web browser
             webbrowser.open(f"http://localhost:{PORT}/index.html")
             # Keep the server running
