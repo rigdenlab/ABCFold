@@ -74,22 +74,20 @@ ABCFold will output the AlphaFold, Boltz and/or Chai models in the `<output_dir>
 
 The main output page will look like this:
 
-![main_page](abcfold/html/static/main_page.png){ width=50% }
+![main_page](abcfold/html/static/main_page.png)
 
 With the links in the table leading to the PAE plots:
 
-![pae_viewer](abcfold/html/static/pae_viewer.png){ width=50% }
+![pae_viewer](abcfold/html/static/pae_viewer.png)
 
 The output page will be available on `http://localhost:8000/index.html`. If you need to rerun the server to create the output (e.g. running on a cluster), 
 you will find `open_output.py` in your `<output_dir>`. 
 
-Running:
+You can then open the output pages by running:
 
 ```bash
 python open_output.py
-```
-
-will open the output page. 
+``` 
 
 
 ## Extra Features
