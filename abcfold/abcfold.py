@@ -282,16 +282,32 @@ by default"
         os.chdir(args.output_dir)
 
         # Make a script to open the output HTML file in the default web browser
-        output_open_html_script("open_output.py")
+        output_open_html_script("open_output.py", port=PORT)
 
-        # Start the server
-        with socketserver.TCPServer(("", PORT),
-                                    http.server.SimpleHTTPRequestHandler) as httpd:
-            logger.info(f"Serving at port {PORT}: http://localhost:{PORT}/index.html")
-            # Open the main HTML page in the default web browser
-            webbrowser.open(f"http://localhost:{PORT}/index.html")
-            # Keep the server running
-            httpd.serve_forever()
+        try:
+            # Start the server
+            with socketserver.TCPServer(("", PORT),
+                                        NoCacheHTTPRequestHandler) as httpd:
+                logger.info(
+                    f"Serving at port {PORT}: http://localhost:{PORT}/index.html"
+                    )
+                logger.info("Press Ctrl+C to stop the server")
+                # Open the main HTML page in the default web browser
+                webbrowser.open(f"http://localhost:{PORT}/index.html")
+                # Keep the server running
+                httpd.serve_forever()
+        except KeyboardInterrupt:
+            logger.info("Server stopped")
+            sys.exit(0)
+
+
+class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Cache-Control",
+                         "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
 
 
 def plots(outputs: list, output_dir: Path):
@@ -345,22 +361,28 @@ def render_template(in_file_path, out_file_path, **kwargs):
         f.write(output)
 
 
-def output_open_html_script(file_out: str):
+def output_open_html_script(file_out: str, port: int = 8000):
     """
     Make a python script to open the output HTML file in the default web browser
     """
 
-    script = """
+    script = f"""
     import http.server
     import socketserver
     import webbrowser
 
-    PORT = 8000
+    class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+        def end_headers(self):
+            self.send_header("Cache-Control",
+                            "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+            super().end_headers()
 
-    with socketserver.TCPServer(("", PORT),
-        http.server.SimpleHTTPRequestHandler) as httpd:
+    with socketserver.TCPServer(("", {port}),
+        NoCacheHTTPRequestHandler) as httpd:
         # Open the main HTML page in the default web browser
-        webbrowser.open(f"http://localhost:{PORT}/index.html")
+        webbrowser.open(f"http://localhost:{port}/index.html")
         # Keep the server running
         httpd.serve_forever()
     """
