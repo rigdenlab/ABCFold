@@ -14,10 +14,22 @@ Scripts to run AlphaFold3, Boltz-1 and Chai-1 with MMseqs2 MSAs and custom templ
 
 ## Installation
 
-We recommend installing this package in a virtual environment or conda / mamba environment.
+We recommend installing this package in a virtual environment or conda / micromamba environment.
 
+To set up a conda/micromamba environment, run:
+```bash
+conda env create abc python=3.11
+conda activate abc
+```
+
+or 
 
 ```bash
+micromamba env create abc python=3.11
+micromamba activate abc
+```
+
+
 To install the required dependencies, run:
 
 ```bash
@@ -38,7 +50,7 @@ python -m pre-commit install
 
 #### Running ABCfold
 
-This script will run Alphafold3, Boltz-1 and Chai-1 consecutively. The program takes an input of a json in the Alphafold3 format only. Please make sure you have the AlphaFold3 on your system (Instructions [here](https://github.com/google-deepmind/alphafold3/blob/main/docs/installation.md) and have procured the model parameters and the databases. Boltz-1 and Chai-1 are installed upon runtime.
+This script will run Alphafold3, Boltz-1 and Chai-1 consecutively. The program takes an input of a json in the Alphafold3 format only. Please make sure you have the AlphaFold3 on your system (Instructions [here](https://github.com/google-deepmind/alphafold3/blob/main/docs/installation.md)) and have procured the model parameters and the databases. Boltz-1 and Chai-1 are installed upon runtime.
 
 ```bash
 abcfold <input_json>  <output_dir> -abc --model_params <model_params> --database <database> --mmseqs2 --num_templates <num_templates> --custom_template <custom_template> --custom_template_chain <custom_template_chain> --target_id <target_id>  --override --save_input
@@ -55,6 +67,30 @@ abcfold <input_json>  <output_dir> -abc --model_params <model_params> --database
 - `<target_id>` : [conditionally required] The ID of the sequence the custom template relates to, only required if modelling a complex.
 - `--override`: [optional] Flag to override the existing output directory.
 - `--save_input`: [optional] Flag to save the input JSON file in the output directory.
+
+### Output
+
+ABCFold will output the AlphaFold, Boltz and/or Chai models in the `<output_dir>`, it will also produce an output page containing a results table and informative [PAE viewer](https://gitlab.gwdg.de/general-microbiology/pae-viewer). 
+
+The main output page will look like this:
+
+![main_page](abcfold/html/static/main_page.png){ width=50% }
+
+With the links in the table leading to the PAE plots:
+
+![pae_viewer](abcfold/html/static/pae_viewer.png){ width=50% }
+
+The output page will be available on `http://localhost:8000/index.html`. If you need to rerun the server to create the output (e.g. running on a cluster), 
+you will find `open_output.py` in your `<output_dir>`. 
+
+Running:
+
+```bash
+python open_output.py
+```
+
+will open the output page. 
+
 
 ## Extra Features
 
@@ -145,9 +181,6 @@ mmseqs2msa --input_json <input_json> --output_json <output_json> --templates --n
 - `<custom_template>` : Path to the custom template file in mmCIF format.
 - `<custom_template_chain>` : [conditionally required] The chain ID of the chain to use in your custom template, only required if using a multi-chain template.
 - `<target_id>` : [conditionally required] The ID of the sequence the custom template relates to, only required if modelling a complex.
-
-
-
 
 
 ### Common Issues
