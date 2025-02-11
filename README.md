@@ -22,7 +22,7 @@ conda env create abc python=3.11
 conda activate abc
 ```
 
-or 
+or
 
 ```bash
 micromamba env create abc python=3.11
@@ -70,7 +70,7 @@ abcfold <input_json>  <output_dir> -abc --model_params <model_params> --database
 
 ### Output
 
-ABCFold will output the AlphaFold, Boltz and/or Chai models in the `<output_dir>`, it will also produce an output page containing a results table and informative [PAE viewer](https://gitlab.gwdg.de/general-microbiology/pae-viewer). 
+ABCFold will output the AlphaFold, Boltz and/or Chai models in the `<output_dir>`, it will also produce an output page containing a results table and informative [PAE viewer](https://gitlab.gwdg.de/general-microbiology/pae-viewer).
 
 The main output page will look like this:
 
@@ -80,14 +80,14 @@ With the links in the table leading to the PAE plots:
 
 ![pae_viewer](abcfold/html/static/pae_viewer.png)
 
-The output page will be available on `http://localhost:8000/index.html`. If you need to rerun the server to create the output (e.g. running on a cluster), 
-you will find `open_output.py` in your `<output_dir>`. 
+The output page will be available on `http://localhost:8000/index.html`. If you need to rerun the server to create the output (e.g. running on a cluster),
+you will find `open_output.py` in your `<output_dir>`.
 
 You can then open the output pages by running:
 
 ```bash
 python open_output.py
-``` 
+```
 
 
 ## Extra Features
