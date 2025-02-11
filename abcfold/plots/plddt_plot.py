@@ -110,25 +110,16 @@ def plot_plddt(
     buttons = []
     num_models = len(cif_models_dict[next(iter(cif_models_dict))])
 
-    # Add a button to show all traces
-    buttons.append(
-        dict(
-            method="update",
-            args=[
-                {"visible": [True] * len(fig.data)},
-                {"title": "All Models"},
-            ],
-            label="All Models",
-        )
-    )
-
     # Add buttons for each individual model
     for model_index in range(num_models):
         button = dict(
             method="update",
             args=[
-                {"visible": [False] * len(fig.data)},
-                {"title": f"Model {model_index + 1}"},
+                {
+                    "visible":
+                    [i % num_models == model_index for i in range(len(fig.data))]
+                },
+                {"showlegend": True}
             ],
             label=f"Model {model_index + 1}",
         )
@@ -140,6 +131,18 @@ def plot_plddt(
                 raise ValueError("MyPy isn't convinced that button_args is a list, \
                                  and with good reason.")
         buttons.append(button)
+
+    # Add a button to show all traces
+    buttons.append(
+        dict(
+            method="update",
+            args=[
+                {"visible": [True] * len(fig.data)},
+                {"showlegend": True}
+            ],
+            label="All",
+        )
+    )
 
     # Add the updatemenu to the layout
     fig.update_layout(
