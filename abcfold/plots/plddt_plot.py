@@ -8,6 +8,8 @@ import plotly.graph_objects as go
 import plotly.offline as pyo
 
 from abcfold.processoutput.file_handlers import CifFile
+from abcfold.processoutput.utils import (get_gap_indicies,
+                                         insert_none_by_indices)
 
 logger = logging.getLogger("logger")
 
@@ -50,39 +52,30 @@ def plot_plddt(
 
     colours = list(px.colors.qualitative.T10)
     colour_index = 0
-    added_lines = []
+    line_ranges: dict = {}
 
     cif_models = [
         cif_file for cif_files in cif_models_dict.values() for cif_file in cif_files
     ]
+    indicies = get_gap_indicies(*cif_models)
 
+    indicies_index = 0
     for i, (key, cif_models) in enumerate(cif_models_dict.items()):
         for cif_model in cif_models:
+
             plddt = cif_model.residue_plddts
+
+            plddt = insert_none_by_indices(indicies[indicies_index], plddt)
+
+            indicies_index += 1
             chain_ranges = {
-                chain: range(len(plddt))
+                chain: len(plddt)
                 for chain, plddt in cif_model.residue_plddt_per_chain.items()
             }
-            counter = 0
-            for chain, chain_range in chain_ranges.items():
-                counter += chain_range[-1]
-                chain_name = f"Chain {chain}"
-
-                if chain_name not in added_lines:
-                    fig.add_vline(
-                        x=counter,
-                        line=dict(
-                            color=colours[colour_index % len(colours)], dash="dash"
-                        ),
-                        opacity=chain_line_occupancy,
-                        annotation_text=Bold(chain_name),
-                        annotation_font_size=15,
-                        annotation_position="top left",
-                        annotation_textangle=-90,
-                    )
-
-                    colour_index += 1
-                    added_lines.append(chain_name)
+            line_ranges = {
+                chain: max(chain_ranges[chain], line_ranges.get(chain, 0))
+                for chain in chain_ranges
+            }
 
             fig.add_trace(
                 go.Scatter(
@@ -95,6 +88,23 @@ def plot_plddt(
                     line=dict(dash=dash, width=line_width),
                 )
             )
+
+    counter = 0
+    for chain, chain_range in line_ranges.items():
+        chain_name = f"Chain {chain}"
+        counter += chain_range
+        fig.add_vline(
+            x=counter - 1,
+            line=dict(color=colours[colour_index % len(colours)], dash="dash"),
+            opacity=chain_line_occupancy,
+            annotation_text=Bold(chain_name),
+            annotation_font_size=15,
+            annotation_position="top left",
+            annotation_textangle=-90,
+        )
+
+        colour_index += 1
+
     models_no = len(cif_models)
     sources = i + 1
 
