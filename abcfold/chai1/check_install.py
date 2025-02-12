@@ -30,3 +30,5 @@ def check_chai1():
                 if proc.stderr:
                     logger.error(proc.stderr.read().decode())
                 raise subprocess.CalledProcessError(proc.returncode, proc.args)
+
+        # add pytroch lightning to install
