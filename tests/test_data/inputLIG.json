@@ -21,13 +21,8 @@
 
       }
     },
-    {
-        "ligand":{
-            "id": "F",
-            "ccdCodes": "NA+"
 
-      }
-    },
+
     {
         "ligand":{
             "id": ["G", "H"],

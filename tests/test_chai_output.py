@@ -25,7 +25,7 @@ def test_chai_pae_to_af3_pae(output_objs):
     comparison_af3_output = output_objs.af3_output.af3_pae_files["seed-1"][0].data
     pae_file = output_objs.chai_output.pae_files[-1]
     for i, cif_file in enumerate(output_objs.chai_output.cif_files):
-
+        assert cif_file.input_params
         pae = Af3Pae.from_chai1(
             pae_file.data[i],
             cif_file,

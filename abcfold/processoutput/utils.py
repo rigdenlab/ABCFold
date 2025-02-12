@@ -53,8 +53,8 @@ class Af3Pae:
     @classmethod
     def from_chai1(cls, scores: np.ndarray, cif_file: CifFile):
         af3_scores = AF3TEMPLATE.copy()
-
         chain_lengths = cif_file.chain_lengths(mode="residues", ligand_atoms=True)
+
         residue_lengths = cif_file.chain_lengths(mode="all", ligand_atoms=True)
 
         atom_chain_ids = flatten(

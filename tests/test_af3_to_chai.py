@@ -28,10 +28,10 @@ GMRES
 GMRES
 >protein|C
 YANEN
->ligand|D
-Nc1ncnc2n(cnc12)C3OC(CO[P](O)(=O)O[P](O)(=O)O[P](O)(O)=O)C(O)C3O
->ligand|E
-Nc1ncnc2n(cnc12)C3OC(CO[P](O)(=O)O[P](O)(=O)O[P](O)(O)=O)C(O)C3O
+>protein|D
+(ATP)
+>protein|E
+(ATP)
 >ligand|F
 CC(=O)OC1C[NH+]2CCC1CC2
 """
@@ -42,6 +42,7 @@ CC(=O)OC1C[NH+]2CCC1CC2
         with open(filename, "r") as f:
             data = f.read()
         print(data)
+        print(reference)
         assert data == reference
 
 
@@ -101,14 +102,12 @@ def test_af3_to_chai_ligand(test_data):
             "CDGRFPERYEWLLEQIQIWGAKIYQTNATEHDHNMTYIQALRHFSTFANGLHLSKQPINLANLLALSSP"
             "IYRLELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGD"
             "YSEQFLKESRQLLQQANDLKQG\n"
-            ">ligand|C\n"
-            "Nc1ncnc2n(cnc12)C3OC(CO[P](O)(=O)O[P](O)(=O)O[P](O)(O)=O)C(O)C3O\n"
-            ">ligand|D\n"
-            "Nc1ncnc2n(cnc12)C3OC(CO[P](O)(=O)O[P](O)(=O)O[P](O)(O)=O)C(O)C3O\n"
+            ">protein|C\n"
+            "(ATP)\n"
+            ">protein|D\n"
+            "(ATP)\n"
             ">ligand|E\n"
             "CC(=O)OC1C[NH+]2CCC1CC2\n"
-            ">ligand|F\n"
-            "[Na+]\n"
             ">ligand|G\n"
             "CCCCCCCCCCCC(O)=O\n"
             ">ligand|H\n"
@@ -154,14 +153,14 @@ def test_chai_output_constraints(test_data):
         assert len(df) == 2
 
         assert df.iloc[0]["chainA"] == "A"
-        assert df.iloc[0]["res_idxA"] == "C387"
+        assert df.iloc[0]["res_idxA"] == "C387@CA"
         assert df.iloc[0]["chainB"] == "B"
-        assert df.iloc[0]["res_idxB"] == "Y101"
+        assert df.iloc[0]["res_idxB"] == "Y101@CA"
         assert df.iloc[0]["connection_type"] == "contact"
         assert df.iloc[0]["confidence"] == 1.0
         assert df.iloc[0]["min_distance_angstrom"] == 0.0
         assert df.iloc[0]["max_distance_angstrom"] == 5.5
-        assert df.iloc[0]["comment"] == "No comment"
+        assert df.iloc[0]["comment"] == "Covalent Bond"
         assert df.iloc[0]["restraint_id"] == "restraint_0"
 
 
@@ -210,3 +209,14 @@ def test_ccd_to_smiles():
 
     smiles = chai_fasta.ccd_to_smiles("NOT_A_CCD")
     assert smiles is None
+
+
+@pytest.mark.skipif(not run_chai1, reason="chai_lab not installed")
+def test_af3_data_json_to_fasta(output_objs):
+    try:
+        af3_json = output_objs.af3_output.input_json
+        with tempfile.TemporaryDirectory() as temp_dir:
+            chai_fasta = ChaiFasta(temp_dir)
+            chai_fasta.json_to_fasta(af3_json)
+    except TypeError:
+        assert False

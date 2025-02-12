@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
+from abcfold.chai1.af3_to_chai import ChaiFasta
 from abcfold.processoutput.file_handlers import (CifFile, ConfidenceJsonFile,
                                                  FileTypes, NpyFile, NpzFile)
 from abcfold.processoutput.utils import Af3Pae
@@ -61,6 +62,7 @@ class ChaiOutput:
             self.output_dir = self.output_dir.rename(
                 self.output_dir.parent / f"chai1_{self.name}"
             )
+        self.input_fasta = self.get_input_fasta()
 
         self.output = self.process_chai_output()
         self.pae_files = [
@@ -92,6 +94,7 @@ class ChaiOutput:
 
             elif file_type == FileTypes.CIF.value:
                 file_ = CifFile(str(pathway), self.input_params)
+                file_ = self.update_chain_labels(file_)
 
             elif file_type == FileTypes.NPY.value:
                 file_ = NpyFile(str(pathway))
@@ -147,3 +150,30 @@ class ChaiOutput:
                 json.dump(pae.scores, f)
 
             self.output[i]["af3_pae"] = ConfidenceJsonFile(out_name)
+
+    def get_input_fasta(self) -> ChaiFasta:
+        """
+        Function to get the input fasta file used for the Chai-1 run
+
+        Returns:
+            ChaiFasta: ChaiFasta object containing the input fasta file
+
+        """
+
+        ch = ChaiFasta(self.output_dir, create_files=False)
+        ch.json_to_fasta(self.input_params)
+
+        return ch
+
+    def update_chain_labels(self, cif_file: CifFile) -> CifFile:
+        """
+        Function to update the chain labels in the CIF file
+
+        Args:
+            cif_file (CifFile): CifFile object to update the chain labels for
+
+        """
+
+        cif_file.relabel_chains(self.input_fasta.chain_ids)
+        cif_file.to_file(cif_file.pathway)
+        return CifFile(cif_file.pathway, self.input_params)

@@ -13,7 +13,7 @@ from typing import Dict
 
 from jinja2 import Environment, FileSystemLoader
 
-from abcfold.abc_script_utils import make_dir, setup_logger
+from abcfold.abc_script_utils import check_input_json, make_dir, setup_logger
 from abcfold.add_mmseqs_msa import add_msa_to_json
 from abcfold.argparse_utils import (alphafold_argparse_util,
                                     boltz_argparse_util, chai_argparse_util,
@@ -54,6 +54,9 @@ def run(args, config, defaults, config_file):
 
     args.output_dir = Path(args.output_dir)
 
+    if args.mmseqs2:
+        logger.error("MMSeqs2 Selected, all other MSAs will be ignored")
+
     make_dir(args.output_dir, overwrite=args.override)
     make_dir(args.output_dir.joinpath(PLOTS_DIR))
 
@@ -74,6 +77,13 @@ def run(args, config, defaults, config_file):
     elif not args.model_params or not Path(args.model_params).exists():
         logger.error(f"Model parameters directory not found: {args.model_params}")
         sys.exit(1)
+
+    # Ensure that the input json file is valid
+    args.input_json = check_input_json(
+        args.input_json,
+        output_dir=args.output_dir,
+        use_af3_templates=args.use_af3_template_search,
+    )
 
     with open(args.input_json, "r") as f:
         input_params = json.load(f)
@@ -140,6 +150,7 @@ by default"
             af3_out_dir = list(args.output_dir.iterdir())[0]
             ao = AlphafoldOutput(af3_out_dir, input_params, name)
             outputs.append(ao)
+            run_json = ao.input_json
 
         if args.boltz1:
             from abcfold.run_boltz import run_boltz

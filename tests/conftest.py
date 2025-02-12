@@ -42,7 +42,7 @@ tests from the root of the repository or the tests directory"
     nt = namedtuple("TestData", d)
     n = nt(**d)
 
-    return n
+    yield n
 
 
 @pytest.fixture(scope="session")
@@ -68,17 +68,18 @@ def output_objs():
 
     af3_output = AlphafoldOutput(
         adir,
-        input_params,
+        input_params.copy(),
         name,
     )
     boltz_output = BoltzOutput(
         bdir,
-        input_params,
+        input_params.copy(),
         name,
     )
+
     chai_output = ChaiOutput(
         cdir,
-        input_params,
+        input_params.copy(),
         name,
     )
 
@@ -89,4 +90,4 @@ def output_objs():
     nt = namedtuple("output_objs", d)
     n = nt(**d)
 
-    return n
+    yield n

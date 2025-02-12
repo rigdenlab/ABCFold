@@ -54,7 +54,12 @@ def run_chai(
 
         cmd = (
             generate_chai_command(
-                out_fasta, msa_dir, out_constraints, output_dir, number_of_models
+                out_fasta,
+                msa_dir,
+                out_constraints,
+                output_dir,
+                number_of_models,
+                num_recycles=num_recycles,
             )
             if not test
             else generate_chai_test_command()

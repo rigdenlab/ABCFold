@@ -1,7 +1,7 @@
 # import numpy as np
 import logging
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -103,6 +103,7 @@ def plot_plddt(
                 name=f"Model {model_index + 1}",
                 line=dict(dash=dash, width=line_width, color=color),
                 visible=True,  # Ensure traces start as visible
+                showlegend=True,
             )
             fig.add_trace(trace)
 
@@ -112,37 +113,38 @@ def plot_plddt(
 
     # Add buttons for each individual model
     for model_index in range(num_models):
-        button = dict(
-            method="update",
-            args=[
-                {
-                    "visible":
-                    [i % num_models == model_index for i in range(len(fig.data))]
-                },
-                {"showlegend": True}
-            ],
-            label=f"Model {model_index + 1}",
-        )
-        button_args = button["args"]
-        for i in range(model_index, len(fig.data), num_models):
-            if isinstance(button_args, list):
-                button_args[0]["visible"][i] = True
-            else:
-                raise ValueError("MyPy isn't convinced that button_args is a list, \
-                                 and with good reason.")
-        buttons.append(button)
-
-    # Add a button to show all traces
-    buttons.append(
-        dict(
-            method="update",
+        button: Dict[str, Any] = dict(
+            method="restyle",
             args=[
                 {"visible": [True] * len(fig.data)},
-                {"showlegend": True}
+                [model_index]
             ],
-            label="All",
+            label=f"Model {model_index + 1}",
+            args2=[
+                {"visible": [False] * len(fig.data)},
+                [model_index]
+            ],
+
         )
+        button_args = button["args"]
+        button_args2 = button["args2"]
+        for i in range(model_index, len(fig.data), num_models):
+            if isinstance(button_args, list) and isinstance(button_args2, list):
+                button_args[0]["visible"][i] = True
+                button_args2[0]["visible"][i] = False
+            else:
+                raise ValueError("MyPy isn't convinced that button_args is a list, \
+                                and with good reason.")
+        buttons.append(button)
+
+    # Add a button to toggle all traces
+    all_button: Dict[str, Any] = dict(
+        method="update",
+        args=[{"visible": [True] * len(fig.data)}],
+        args2=[{"visible": [False] * len(fig.data)}],  # Toggle state
+        label="All Models",
     )
+    buttons.append(all_button)
 
     # Add the updatemenu to the layout
     fig.update_layout(
@@ -151,11 +153,11 @@ def plot_plddt(
                 type="buttons",
                 showactive=True,
                 buttons=buttons,
-                direction="down",
-                x=1.03,
+                direction="left",
+                x=0.5,
                 xanchor="center",
-                y=0,
-                yanchor="bottom",
+                y=-0.1,
+                yanchor="top",
             )
         ],
         xaxis_title=Bold("Residue Number"),
@@ -163,6 +165,7 @@ def plot_plddt(
         title=Bold("pLDDT Distribution"),
         plot_bgcolor="white",
     )
+
     if show:
         fig.show()
 

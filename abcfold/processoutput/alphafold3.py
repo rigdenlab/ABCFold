@@ -65,6 +65,7 @@ class AlphafoldOutput:
             seed: [value["summary"] for value in self.output[seed].values()]
             for seed in self.seeds
         }
+        self.input_json = list(self.output_dir.glob("*_data.json"))[0]
 
     def process_af3_output(self):
         """

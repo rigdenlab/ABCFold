@@ -20,6 +20,7 @@ def mmseqs2_argparse_util(parser):
         default=20,
         help="Number of templates to include in the output json",
     )
+
     return parser
 
 
@@ -108,6 +109,12 @@ def alphafold_argparse_util(parser):
         "--override",
         help="Override the existing output directory, if it exists",
         action="store_true",
+    )
+
+    parser.add_argument(
+        "--use_af3_template_search",
+        action="store_true",
+        help="If providing your own MSA, allow Alphafold3 to search for templates",
     )
 
     return parser

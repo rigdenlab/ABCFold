@@ -1,10 +1,11 @@
+import json
 import logging
 import os
 import shutil
 import time
 from io import StringIO
 from pathlib import Path
-from typing import Mapping, Union
+from typing import Mapping, Optional, Union
 
 from Bio import Align
 from Bio.PDB import MMCIFIO, MMCIFParser
@@ -280,6 +281,16 @@ contain chain {custom_template_chain}"
 
 
 def make_dir(dir_path: Union[str, Path], overwrite: bool = False):
+    """
+    Make a directory and return the Path object.
+
+    Args:
+        dir_path: The path to the directory to create.
+        overwrite: Whether to delete the directory if it already exists.
+
+    Returns:
+        The Path object for the created directory.
+    """
     dir_path = Path(dir_path)
     if dir_path.exists():
         if overwrite:
@@ -292,3 +303,52 @@ def make_dir(dir_path: Union[str, Path], overwrite: bool = False):
 
     dir_path.mkdir(parents=True, exist_ok=True)
     return dir_path
+
+
+def check_input_json(
+    input_json: Union[str, Path],
+    output_dir: Optional[Union[str, Path]] = None,
+    use_af3_templates: bool = False,
+    test: bool = False,
+):
+    """
+    Check the input json file for missing fields and add default values.
+
+    Args:
+        input_json: The path to the input json file.
+        use_af3_templates: Whether to use the AlphaFold3 templates.
+
+    Returns:
+        None
+    """
+    input_json = Path(input_json)
+
+    output_json = (
+        input_json.parent.joinpath("abc_" + input_json.name)
+        if output_dir is None
+        else Path(output_dir).joinpath("abc_" + input_json.name)
+    )
+    with open(input_json, "r") as f:
+        input_data = json.load(f)
+
+    for sequence in input_data["sequences"]:
+        for sequence_type in sequence:
+            if (
+                "unpairedMsa" in sequence[sequence_type]
+                or "unpairedMsaPath" in sequence[sequence_type]
+            ):
+                if "templates" not in sequence[sequence_type]:
+
+                    sequence[sequence_type]["templates"] = (
+                        None if use_af3_templates else []
+                    )
+
+                if "pairedMsa" not in sequence[sequence_type]:
+                    sequence[sequence_type]["pairedMsa"] = ""
+
+    if test:
+        return input_data
+    with open(output_json, "w") as f:
+        json.dump(input_data, f, indent=4)
+
+    return output_json

@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
+from abcfold.boltz1.af3_to_boltz1 import BoltzYaml
 from abcfold.processoutput.file_handlers import (CifFile, ConfidenceJsonFile,
                                                  FileTypes, ModelCount,
                                                  NpzFile)
@@ -69,7 +70,7 @@ class BoltzOutput:
             self.output_dir = self.output_dir.rename(
                 self.output_dir.parent / f"boltz-1_{name}"
             )
-
+        self.yaml_input_obj = self.get_input_yaml()
         self.output = self.process_boltz_output()
 
         self.pae_files = [value["pae"] for value in self.output.values()]
@@ -96,6 +97,7 @@ class BoltzOutput:
                 file_ = NpzFile(str(pathway))
             elif file_type == FileTypes.CIF.value:
                 file_ = CifFile(str(pathway), self.input_params)
+
             elif file_type == FileTypes.JSON.value:
                 file_ = ConfidenceJsonFile(str(pathway))
             else:
@@ -142,7 +144,7 @@ class BoltzOutput:
             of residues in the CIF file
         """
         for cif_file, plddt_scores in zip(self.cif_files, self.plddt_files):
-
+            cif_file = self.update_chain_labels(cif_file)
             plddt_score = plddt_scores.data["plddt"]
             if max(plddt_score) <= 1:
                 plddt_score = (plddt_score * 100).astype(float)
@@ -150,7 +152,6 @@ class BoltzOutput:
             chain_lengths = cif_file.chain_lengths(
                 mode=ModelCount.RESIDUES, ligand_atoms=True
             )
-
             assert sum(chain_lengths.values()) == len(plddt_score), "Length mismatch"
 
             counter = 0
@@ -191,3 +192,29 @@ class BoltzOutput:
                 json.dump(pae.scores, f)
 
             self.output[i]["af3_pae"] = ConfidenceJsonFile(out_name)
+
+    def update_chain_labels(self, cif_file) -> CifFile:
+        """
+        Function to update the chain labels in the CIF file
+
+        Args:
+            cif_file (CifFile): CifFile object to update the chain labels for
+
+        """
+        cif_file.relabel_chains(
+            self.yaml_input_obj.chain_ids, self.yaml_input_obj.id_links
+        )
+        return cif_file
+
+    def get_input_yaml(self) -> BoltzYaml:
+        """
+        Get the input yaml file used for the Boltz-1 run
+
+        Returns:
+            BoltzYaml: Object containing the input yaml file
+        """
+
+        by = BoltzYaml(self.output_dir, create_files=False)
+        by.json_to_yaml(self.input_params)
+
+        return by
