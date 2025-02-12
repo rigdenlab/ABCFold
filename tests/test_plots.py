@@ -52,26 +52,26 @@ def test_pae_plots(output_objs):
         assert "pred.model_idx_1_af3_pae_pae_plot.html" in values
 
         assert (
-            "test_data/alphafold3_6BJ9/seed-1_sample-0/\
+            "tests/test_data/alphafold3_6BJ9/seed-1_sample-0/\
 model.cif"
             in plot_pathways
         )
         assert (
-            "test_data/alphafold3_6BJ9/seed-1_sample-1/\
+            "tests/test_data/alphafold3_6BJ9/seed-1_sample-1/\
 model.cif"
             in plot_pathways
         )
         assert (
-            "test_data/boltz-1_6BJ9/predictions/test_mmseqs/\
+            "tests/test_data/boltz-1_6BJ9/predictions/test_mmseqs/\
 test_mmseqs_model_0.cif"
             in plot_pathways
         )
         assert (
-            "test_data/boltz-1_6BJ9/predictions/test_mmseqs/\
+            "tests/test_data/boltz-1_6BJ9/predictions/test_mmseqs/\
 test_mmseqs_model_1.cif"
             in plot_pathways
         )
-        assert "test_data/chai1_6BJ9/pred.model_idx_0.cif" in plot_pathways
-        assert "test_data/chai1_6BJ9/pred.model_idx_1.cif" in plot_pathways
+        assert "tests/test_data/chai1_6BJ9/pred.model_idx_0.cif" in plot_pathways
+        assert "tests/test_data/chai1_6BJ9/pred.model_idx_1.cif" in plot_pathways
 
         assert len(list(temp_dir.glob("*.html"))) == 6
