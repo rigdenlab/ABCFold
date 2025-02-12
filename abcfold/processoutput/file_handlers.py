@@ -221,19 +221,15 @@ class CifFile(FileBase):
 
                 if self.check_ligand(chain):
                     if ligand_atoms:
-                        if chain.id not in residue_counts:
-                            residue_counts[chain.id] = len(
-                                [atom for resiude in chain for atom in resiude]
-                            )
-                        else:
-                            residue_counts[chain.id] += len(
-                                [atom for resiude in chain for atom in resiude]
-                            )
+                        residue_counts[chain.id] = len(
+                            [atom for resiude in chain for atom in resiude]
+                        )
 
                     else:
                         residue_counts[chain.id] = 1
                     continue
                 residue_counts[chain.id] = len(chain)
+
             return residue_counts
 
         else:
@@ -254,7 +250,7 @@ class CifFile(FileBase):
         for chain in chains:
             if self.check_ligand(chain):
                 residue_ids[chain.id] = [
-                    residue.id[1] for residue in chain for atom in residue
+                    residue.id[1] for residue in chain for _ in residue
                 ]
                 continue
             residue_ids[chain.id] = [
@@ -304,33 +300,39 @@ class CifFile(FileBase):
             )
             raise ValueError()
 
-        for chain in self.model[0]:
+        chains = self.model[0]
+        for chain in chains:
             if self.check_ligand(chain):
+                plddts[chain.id] = [
+                    atom.bfactor for residue in chain for atom in residue
+                ]
+
+            else:
                 for residue in chain:
-                    for atom in residue:
-                        if chain.id in plddts:
-                            plddts[chain.id].append(atom.bfactor)
-                        else:
-                            plddts[chain.id] = [atom.bfactor]
-            for residue in chain:
-                if method == ResidueCountType.AVERAGE.value:
-                    scores = 0
-                    for atom in residue:
-                        scores += atom.bfactor
-                    score = scores / len(residue)
+                    if method == ResidueCountType.AVERAGE.value:
+                        scores = 0
+                        for atom in residue:
+                            scores += atom.bfactor
+                        score = scores / len(residue)
 
-                elif method == ResidueCountType.CARBONALPHA.value:
-                    for atom in residue:
-                        if atom.id == "CA":
-                            score = atom.bfactor
-                            break
+                    elif method == ResidueCountType.CARBONALPHA.value:
+                        for atom in residue:
+                            if atom.id == "CA":
+                                score = atom.bfactor
+                                break
 
-                if chain.id in plddts:
-                    plddts[chain.id].append(score)
+                    if chain.id in plddts:
+                        plddts[chain.id].append(score)
 
-                else:
-                    plddts[chain.id] = [score]
+                    else:
+                        plddts[chain.id] = [score]
 
+        plddt_lengths = {k: len(v) for (k, v) in plddts.items()}
+        chain_lengths = self.chain_lengths(mode="residues", ligand_atoms=True)
+        for chain_id in plddt_lengths:
+            assert (
+                chain_lengths[chain_id] == plddt_lengths[chain_id]
+            ), f"{chain_id}, {chain_lengths[chain_id]} != {plddt_lengths[chain_id]}"
         return plddts
 
     def check_ligand(self, chain: Chain) -> bool:
@@ -450,7 +452,7 @@ class CifFile(FileBase):
             A list of clashes.
 
         """
-        atoms = [atom for chain in self.model[0] for atom in chain.get_atoms()]
+        atoms = self.get_atoms()
         coords = np.array(
             [atom.get_coord() for atom in atoms],
             dtype="d",
@@ -492,6 +494,26 @@ class CifFile(FileBase):
                 clashes.append((atom1, atom2))
 
         return clashes
+
+    def get_atoms(self, chain_id=None) -> list:
+        """
+        Get the atoms of the structure
+
+        Args:
+            threshold: The distance threshold for a clash.
+
+        Returns:
+            A list of clashes.
+
+        """
+        if chain_id is not None:
+            return [
+                atom
+                for chain in self.model[0]
+                for atom in chain.get_atoms()
+                if chain.id == chain_id
+            ]
+        return [atom for chain in self.model[0] for atom in chain.get_atoms()]
 
 
 class ConfidenceJsonFile(FileBase):
