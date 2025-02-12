@@ -126,15 +126,9 @@ def plot_plddt(
             ],
 
         )
-        button_args = button["args"]
-        button_args2 = button["args2"]
         for i in range(model_index, len(fig.data), num_models):
-            if isinstance(button_args, list) and isinstance(button_args2, list):
-                button_args[0]["visible"][i] = True
-                button_args2[0]["visible"][i] = False
-            else:
-                raise ValueError("MyPy isn't convinced that button_args is a list, \
-                                and with good reason.")
+            button["args"][0]["visible"][i] = True
+            button["args2"][0]["visible"][i] = False
         buttons.append(button)
 
     # Add a button to toggle all traces
