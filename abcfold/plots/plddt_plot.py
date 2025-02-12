@@ -114,31 +114,31 @@ def plot_plddt(
     # Add buttons for each individual model
     for model_index in range(num_models):
         button: Dict[str, Any] = dict(
-            method="restyle",
+            method="update",
             args=[
-                {"visible": [True] * len(fig.data)},
-                [model_index]
+                {
+                    "visible":
+                    [i % num_models == model_index for i in range(len(fig.data))]
+                },
+                {"showlegend": True}
             ],
             label=f"Model {model_index + 1}",
-            args2=[
-                {"visible": [False] * len(fig.data)},
-                [model_index]
-            ],
-
         )
         for i in range(model_index, len(fig.data), num_models):
             button["args"][0]["visible"][i] = True
-            button["args2"][0]["visible"][i] = False
         buttons.append(button)
 
-    # Add a button to toggle all traces
-    all_button: Dict[str, Any] = dict(
-        method="update",
-        args=[{"visible": [True] * len(fig.data)}],
-        args2=[{"visible": [False] * len(fig.data)}],  # Toggle state
-        label="All Models",
+    # Add a button to show all traces
+    buttons.append(
+        dict(
+            method="update",
+            args=[
+                {"visible": [True] * len(fig.data)},
+                {"showlegend": True}
+            ],
+            label="All",
+        )
     )
-    buttons.append(all_button)
 
     # Add the updatemenu to the layout
     fig.update_layout(
