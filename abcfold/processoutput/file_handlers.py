@@ -168,8 +168,8 @@ class CifFile(FileBase):
         self.__ligand_plddts = [
             plddts for plddts in self.ligand_plddt.values() for plddts in plddts
         ]
-        self._plddt_regions = self.get_plddt_regions()
-        self._h_score = self.calculate_h_score()
+        self.__plddt_regions = self.get_plddt_regions()
+        self.__h_score = self.calculate_h_score()
         self.__name = self.cif_file.stem
 
     @property
@@ -216,14 +216,14 @@ class CifFile(FileBase):
         """
         The H score for the model
         """
-        return self._h_score
+        return self.__h_score
 
     @property
     def plddt_regions(self):
         """
         The pLDDT regions for the model
         """
-        return self._plddt_regions
+        return self.__plddt_regions
 
     def load_cif_file(self):
         """

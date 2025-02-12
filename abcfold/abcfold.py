@@ -196,16 +196,10 @@ by default"
                     model.check_clashes()
                     if sequence_data is None:
                         sequence_data = model.get_model_sequence_data()
-                    model_data = {"model_id": model.name,
-                                  "model_source": "AlphaFold3",
-                                  "model_path": model.pathway.as_posix(),
-                                  "plddt_regions": model.plddt_regions,
-                                  "avg_plddt": model.average_plddt,
-                                  "h_score": model.h_score,
-                                  "clashes": model.clashes,
-                                  "pae_path": Path(
-                                      plot_dict[model.pathway.as_posix()]
-                                      ).relative_to(args.output_dir).as_posix()}
+                    model_data = get_model_data(model,
+                                                plot_dict,
+                                                "AlphaFold3",
+                                                args.output_dir)
                     alphafold_models['models'].append(model_data)
 
         boltz_models = {'models': []}
@@ -216,16 +210,10 @@ by default"
                 model.check_clashes()
                 if sequence_data is None:
                     sequence_data = model.get_model_sequence_data()
-                model_data = {"model_id": model.name,
-                              "model_source": "Boltz-1",
-                              "model_path": model.pathway.as_posix(),
-                              "plddt_regions": model.plddt_regions,
-                              "avg_plddt": model.average_plddt,
-                              "h_score": model.h_score,
-                              "clashes": model.clashes,
-                              "pae_path": Path(
-                                  plot_dict[model.pathway.as_posix()]
-                                  ).relative_to(args.output_dir).as_posix()}
+                model_data = get_model_data(model,
+                                            plot_dict,
+                                            "Boltz-1",
+                                            args.output_dir)
                 boltz_models['models'].append(model_data)
 
         chai_models = {'models': []}
@@ -237,16 +225,10 @@ by default"
                     model.check_clashes()
                     if sequence_data is None:
                         sequence_data = model.get_model_sequence_data()
-                    model_data = {"model_id": model.name,
-                                  "model_source": "Chai-1",
-                                  "model_path": model.pathway.as_posix(),
-                                  "plddt_regions": model.plddt_regions,
-                                  "avg_plddt": model.average_plddt,
-                                  "h_score": model.h_score,
-                                  "clashes": model.clashes,
-                                  "pae_path": Path(
-                                      plot_dict[model.pathway.as_posix()]
-                                      ).relative_to(args.output_dir).as_posix()}
+                    model_data = get_model_data(model,
+                                                plot_dict,
+                                                "Chai-1",
+                                                args.output_dir)
                     chai_models['models'].append(model_data)
 
         combined_models = alphafold_models["models"] + \
@@ -312,6 +294,31 @@ by default"
             sys.exit(0)
 
 
+def get_model_data(model, plot_dict, method, output_dir):
+    """
+    Get the model data for the output page
+
+    Args:
+        model (CifFile): Model object
+        plot_dict (dict): Dictionary of plots
+        method (str): Method used to generate the model
+        output_dir (Path): Path to the output directory
+    """
+    model_data = {
+        "model_id": model.name,
+        "model_source": method,
+        "model_path": model.pathway.as_posix(),
+        "plddt_regions": model.plddt_regions,
+        "avg_plddt": model.average_plddt,
+        "h_score": model.h_score,
+        "clashes": model.clashes,
+        "pae_path": Path(
+            plot_dict[model.pathway.as_posix()]
+            ).relative_to(output_dir).as_posix()
+    }
+    return model_data
+
+
 class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control",
@@ -354,14 +361,10 @@ def render_template(in_file_path, out_file_path, **kwargs):
     """
     Templates the given file with the keyword arguments.
 
-    Parameters
-    ----------
-    in_file_path : Path
-        The path to the template
-    out_file_path : Path
-        The path to output the templated file
-    **kwargs : dict
-        Variables to use in templating
+    Args:
+        in_file_path (Path): The path to the template.
+        out_file_path (Path): The path to output the templated file.
+        **kwargs (dict): Variables to use in templating.
     """
     env = Environment(
         loader=FileSystemLoader(in_file_path.parent),
@@ -375,12 +378,17 @@ def render_template(in_file_path, out_file_path, **kwargs):
 def output_open_html_script(file_out: str, port: int = 8000):
     """
     Make a python script to open the output HTML file in the default web browser
+
+    Args:
+        file_out (str): Path to the output script
+        port (int): Port to run the server on
     """
 
     script = f"""
     import http.server
     import socketserver
     import webbrowser
+    import sys
 
     class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         def end_headers(self):
@@ -390,12 +398,18 @@ def output_open_html_script(file_out: str, port: int = 8000):
             self.send_header("Expires", "0")
             super().end_headers()
 
-    with socketserver.TCPServer(("", {port}),
-        NoCacheHTTPRequestHandler) as httpd:
-        # Open the main HTML page in the default web browser
-        webbrowser.open(f"http://localhost:{port}/index.html")
-        # Keep the server running
-        httpd.serve_forever()
+    try:
+        with socketserver.TCPServer(("", PORT),
+                                    NoCacheHTTPRequestHandler) as httpd:
+            print(
+                f"Serving at port {PORT}: http://localhost:{PORT}/index.html"
+                )
+            print("Press Ctrl+C to stop the server")
+            webbrowser.open(f"http://localhost:{PORT}/index.html")
+            httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("Server stopped")
+        sys.exit(0)
     """
 
     script = textwrap.dedent(script)
