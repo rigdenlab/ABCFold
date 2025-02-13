@@ -1,0 +1,239 @@
+#imageDemo {
+    -moz-box-shadow: inset 0 0 15px 5px #888;
+    -webkit-box-shadow: inset 0 0 15px 5px#888;
+    box-shadow: inset 0 0 15px 5px #888;
+}
+/*Container*/
+
+.container h2 { margin-top:30px;}
+
+.box h3{
+    text-align:center;
+    position:relative;
+    top:80px;
+}
+.box {
+    width:70%;
+    height:auto;
+    background:#FFF;
+    margin:40px auto;
+    box-shadow: 1px 0px 2px -1px #DDD;
+}
+
+/*==================================================
+ * Effect 2
+ * ===============================================*/
+.effect2
+{
+    position: relative;
+}
+.effect2:before, .effect2:after
+{
+    z-index: -1;
+    position: absolute;
+    content: "";
+    bottom: 15px;
+    left: 10px;
+    width: 50%;
+    top: 80%;
+    max-width:300px;
+    background: #777;
+    -webkit-box-shadow: 0 15px 10px #777;
+    -moz-box-shadow: 0 15px 10px #777;
+    box-shadow: 0 15px 10px #777;
+    -webkit-transform: rotate(-3deg);
+    -moz-transform: rotate(-3deg);
+    -o-transform: rotate(-3deg);
+    -ms-transform: rotate(-3deg);
+    transform: rotate(-3deg);
+}
+.effect2:after
+{
+    -webkit-transform: rotate(3deg);
+    -moz-transform: rotate(3deg);
+    -o-transform: rotate(3deg);
+    -ms-transform: rotate(3deg);
+    transform: rotate(3deg);
+    right: 10px;
+    left: auto;
+}
+#form1 .codeMirror{
+    height: 200px;
+}
+
+table {
+    width: 100%;
+    table-layout: auto;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: 'Lato', sans-serif;
+    color: #333;
+  }
+
+  th, td {
+    border-bottom: 1px solid #ddd;
+    min-width: 100px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  th {
+    background-color: white;
+    color: #333;
+    border-bottom: 1px solid #222;
+  }
+
+  tr {
+    background-color: white;
+  }
+
+
+  tr:hover {
+    background-color: #f5f5f5;
+  }
+
+  .highlighted {
+    background-color: #f5f5f5;
+}
+
+
+#table-container {
+  width: 99%;
+}
+
+body.dark-mode table, body.dark-mode th, body.dark-mode td {
+  border-left: none;  /* Remove left border */
+  border-right: none; /* Remove right border */
+  border-top: 1px solid #444; /* Keep top border */
+  border-bottom: 1px solid #444; /* Keep bottom border */
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'Lato', sans-serif;
+}
+
+body.dark-mode th {
+  background-color: #444;
+  color: white;
+  border-bottom: 1px solid #666;
+}
+
+body.dark-mode td {
+  background-color: #333;
+  color: white;
+}
+
+body.dark-mode tr {
+  background-color: #333;
+}
+
+body.dark-mode tr:hover {
+  background-color: #444;
+}
+
+[class^="collapsible"] {
+  background-color: #ddd;
+  color: #333;
+  cursor: pointer;
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+  outline: none;
+  font-size: 18px;
+  transition: background-color 0.2s ease;
+}
+
+[class^="collapsible"].active {
+  background-color: #f9f9f9;
+}
+
+body.dark-mode [class^="collapsible"] {
+  background-color: #333;
+  color: white;
+}
+
+body.dark-mode [class^="collapsible"].active {
+  background-color: #444;
+}
+
+body {
+  padding: 2%;
+  font-family: 'Lato', sans-serif;
+  background-color: white;
+  color: black;
+}
+
+body.dark-mode {
+  padding: 2%;
+  font-family: 'Lato', sans-serif;
+  background-color: #1e1e1e;
+  color: white;
+}
+
+.header {
+  background-color: white;
+}
+
+body.dark-mode .header {
+  background-color: #1e1e1e;
+}
+
+/* Smaller Toggle Switch Styles */
+.toggle-switch-container {
+  display: flex;
+  justify-content: flex-end; /* Align to the right */
+  padding: 10px; /* Optional: Add some padding */
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px; /* Reduced width */
+  height: 20px; /* Reduced height */
+  white-space: nowrap;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-label {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 20px; /* Adjusted for smaller size */
+}
+
+.switch-label .switch-inner {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #ccc;
+  border-radius: 20px; /* Adjusted for smaller size */
+  transition: .4s;
+}
+
+.switch-label .switch-slider {
+  position: absolute;
+  height: 16px; /* Reduced height */
+  width: 16px; /* Reduced width */
+  left: 2px; /* Adjusted for smaller size */
+  bottom: 2px; /* Adjusted for smaller size */
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .switch-label .switch-inner {
+  background-color: #555;
+}
+
+input:checked + .switch-label .switch-slider {
+  transform: translateX(20px); /* Adjusted for smaller size */
+}

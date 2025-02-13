@@ -11,11 +11,8 @@ async function replaceAsync(string, regexp, replacerFunction) {
 }
 
 function compileTemplate(template, relativePath) {
-    console.log('compileTemplate', template, relativePath);
     return replaceAsync(template, /\{\{(\S+)}}/g, async (match) => {
         const value = match[1];
-
-        console.log('compileTemplate', value.slice(1));
 
         if (value.startsWith('@')) {
             console.log(`${relativePath}/src/${value.slice(1)}`);
@@ -33,19 +30,11 @@ function compileTemplate(template, relativePath) {
 const main = document.querySelector('main');
 document.addEventListener("DOMContentLoaded", function() {
     const relativePath = document.getElementById('relativePath').value;
-    console.log(relativePath); // Use the value as needed
 
     compileTemplate(main.innerHTML, relativePath).then((result) => {
         main.innerHTML = result;
 
-        // const uploadTab = main.querySelector('button[data-bs-target="#upload"]');
-        // new bootstrap.Tab(uploadTab).show();
-
         main.querySelector('button[data-bs-target="#examples"]').parentElement.remove();
-        // main.querySelector('button[data-bs-target="#upload"]').parentElement.remove();
-        // main.querySelector('button[data-bs-target="#Offline version"]').parentElement.remove();
-        // main.querySelector('button[data-bs-target="#Citation"]').parentElement.remove();
-
 
         import(`./pae-viewer-standalone.js`);
     });

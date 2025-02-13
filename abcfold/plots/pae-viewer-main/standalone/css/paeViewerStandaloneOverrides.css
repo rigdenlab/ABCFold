@@ -92,3 +92,7 @@ code {
 .toast {
     z-index: 100;
 }
+
+.header {
+    background-color: white;
+}

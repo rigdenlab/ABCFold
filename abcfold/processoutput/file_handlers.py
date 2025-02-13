@@ -3,6 +3,8 @@ import logging
 import warnings
 from abc import ABC
 from enum import Enum
+from itertools import groupby
+from operator import itemgetter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -10,6 +12,7 @@ import numpy as np
 from Bio.PDB import MMCIFIO, Chain, MMCIFParser
 from Bio.PDB.Atom import Atom
 from Bio.PDB.kdtrees import KDTree
+from Bio.SeqUtils import seq1
 
 from abcfold.processoutput.atoms import VANDERWALLS
 
@@ -148,17 +151,25 @@ class CifFile(FileBase):
 
         super().__init__(cif_file)
         self.cif_file = Path(cif_file)
+        self.clashes = 0
         self.model = self.load_cif_file()
         self.atom_plddt_per_chain = self.get_plddt_per_atom()
         self.residue_plddt_per_chain = self.get_plddt_per_residue()
+        self.ligand_plddt = self.get_plddt_per_ligand()
         self.__plddts = [
-            plddts for plddts in self.atom_plddt_per_chain.values() for plddts in plddts
+            plddts for plddts in self.atom_plddt_per_chain.values()
+            for plddts in plddts
         ]
         self.__residue_plddts = [
             plddts
             for plddts in self.residue_plddt_per_chain.values()
             for plddts in plddts
         ]
+        self.__ligand_plddts = [
+            plddts for plddts in self.ligand_plddt.values() for plddts in plddts
+        ]
+        self.__plddt_regions = self.get_plddt_regions()
+        self.__h_score = self.calculate_h_score()
         self.__name = self.cif_file.stem
 
     @property
@@ -185,6 +196,34 @@ class CifFile(FileBase):
         The pLDDT scores for each residue in the model
         """
         return self.__residue_plddts
+
+    @property
+    def average_plddt(self):
+        """
+        The average pLDDT score for the model
+        """
+        return float(np.mean(self.__plddts))
+
+    @property
+    def ligand_plddts(self):
+        """
+        The pLDDT scores for each ligand in the model
+        """
+        return self.__ligand_plddts
+
+    @property
+    def h_score(self):
+        """
+        The H score for the model
+        """
+        return self.__h_score
+
+    @property
+    def plddt_regions(self):
+        """
+        The pLDDT regions for the model
+        """
+        return self.__plddt_regions
 
     def load_cif_file(self):
         """
@@ -261,6 +300,41 @@ class CifFile(FileBase):
 
         return residue_ids
 
+    def calculate_h_score(self):
+        """
+        Calculate the H score for the model
+
+        Returns:
+            float: The H score for the model
+        """
+
+        score = 0
+        for i in reversed(range(1, 101)):
+            if (100.0 / len(self.plddts)) * np.sum(np.array(self.plddts) >= i) >= i:
+                score = i
+                break
+        return score
+
+    def get_model_sequence_data(self) -> dict:
+        """
+        Get the sequence for each chain and ligand in the model, used internally
+        for plotting
+
+        Returns:
+            dict : Chain ID and sequence data
+        """
+        sequence_data = {}
+        for chain in self.model[0]:
+            if self.check_ligand(chain):
+                sequence_data[chain.id] = "".join(
+                    [atom.id[0] for residue in chain for atom in residue]
+                    )
+            else:
+                sequence_data[chain.id] = "".join(
+                    [seq1(residue.get_resname()) for residue in chain]
+                    )
+        return sequence_data
+
     def get_plddt_per_atom(self) -> dict:
         """
         Get the pLDDT scores for each atom in the model
@@ -334,6 +408,53 @@ class CifFile(FileBase):
                 chain_lengths[chain_id] == plddt_lengths[chain_id]
             ), f"{chain_id}, {chain_lengths[chain_id]} != {plddt_lengths[chain_id]}"
         return plddts
+
+    def get_plddt_per_ligand(self) -> dict:
+        """
+        Get the pLDDT scores for each ligand in the model
+
+        Returns:
+            dict: Dictionary containing the chain id and the pLDDT scores for each atom
+        """
+        plddt: Dict[str, list] = {}
+        for chain in self.model[0]:
+            if self.check_ligand(chain):
+                for residue in chain:
+                    for atom in residue:
+                        if chain.id in plddt:
+                            plddt[chain.id].append(atom.bfactor)
+                        else:
+                            plddt[chain.id] = [atom.bfactor]
+        return plddt
+
+    def get_plddt_regions(self) -> dict:
+        """
+        Get the pLDDT regions for the model
+        """
+        regions = {}
+
+        plddts_array = np.array(self.residue_plddts + self.ligand_plddts)
+        v_low = np.where(plddts_array <= 50)[0]
+        regions['v_low'] = self._get_regions(v_low)
+        low = np.where((plddts_array > 50) & (plddts_array < 70))[0]
+        regions['low'] = self._get_regions(low)
+        confident = np.where((plddts_array >= 70) & (plddts_array < 90))[0]
+        regions['confident'] = self._get_regions(confident)
+        v_confident = np.where(plddts_array >= 90)[0]
+        regions['v_high'] = self._get_regions(v_confident)
+
+        return regions
+
+    def _get_regions(self, indices):
+        """
+        Get the regions from the indices
+        """
+        regions = []
+        for _, g in groupby(enumerate(indices), lambda x: x[0] - x[1]):
+            group = (map(itemgetter(1), g))
+            group = list(map(int, group))
+            regions.append((group[0], group[-1]))
+        return regions
 
     def check_ligand(self, chain: Chain) -> bool:
         """
@@ -492,6 +613,7 @@ class CifFile(FileBase):
             if distance < clash_radius:
 
                 clashes.append((atom1, atom2))
+        self.clashes = len(clashes)
 
         return clashes
 

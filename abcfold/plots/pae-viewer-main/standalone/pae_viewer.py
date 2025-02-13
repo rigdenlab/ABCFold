@@ -21,7 +21,7 @@ the `--port` option.
 import argparse
 import json
 import os
-import webbrowser
+# import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -46,13 +46,16 @@ def load_pae_viewer(
     output_file: Optional[Path] = None,
 ):
     data = get_session_data(structure_path, chain_labels, scores_path, crosslinks_path)
-    session_path = create_session_file(
+    # session_path = create_session_file(
+    #     structure_path.stem, data, output_file, template_file
+    # )
+    create_session_file(
         structure_path.stem, data, output_file, template_file
     )
 
-    webbrowser.open(
-        f"localhost:{port}/{Path(*session_path.parts[-2:])}", new=0, autoraise=True
-    )
+    # webbrowser.open(
+    #     f"localhost:{port}/{Path(*session_path.parts[-2:])}", new=0, autoraise=True
+    # )
 
 
 def get_session_data(

@@ -5,6 +5,7 @@ tqdm
 biopython==1.84
 requests
 pandas
+jinja2
 
 # Development dependencies
 pre-commit
