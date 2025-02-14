@@ -197,7 +197,7 @@ install chai_lab'"
                     ligand_str = self.add_ligand(seq, fasta_data)
                     f.write(ligand_str)
 
-        if "bondedAtomPairs" in json_dict.keys():
+        if "bondedAtomPairs" in json_dict.keys() and self.__create_files:
             if isinstance(json_dict["bondedAtomPairs"], list):
                 bonded_pairs = json_dict["bondedAtomPairs"]
                 self.bonded_pairs_to_file(bonded_pairs, fasta_data)

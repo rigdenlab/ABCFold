@@ -88,6 +88,8 @@ class AlphafoldOutput:
                     if file.suffix == ".cif":
                         cif_file = CifFile(str(file), self.input_params)
                         cif_file.name = f"Alphafold3_{seed}_{sample}"
+                        cif_file = self.reorder_chains(cif_file)
+                        cif_file.to_file(str(file))
                         file_groups[seed][sample]["cif"] = cif_file
                     elif file.suffix == ".json" and "summary" not in file.stem:
                         file_groups[seed][sample]["af3_pae"] = ConfidenceJsonFile(
@@ -106,3 +108,72 @@ class AlphafoldOutput:
                 for sample in sorted(file_groups[seed])
             }
         return file_groups
+
+    def get_chain_ids(self) -> list:
+        ids: list = []
+        assert "sequences" in self.input_params
+        for sequences in self.input_params["sequences"]:
+            for sequence_type, sequence_information in sequences.items():
+                if "id" not in sequence_information:
+                    continue
+                sequence_ids = sequence_information["id"]
+                if isinstance(sequence_ids, list):
+                    ids.extend(sequence_ids)
+                elif isinstance(sequence_ids, str):
+                    ids.append(sequence_ids)
+
+        return ids
+
+    def reorder_chains(self, cif_file: CifFile) -> CifFile:
+        """
+        Function to update the chain order in the CIF file according to the ids in the
+        input file
+
+        Args:
+            cif_file (CifFile): CifFile object to update the chain labels for
+
+        """
+
+        cif_file.reorder_chains(self.get_chain_ids())
+        return cif_file
+
+
+if __name__ == "__main__":
+    input_params = {
+        "name": "Hello_fold",
+        "modelSeeds": [42],
+        "sequences": [
+            {
+                "protein": {
+                    "id": "A",
+                    "sequence": "PVLSCGEWQL",
+                    "modifications": [
+                        {"ptmType": "HY3", "ptmPosition": 1},
+                        {"ptmType": "P1L", "ptmPosition": 5},
+                    ],
+                }
+            },
+            {"protein": {"id": "B", "sequence": "QIQLVQSGPELKKPGET"}},
+            {"protein": {"id": "C", "sequence": "DVLMIQTPLSLPVS"}},
+            {"ligand": {"id": ["F"], "ccdCodes": ["ATP"]}},
+            {"ligand": {"id": "I", "ccdCodes": ["NAG", "FUC", "FUC"]}},
+            {"dna": {"id": ["D", "K"], "sequence": "AGCT"}},
+            {"rna": {"id": "L", "sequence": "AGCU"}},
+            {"ligand": {"id": "Z", "smiles": "CC(=O)OC1C[NH+]2CCC1CC2"}},
+        ],
+        "bondedAtomPairs": [
+            [["A", 1, "CA"], ["B", 1, "CA"]],
+            [["C", 7, "CA"], ["A", 10, "CA"]],
+            [["I", 1, "O3"], ["I", 2, "C1"]],
+            [["I", 2, "C1"], ["I", 3, "C1"]],
+        ],
+        "dialect": "alphafold3",
+        "version": 2,
+    }
+    ao = AlphafoldOutput(
+        "/home/etk48667/folding/aaa_bbb/alphafold3_Hello_fold/",
+        input_params=input_params,
+        name="Hello_fold",
+    )
+
+    ao.process_af3_output()

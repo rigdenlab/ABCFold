@@ -20,6 +20,7 @@ def plot_plddt(
     line_width: float = 1.6,
     dash: str = "dot",
     show: bool = False,
+    chain_line_occupancy: float = 0.9,
     include_plotlyjs: bool = True,
 ) -> None:
     """
@@ -36,6 +37,7 @@ def plot_plddt(
         line_width: Width of the lines in the plot.
         dash: Dash style of the lines in the plot.
         show: If True, the plot will be displayed in the browser.
+        chain_line_occupancy: Opacity of the vertical lines that separate the chains.
 
     Returns:
         None
@@ -97,6 +99,23 @@ def plot_plddt(
             )
             fig.add_trace(trace)
 
+    counter = 0
+    colour_index = 0
+    for chain, chain_range in line_ranges.items():
+        counter += chain_range[-1]
+        chain_name = f"Chain {chain}"
+
+        fig.add_vline(
+            x=counter,
+            line=dict(color=colours[colour_index % len(colours)], dash="dash"),
+            opacity=chain_line_occupancy,
+            annotation_text=Bold(chain_name),
+            annotation_font_size=15,
+            annotation_position="top left",
+            annotation_textangle=-90,
+        )
+
+        colour_index += 1
     # Create buttons for each model
     buttons = []
     num_models = len(cif_models_dict[next(iter(cif_models_dict))])
