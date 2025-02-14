@@ -163,7 +163,7 @@ def get_gap_indicies(*cif_objs) -> List[np.ndarray]:
 
 def interleave_repeated(lst, n, chain_no):
     indicies = []
-    chunks = [lst[i:i + n] for i in range(0, len(lst), n)]
+    chunks = [lst[i:i+n] for i in range(0, len(lst), n)]
     interleaved = [x for tup in zip_longest(*chunks) for x in tup if x is not None]
 
     for i in range(0, len(interleaved), chain_no):
@@ -171,26 +171,16 @@ def interleave_repeated(lst, n, chain_no):
         for j in range(chain_no):
             tmp_lst.extend(interleaved[i + j])
         indicies.append(tmp_lst)
-    # for i in range(chain_no):
-    #     print(chain_no)
-    #     tmp_lst = []
-    #     print(len(interleaved))
-    #     for j in range(0, len(interleaved) - 1, n):
-    #         print(i + j)
-    #         tmp_lst.extend(interleaved[i + j])
-    #     indicies.append(tmp_lst)
 
     return indicies
 
 
-def insert_none_by_indices(indices, values):
+def insert_none_by_minus_one(indices, values):
     result = []
     value_index = 0
-    # print(indices, values)
 
     for idx in indices:
         if idx == -1:
-            print("adding")
             result.append(None)
         else:
             result.append(values[value_index])
@@ -199,3 +189,53 @@ def insert_none_by_indices(indices, values):
     assert len(indices) == len(result)
 
     return result
+
+
+# WIP - local testing purposes
+
+# if __name__ == "__main__":
+#     input_params = {
+#         "name": "Hello_fold",
+#         "modelSeeds": [42],
+#         "sequences": [
+#             {
+#                 "protein": {
+#                     "id": "A",
+#                     "sequence": "PVLSCGEWQL",
+#                     "modifications": [
+#                         {"ptmType": "HY3", "ptmPosition": 1},
+#                         {"ptmType": "P1L", "ptmPosition": 5},
+#                     ],
+#                 }
+#             },
+#             {"protein": {"id": "B", "sequence": "QIQLVQSGPELKKPGET"}},
+#             {"protein": {"id": "C", "sequence": "DVLMIQTPLSLPVS"}},
+#             {"ligand": {"id": ["F"], "ccdCodes": ["ATP"]}},
+#             {"ligand": {"id": "I", "ccdCodes": ["NAG", "FUC", "FUC"]}},
+#             {"dna": {"id": ["D", "K"], "sequence": "AGCT"}},
+#             {"rna": {"id": "L", "sequence": "AGCU"}},
+#             {"ligand": {"id": "Z", "smiles": "CC(=O)OC1C[NH+]2CCC1CC2"}},
+#         ],
+#         "bondedAtomPairs": [
+#             [["A", 1, "CA"], ["B", 1, "CA"]],
+#             [["C", 7, "CA"], ["A", 10, "CA"]],
+#             [["I", 1, "O3"], ["I", 2, "C1"]],
+#             [["I", 2, "C1"], ["I", 3, "C1"]],
+#         ],
+#         "dialect": "alphafold3",
+#         "version": 2,
+#     }
+
+#     # cif_file = CifFile(
+#     #     "/home/etk48667/folding/aaa_bbb_ccc/chai1_Hello_fold/pred.model_idx_0.cif",
+#     #     input_params,
+#     # )
+#     cif_file = CifFile(
+#         "/home/etk48667/folding/drtest/alphafold3_Hello_fold/seed-42_sample-0/m\
+# odel.cif",
+#         input_params,
+#     )
+
+#     cif_file.pathway = "tmp.cif"
+
+#     print(cif_file.chain_lengths(mode="residues", ligand_atoms=True))

@@ -1,17 +1,12 @@
 import configparser
-import http.server
 import json
 import os
 import shutil
 import socketserver
 import sys
 import tempfile
-import textwrap
 import webbrowser
 from pathlib import Path
-from typing import Dict
-
-from jinja2 import Environment, FileSystemLoader
 
 from abcfold.abc_script_utils import check_input_json, make_dir, setup_logger
 from abcfold.add_mmseqs_msa import add_msa_to_json
@@ -20,17 +15,22 @@ from abcfold.argparse_utils import (alphafold_argparse_util,
                                     custom_template_argpase_util,
                                     main_argpase_util, mmseqs2_argparse_util,
                                     prediction_argparse_util)
-from abcfold.plots.pae_plot import create_pae_plots
-from abcfold.plots.plddt_plot import plot_plddt
+from abcfold.plots.plotter import (NoCacheHTTPRequestHandler,
+                                   get_all_cif_files, get_model_data,
+                                   get_model_sequence_data,
+                                   output_open_html_script, plots,
+                                   render_template)
 from abcfold.processoutput.alphafold3 import AlphafoldOutput
 from abcfold.processoutput.boltz import BoltzOutput
 from abcfold.processoutput.chai import ChaiOutput
+from abcfold.processoutput.utils import (get_gap_indicies,
+                                         insert_none_by_minus_one)
 from abcfold.run_alphafold3 import run_alphafold3
 
 logger = setup_logger()
 
-HTML_DIR = Path(__file__).parent / 'html'
-HTML_TEMPLATE = HTML_DIR.joinpath('abcfold.html.jinja2')
+HTML_DIR = Path(__file__).parent / "html"
+HTML_TEMPLATE = HTML_DIR.joinpath("abcfold.html.jinja2")
 PLOTS_DIR = ".plots"
 PORT = 8000
 
@@ -185,55 +185,68 @@ by default"
         plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
 
         # Compile data to make output page
-        sequence_data = None
         programs_run = []
-        alphafold_models = {'models': []}
+        cif_models = [
+            cif_file
+            for cif_list in get_all_cif_files(outputs).values()
+            for cif_file in cif_list
+        ]
+        indicies = get_gap_indicies(*cif_models)
+        index_counter = 0
+
+        alphafold_models = {"models": []}
+
         if args.alphafold3:
             programs_run.append("AlphaFold3")
             for seed in ao.output.keys():
                 for idx in ao.output[seed].keys():
-                    model = ao.output[seed][idx]['cif']
+                    model = ao.output[seed][idx]["cif"]
                     model.check_clashes()
-                    if sequence_data is None:
-                        sequence_data = model.get_model_sequence_data()
-                    model_data = get_model_data(model,
-                                                plot_dict,
-                                                "AlphaFold3",
-                                                args.output_dir)
-                    alphafold_models['models'].append(model_data)
+                    plddt = model.residue_plddts
+                    plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                    index_counter += 1
 
-        boltz_models = {'models': []}
+                    model_data = get_model_data(
+                        model, plot_dict, "AlphaFold3", plddt, args.output_dir
+                    )
+                    alphafold_models["models"].append(model_data)
+
+        boltz_models = {"models": []}
         if args.boltz1:
             programs_run.append("Boltz-1")
             for idx in bo.output.keys():
-                model = bo.output[idx]['cif']
+                model = bo.output[idx]["cif"]
                 model.check_clashes()
-                if sequence_data is None:
-                    sequence_data = model.get_model_sequence_data()
-                model_data = get_model_data(model,
-                                            plot_dict,
-                                            "Boltz-1",
-                                            args.output_dir)
-                boltz_models['models'].append(model_data)
+                plddt = model.residue_plddts
+                plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                index_counter += 1
 
-        chai_models = {'models': []}
+                model_data = get_model_data(
+                    model, plot_dict, "Boltz-1", plddt, args.output_dir
+                )
+                boltz_models["models"].append(model_data)
+
+        chai_models = {"models": []}
         if args.chai1:
             programs_run.append("Chai-1")
             for idx in co.output.keys():
                 if idx >= 0:
-                    model = co.output[idx]['cif']
+                    model = co.output[idx]["cif"]
                     model.check_clashes()
-                    if sequence_data is None:
-                        sequence_data = model.get_model_sequence_data()
-                    model_data = get_model_data(model,
-                                                plot_dict,
-                                                "Chai-1",
-                                                args.output_dir)
-                    chai_models['models'].append(model_data)
+                    plddt = model.residue_plddts
+                    plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                    index_counter += 1
 
-        combined_models = alphafold_models["models"] + \
-            boltz_models["models"] + chai_models["models"]
+                    model_data = get_model_data(
+                        model, plot_dict, "Chai-1", plddt, args.output_dir
+                    )
+                    chai_models["models"].append(model_data)
 
+        combined_models = (
+            alphafold_models["models"] + boltz_models["models"] + chai_models["models"]
+        )
+
+        sequence_data = get_model_sequence_data(cif_models)
         sequence = ""
         for key in sequence_data.keys():
             sequence += sequence_data[key]
@@ -241,34 +254,44 @@ by default"
         chain_data = {}
         ref = 0
         for key in sequence_data.keys():
-            chain_data['Chain ' + key] = (ref, len(sequence_data[key]) + ref - 1)
+            chain_data["Chain " + key] = (ref, len(sequence_data[key]) + ref - 1)
             ref += len(sequence_data[key])
 
-        results_dict = {"sequence": sequence,
-                        "models": combined_models,
-                        "plotly_path": Path(plot_dict['plddt']).relative_to(
-                            args.output_dir.resolve()).as_posix(),
-                        "chain_data": chain_data}
+        results_dict = {
+            "sequence": sequence,
+            "models": combined_models,
+            "plotly_path": Path(plot_dict["plddt"])
+            .relative_to(args.output_dir.resolve())
+            .as_posix(),
+            "chain_data": chain_data,
+        }
         results_json = json.dumps(results_dict)
 
-        if not args.output_dir.joinpath('.feature_viewer').exists():
-            shutil.copytree(HTML_DIR, args.output_dir / '.feature_viewer')
+        if not args.output_dir.joinpath(".feature_viewer").exists():
+            shutil.copytree(HTML_DIR, args.output_dir / ".feature_viewer")
 
         if len(programs_run) > 1:
-            programs = "Structure predictions for: " + ", ".join(programs_run[:-1]) + \
-                " and " + programs_run[-1]
+            programs = (
+                "Structure predictions for: "
+                + ", ".join(programs_run[:-1])
+                + " and "
+                + programs_run[-1]
+            )
         else:
             programs = "Structure predictions for: " + programs_run[0]
 
         # Create the index page
         HTML_OUT = args.output_dir.joinpath("index.html")
         html_out = Path(HTML_OUT).resolve()
-        render_template(HTML_TEMPLATE, html_out,
-                        # kwargs appear as variables in the template
-                        abcfold_html_dir='.feature_viewer',
-                        programs=programs,
-                        results_json=results_json,
-                        version=0.1)
+        render_template(
+            HTML_TEMPLATE,
+            html_out,
+            # kwargs appear as variables in the template
+            abcfold_html_dir=".feature_viewer",
+            programs=programs,
+            results_json=results_json,
+            version=0.1,
+        )
         logger.info(f"Output page written to {HTML_OUT}")
 
         # Change to the output directory to run the server
@@ -279,11 +302,10 @@ by default"
 
         try:
             # Start the server
-            with socketserver.TCPServer(("", PORT),
-                                        NoCacheHTTPRequestHandler) as httpd:
+            with socketserver.TCPServer(("", PORT), NoCacheHTTPRequestHandler) as httpd:
                 logger.info(
                     f"Serving at port {PORT}: http://localhost:{PORT}/index.html"
-                    )
+                )
                 logger.info("Press Ctrl+C to stop the server")
                 # Open the main HTML page in the default web browser
                 webbrowser.open(f"http://localhost:{PORT}/index.html")
@@ -292,129 +314,6 @@ by default"
         except KeyboardInterrupt:
             logger.info("Server stopped")
             sys.exit(0)
-
-
-def get_model_data(model, plot_dict, method, output_dir):
-    """
-    Get the model data for the output page
-
-    Args:
-        model (CifFile): Model object
-        plot_dict (dict): Dictionary of plots
-        method (str): Method used to generate the model
-        output_dir (Path): Path to the output directory
-    """
-    model_data = {
-        "model_id": model.name,
-        "model_source": method,
-        "model_path": model.pathway.as_posix(),
-        "plddt_regions": model.plddt_regions,
-        "avg_plddt": model.average_plddt,
-        "h_score": model.h_score,
-        "clashes": model.clashes,
-        "pae_path": Path(
-            plot_dict[model.pathway.as_posix()]
-            ).relative_to(output_dir).as_posix()
-    }
-    return model_data
-
-
-class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header("Cache-Control",
-                         "no-store, no-cache, must-revalidate, max-age=0")
-        self.send_header("Pragma", "no-cache")
-        self.send_header("Expires", "0")
-        super().end_headers()
-
-
-def plots(outputs: list, output_dir: Path):
-    """
-    Generate plots for the output of the different programs
-
-    Args:
-        outputs (list): List of output objects
-
-    """
-    pathway_plots = create_pae_plots(outputs, output_dir=output_dir)
-    plddt_plot_input: Dict[str, list] = {}
-    for output in outputs:
-        if isinstance(output, AlphafoldOutput):
-            for seed in output.seeds:
-                if "Alphafold3" not in plddt_plot_input:
-                    plddt_plot_input["Alphafold3"] = []
-                plddt_plot_input["Alphafold3"].extend(output.cif_files[seed])
-        elif isinstance(output, BoltzOutput):
-
-            plddt_plot_input["Boltz-1"] = output.cif_files
-        elif isinstance(output, ChaiOutput):
-            plddt_plot_input["Chai-1"] = output.cif_files
-
-    plot_plddt(plddt_plot_input, output_name=output_dir.joinpath("plddt_plot.html"))
-
-    pathway_plots["plddt"] = str(output_dir.joinpath("plddt_plot.html").resolve())
-
-    return pathway_plots
-
-
-def render_template(in_file_path, out_file_path, **kwargs):
-    """
-    Templates the given file with the keyword arguments.
-
-    Args:
-        in_file_path (Path): The path to the template.
-        out_file_path (Path): The path to output the templated file.
-        **kwargs (dict): Variables to use in templating.
-    """
-    env = Environment(
-        loader=FileSystemLoader(in_file_path.parent),
-        keep_trailing_newline=True)
-    template = env.get_template(in_file_path.name)
-    output = template.render(**kwargs)
-    with open(str(out_file_path), "w") as f:
-        f.write(output)
-
-
-def output_open_html_script(file_out: str, port: int = 8000):
-    """
-    Make a python script to open the output HTML file in the default web browser
-
-    Args:
-        file_out (str): Path to the output script
-        port (int): Port to run the server on
-    """
-
-    script = f"""
-    import http.server
-    import socketserver
-    import webbrowser
-    import sys
-
-    class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-        def end_headers(self):
-            self.send_header("Cache-Control",
-                            "no-store, no-cache, must-revalidate, max-age=0")
-            self.send_header("Pragma", "no-cache")
-            self.send_header("Expires", "0")
-            super().end_headers()
-
-    try:
-        with socketserver.TCPServer(("", PORT),
-                                    NoCacheHTTPRequestHandler) as httpd:
-            print(
-                f"Serving at port {PORT}: http://localhost:{PORT}/index.html"
-                )
-            print("Press Ctrl+C to stop the server")
-            webbrowser.open(f"http://localhost:{PORT}/index.html")
-            httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("Server stopped")
-        sys.exit(0)
-    """
-
-    script = textwrap.dedent(script)
-    with open(file_out, "w") as f:
-        f.write(script)
 
 
 def main():

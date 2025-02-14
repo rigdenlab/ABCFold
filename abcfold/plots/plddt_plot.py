@@ -9,7 +9,7 @@ import plotly.offline as pyo
 
 from abcfold.processoutput.file_handlers import CifFile
 from abcfold.processoutput.utils import (get_gap_indicies,
-                                         insert_none_by_indices)
+                                         insert_none_by_minus_one)
 
 logger = logging.getLogger("logger")
 
@@ -19,7 +19,6 @@ def plot_plddt(
     output_name: Union[str, Path],
     line_width: float = 1.6,
     dash: str = "dot",
-    chain_line_occupancy: float = 0.8,
     show: bool = False,
     include_plotlyjs: bool = True,
 ) -> None:
@@ -36,7 +35,6 @@ def plot_plddt(
         output_name: Path to the output html file.
         line_width: Width of the lines in the plot.
         dash: Dash style of the lines in the plot.
-        chain_line_occupancy: Opacity of the chain lines in the plot.
         show: If True, the plot will be displayed in the browser.
 
     Returns:
@@ -74,7 +72,7 @@ def plot_plddt(
 
             plddt = cif_model.residue_plddts
 
-            plddt = insert_none_by_indices(indicies[indicies_index], plddt)
+            plddt = insert_none_by_minus_one(indicies[indicies_index], plddt)
 
             indicies_index += 1
             chain_ranges = {
