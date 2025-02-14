@@ -462,15 +462,15 @@ export class StructureViewer {
      * @returns {number}
      */
     #getAtomIndexForMolecule(chainLabel, index) {
-        let chain = null;
+        let offset = null;
 
         this.#structureComponent.structure.eachChain(c => {
             if (c.chainname === chainLabel) {
-                chain = c;
+                offset = c.atomOffset;
             }
-        })
+        });
 
-        return chain.atomOffset + index - 1;
+        return offset + index - 1;
     }
 
     /**
@@ -493,8 +493,6 @@ export class StructureViewer {
                 if (endIndex > startIndex) {
                     sele += ',' + [...range(startIndex, endIndex + 1)].join(',')
                 }
-
-                sele += `-${this.#getAtomIndexForMolecule(chainLabel, end)}`;
             }
 
             return sele;

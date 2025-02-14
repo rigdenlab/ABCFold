@@ -1,6 +1,6 @@
 import * as Utils from './utils.js';
 import {subunitColors} from "./structure-style.js";
-import {readChains} from "./read-chains.js";
+import {readStructure} from "./read-structure.js";
 
 export class PaeViewer {
     #root;
@@ -378,9 +378,9 @@ export class PaeViewer {
         this.#drawPaeColorScale(complex.maxPae ?? 31.75);
 
         if (complex.members && !complex.members[0].sequence) {
-            readChains(directory + complex.structureFile, null).then(chains => {
-                for (let i = 0; i < chains.length; i++) {
-                    complex.members[i].sequence = chains[i].sequence;
+            readStructure(directory + complex.structureFile, null).then(structure => {
+                for (let i = 0; i < structure.chains.length; i++) {
+                    complex.members[i].sequence = structure.chains[i].sequence;
                 }
             });
         }
@@ -458,7 +458,7 @@ export class PaeViewer {
     }
 
     #setupSvgDownloadListener() {
-        this.#downloadSvg.addEventListener('click', event => {
+        this.#downloadSvg.addEventListener('click', _ => {
             const svg = this.#graph.cloneNode(true);
 
             svg.querySelector('.pv-selections').remove();
@@ -812,7 +812,7 @@ export class PaeViewer {
             toggleRegions();
         });
 
-        this.#regionToggleCheckBox.addEventListener('change', event => {
+        this.#regionToggleCheckBox.addEventListener('change', _ => {
             toggleRegions();
         });
 
@@ -1582,7 +1582,7 @@ export class PaeViewer {
         horizontalPadding = horizontalPadding * this.#viewBox.width;
         verticalPadding = verticalPadding * this.#viewBox.height;
 
-        const background = Utils.createSVG('rect', null, {
+        return Utils.createSVG('rect', null, {
             rx: this.#style.elements.boxes.roundness,
             fill: this.#style.elements.boxes.color,
             opacity: this.#style.elements.boxes.opacity,
@@ -1600,8 +1600,6 @@ export class PaeViewer {
             ),
             ...params
         });
-
-        return background;
     }
 
     #addTickLabel(
@@ -1781,11 +1779,8 @@ export class PaeViewer {
     }
 
     static residueToString(member, index) {
-        const code = member.sequence[index - 1];
-        const label = member.type === 'protein' ?
-            PaeViewer.codeMapping[code] : code
-        ;
+        const residue = member.sequence[index - 1];
 
-        return `${label} ${index} (${member.title})`;
+        return `${residue.name} ${index} (${member.title})`;
     }
 }

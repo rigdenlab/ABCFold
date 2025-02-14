@@ -210,13 +210,17 @@ export class ComplexSequenceViewer {
             lastChain = chain;
             lastResidueNumber = residueNumber;
 
-            const residue = line.slice(17, 20);
-            const code = iupacMapping.get(residue);
+            const name = line.slice(17, 20);
+            const code = iupacMapping.get(name);
+            const residue = {
+                code: code,
+                name: name
+            }
 
             if (sequences.has(chain)) {
-                sequences.get(chain).push(code);
+                sequences.get(chain).push(residue);
             } else {
-                sequences.set(chain, [code]);
+                sequences.set(chain, [residue]);
             }
         }
 
@@ -251,7 +255,7 @@ export class ComplexSequenceViewer {
             sequence.classList.add('csv-sequence');
             sequence.style.backgroundColor = colors[m % colors.length];
 
-            for (const [i, aminoAcid] of member.sequence.entries()) {
+            for (const [i, residue] of member.sequence.entries()) {
                 const segment = document.createElement('div');
                 segment.classList.add('csv-segment')
 
@@ -264,7 +268,7 @@ export class ComplexSequenceViewer {
 
                 const code = document.createElement('div');
                 code.classList.add('csv-code')
-                code.textContent = aminoAcid;
+                code.textContent = residue.code;
                 code.dataset.subunit = member.uniprot;
                 code.dataset.index = i;
                 segment.appendChild(code);
@@ -335,12 +339,8 @@ export class ComplexSequenceViewer {
         });
     }
 
-    #residueToString(r, type = 'protein') {
-        const threeLetterCode = type === 'protein' ?
-            ComplexSequenceViewer.codeMapping[r.code]
-            : r.code
-        ;
-        return `${threeLetterCode} ${r.index + 1} (${r.subunit.title})`;
+    #residueToString(r) {
+        return `${r.residue.name} ${r.index + 1} (${r.subunit.title})`;
     }
 
     #rangeToString(range) {
@@ -377,7 +377,7 @@ export class ComplexSequenceViewer {
         return {
             subunit: subunit,
             index: relativeIndex,
-            code: element.textContent,
+            residue: subunit.sequence[relativeIndex],
             absoluteIndex: subunit.offset + relativeIndex,
             element: element,
         };

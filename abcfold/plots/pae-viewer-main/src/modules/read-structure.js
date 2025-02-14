@@ -1,4 +1,21 @@
-export function readChains(file, labels) {
+const codeToNucleotide = {
+    A: 'ADE',
+    G: 'GUA',
+    C: 'CYT',
+    T: 'THY',
+    U: 'URA',
+}
+
+const codeToElement = {
+    C: 'Carbon',
+    H: 'Hydrogen',
+    N: 'Nitrogen',
+    O: 'Oxygen',
+    P: 'Phosphorus',
+    S: 'Sulfur'
+}
+
+export function readStructure(file, labels) {
     return (new NGL.Stage()).loadFile(
         file, {name: 'structure'}
     ).catch(error => {
@@ -19,6 +36,8 @@ export function readChains(file, labels) {
     }).then(component => {
         const chains = [];
         let offset = 0;
+        let paeIndex = 0;
+        const modifications = [];
 
         component.structure.eachChain(chain => {
             const sequence = [];
@@ -27,20 +46,44 @@ export function readChains(file, labels) {
             if (residueProxy.isPolymer()) {
                 chain.eachResidue(r => {
                     let code;
+                    let name;
 
                     if (r.isProtein()) {
                         code = r.getResname1();
+                        name = r.resname;
+
+                        // handle modified residues (PTMs)
+                        if (code === 'X') {
+                            modifications.push({
+                                name: name,
+                                index: paeIndex,
+                                atomCount: r.atomCount,
+                            })
+                            paeIndex += r.atomCount - 1;
+                        }
                     } else if (r.isDna()) {
                         code = r.resname[1];
+                        name = codeToNucleotide[code] ?? code;
                     } else {  // RNA
                         code = r.resname[0];
+                        name = codeToNucleotide[code] ?? code;
                     }
 
-                    sequence.push(code);
+                    sequence.push({
+                        code: code,
+                        name: name
+                    });
+                    paeIndex++;
                 });
             } else {
                 chain.eachAtom(a => {
-                    sequence.push(a.atomname[0]);
+                    const code = a.atomname[0];
+
+                    sequence.push({
+                        code: code,
+                        name: codeToElement[code] ?? code
+                    });
+                    paeIndex++;
                 });
             }
 
@@ -78,13 +121,16 @@ export function readChains(file, labels) {
             };
         }
 
-        return chains.map((chain, i) => ({
-            ...chain,
-            id: labels[i],
-            title: labels[i],
-            uniprot: labels[i],
-            index: i,
-            position: i,
-        }));
+        return {
+            chains: chains.map((chain, i) => ({
+                ...chain,
+                id: labels[i],
+                title: labels[i],
+                uniprot: labels[i],
+                index: i,
+                position: i,
+            })),
+            modifications: modifications
+        }
     });
 }

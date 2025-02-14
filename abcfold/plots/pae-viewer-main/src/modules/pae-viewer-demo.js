@@ -1,17 +1,21 @@
 import {PaeViewer} from "./pae-viewer.js";
 import {StructureCarousel} from "./structure-carousel.js";
 import {ComplexSequenceViewer} from "./complex-sequence-viewer.js";
+import * as Utils from "./utils.js";
 import {createRandomId} from "./utils.js";
 import {readCrosslinks} from "./read-crosslinks.js";
 import {readScores} from "./read-scores.js";
-import {readChains} from "./read-chains.js";
-import * as Utils from "./utils.js";
+import {readStructure} from "./read-structure.js";
 
 new bootstrap.Modal(document.getElementById('cookieConsent')).show();
 
-const toast = document.querySelector('.toast');
-const maxPaeWarning = new bootstrap.Toast(toast, {autohide: false});
+const toast = document.querySelector('.toast-pae-max-warning');
+const maxPaeWarning = new bootstrap.Toast(toast);
 const maxPaeWarningMessage = toast.querySelector('.toast-body');
+
+const modificationWarning = new bootstrap.Toast(
+    document.querySelector('.toast-modification-warning')
+);
 
 let paeViewer = null;
 const paeViewerRoot = document.querySelector('#pae-viewer');
@@ -150,7 +154,7 @@ document.querySelector('#chooseExample').addEventListener('submit', event => {
 });
 
 const uploadForm = document.querySelector('#uploadStructure');
-// const chainLabelsInput = document.querySelector('#chainLabels');
+const chainLabelsInput = document.querySelector('#chainLabels');
 const chainLabelsFeedback = document.querySelector('#chainLabelsFeedback');
 const structureFileInput = document.querySelector('#structureFile');
 const structureFileFeedback = document.querySelector('#structureFileFeedback');
@@ -169,12 +173,12 @@ uploadForm.addEventListener('submit', event => {
     chainLabels = chainLabels ?
         chainLabels.split(';').map(label => label.trim()) : null;
 
-    if (chainLabels?.some(label => label.length === 0) ) {
+    if (chainLabels?.some(label => label.length === 0)) {
         chainLabelsInput.setCustomValidity("label-empty");
         chainLabelsFeedback.textContent
             = "Labels must be non-empty.";
     } else if (chainLabels !== null
-            && (new Set(chainLabels)).size !== chainLabels.length) {
+        && (new Set(chainLabels)).size !== chainLabels.length) {
         chainLabelsInput.setCustomValidity("label-non-unique");
         chainLabelsFeedback.textContent
             = "Labels must be unique.";
@@ -203,10 +207,11 @@ uploadForm.addEventListener('submit', event => {
         return;
     }
 
-    Promise.all([
-        readScores(data.get('scoresFile')),
-        readChains(data.get('structureFile'), chainLabels)
-    ]).then(([scores, chains]) => {
+
+    readStructure(data.get('structureFile'), chainLabels).then(async (structure) => {
+        return [structure, await readScores(data.get('scoresFile'), structure.modifications)];
+    }).then(([structure, scores]) => {
+        const chains = structure.chains;
         uploadForm.classList.remove('was-validated');
 
         const totalLength = Utils.sum(
@@ -222,14 +227,22 @@ uploadForm.addEventListener('submit', event => {
             };
         }
 
-        if (scores.overwrittenMax !== null) {
-            maxPaeWarningMessage.textContent = `A maximum PAE of`
-                + ` ${scores.overwrittenMax} was supplied in the scores file,`
-                + ` however, the highest PAE found was ${scores.maxPae}. The`
-                + ` maximum PAE was set to this value for scaling.`;
+        if (scores.parsedMaxPae && scores.foundMaxPae > scores.parsedMaxPae) {
+            maxPaeWarningMessage.textContent = (
+                `A maximum PAE of  ${scores.parsedMaxPae} was supplied in the`
+                + `scores file,  however, the highest PAE found was`
+                + ` ${scores.foundMaxPae}. The maximum PAE was set to the`
+                + ` latter value for scaling.`
+            );
             maxPaeWarning.show();
         } else {
             maxPaeWarning.hide();
+        }
+
+        if (structure.modifications.length > 0) {
+            modificationWarning.show();
+        } else {
+            modificationWarning.hide();
         }
 
         const subunitNames = chains.map(subunit => subunit.id);
@@ -246,11 +259,11 @@ uploadForm.addEventListener('submit', event => {
             crosslinksUrl: data.get('crosslinksFile').name.length > 0 ?
                 data.get('crosslinksFile') : null,
             structureFile: data.get('structureFile'),
-            plddt: scores['plddt'],
-            ptm: scores['ptm'],
-            iptm: scores['iptm'],
-            pae: scores['pae'],
-            maxPae: scores['maxPae'],
+            plddt: scores.meanPlddt,
+            ptm: scores.ptm,
+            iptm: scores.iptm,
+            pae: scores.pae,
+            maxPae: Math.max(scores.parsedMaxPae, scores.foundMaxPae)
         };
 
         return readCrosslinks(complex);
