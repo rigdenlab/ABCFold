@@ -1,12 +1,25 @@
 {{paeViewerDemo__consent.tpl}}
 
-<div class="toast align-items-center text-bg-warning border-0 position-fixed m-3 top-0 start-50 translate-middle-x"
+<div class="toast-pae-max-warning toast align-items-center text-bg-warning border-0 position-fixed m-3 top-0 start-50 translate-middle-x"
      role="alert" aria-live="assertive" aria-atomic="true">
   <div class="d-flex">
     <div class="toast-body"></div>
     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
   </div>
 </div>
+
+<div class="toast-modification-warning toast align-items-center text-bg-warning border-0 position-fixed m-3 top-0 start-50 translate-middle-x"
+     role="alert" aria-live="assertive" aria-atomic="true">
+  <div class="d-flex">
+    <div class="toast-body">
+      The atom-wise PAE values of modified amino acids were replaced
+      by their arithmetic mean to get a residue-wise PAE (note the
+      different PAE matrix).
+    </div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+  </div>
+</div>
+
 
 {{paeViewerDemo__tabs.tpl}}
 

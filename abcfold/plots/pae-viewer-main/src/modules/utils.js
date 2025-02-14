@@ -111,6 +111,7 @@ export function sum(array) {
     return array.reduce((previous, current) => previous + current, 0);
 }
 
+/** Return arithmetic mean of values. */
 export function mean(array) {
     return array.reduce((a, b) => a + b, 0) / array.length;
 }
