@@ -7,6 +7,7 @@
       {{paeViewerDemo__help__viewer.tpl}}
       {{paeViewerDemo__help__structure.tpl}}
       {{paeViewerDemo__help__sequence.tpl}}
+      {{paeViewerDemo__help__ptms.tpl}}
     </div>
   </div>
 </div>
