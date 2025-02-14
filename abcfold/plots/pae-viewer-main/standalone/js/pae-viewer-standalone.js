@@ -4,12 +4,18 @@ import {ComplexSequenceViewer} from "../../src/modules/complex-sequence-viewer.j
 import {createRandomId} from "../../src/modules/utils.js";
 import {readCrosslinks} from "../../src/modules/read-crosslinks.js";
 import {readScores} from "../../src/modules/read-scores.js";
-import {readChains} from "../../src/modules/read-chains.js";
+import {readStructure} from "../../src/modules/read-structure.js";
 import * as Utils from "../../src/modules/utils.js";
 
-const toast = document.querySelector('.toast');
-const maxPaeWarning = new bootstrap.Toast(toast, {autohide: false});
+new bootstrap.Modal(document.getElementById('cookieConsent')).show();
+
+const toast = document.querySelector('.toast-pae-max-warning');
+const maxPaeWarning = new bootstrap.Toast(toast);
 const maxPaeWarningMessage = toast.querySelector('.toast-body');
+
+const modificationWarning = new bootstrap.Toast(
+    document.querySelector('.toast-modification-warning')
+);
 
 let paeViewer = null;
 const paeViewerRoot = document.querySelector('#pae-viewer');
@@ -36,7 +42,7 @@ const structurePanelTemplate = document.querySelector(
 );
 
 const uploadStructureSubmit = document.querySelector('#uploadStructureSubmit');
-uploadStructureSubmit.disabled = true;
+uploadStructureSubmit.disabled = false;
 
 let structureViewerDisplay = null;
 
@@ -116,7 +122,7 @@ uploadForm.addEventListener('submit', event => {
     chainLabels = chainLabels ?
         chainLabels.split(';').map(label => label.trim()) : null;
 
-    if (chainLabels?.some(label => label.length === 0) ) {
+    if (chainLabels?.some(label => label.length === 0)) {
         chainLabelsInput.setCustomValidity("label-empty");
         chainLabelsFeedback.textContent
             = "Labels must be non-empty.";
@@ -150,10 +156,11 @@ uploadForm.addEventListener('submit', event => {
         return;
     }
 
-    Promise.all([
-        readScores(data.get('scoresFile')),
-        readChains(data.get('structureFile'), chainLabels)
-    ]).then(([scores, chains]) => {
+
+    readStructure(data.get('structureFile'), chainLabels).then(async (structure) => {
+        return [structure, await readScores(data.get('scoresFile'), structure.modifications)];
+    }).then(([structure, scores]) => {
+        const chains = structure.chains;
         uploadForm.classList.remove('was-validated');
 
         const totalLength = Utils.sum(
@@ -169,14 +176,22 @@ uploadForm.addEventListener('submit', event => {
             };
         }
 
-        if (scores.overwrittenMax !== null) {
-            maxPaeWarningMessage.textContent = `A maximum PAE of`
-                + ` ${scores.overwrittenMax} was supplied in the scores file,`
-                + ` however, the highest PAE found was ${scores.maxPae}. The`
-                + ` maximum PAE was set to this value for scaling.`;
+        if (scores.parsedMaxPae && scores.foundMaxPae > scores.parsedMaxPae) {
+            maxPaeWarningMessage.textContent = (
+                `A maximum PAE of  ${scores.parsedMaxPae} was supplied in the`
+                + `scores file,  however, the highest PAE found was`
+                + ` ${scores.foundMaxPae}. The maximum PAE was set to the`
+                + ` latter value for scaling.`
+            );
             maxPaeWarning.show();
         } else {
             maxPaeWarning.hide();
+        }
+
+        if (structure.modifications.length > 0) {
+            modificationWarning.show();
+        } else {
+            modificationWarning.hide();
         }
 
         const subunitNames = chains.map(subunit => subunit.id);
@@ -193,11 +208,11 @@ uploadForm.addEventListener('submit', event => {
             crosslinksUrl: data.get('crosslinksFile').name.length > 0 ?
                 data.get('crosslinksFile') : null,
             structureFile: data.get('structureFile'),
-            plddt: scores['plddt'],
-            ptm: scores['ptm'],
-            iptm: scores['iptm'],
-            pae: scores['pae'],
-            maxPae: scores['maxPae'],
+            plddt: scores.meanPlddt,
+            ptm: scores.ptm,
+            iptm: scores.iptm,
+            pae: scores.pae,
+            maxPae: Math.max(scores.parsedMaxPae, scores.foundMaxPae)
         };
 
         return readCrosslinks(complex);
