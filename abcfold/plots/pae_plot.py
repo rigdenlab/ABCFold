@@ -170,7 +170,6 @@ def prepare_scripts(
 
     scripts = []
     for cif_file, pae_file in zip(cif_files, pae_files):
-
         name_stem = f"{pae_file.pathway.stem}\
 {'_' + pae_file.pathway.parent.stem if is_af3 else ''}_{'af3_' if is_af3 else ''}"
 

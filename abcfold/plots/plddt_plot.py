@@ -63,9 +63,9 @@ def plot_plddt(
         cif_file for cif_files in cif_models_dict.values() for cif_file in cif_files
     ]
     indicies = get_gap_indicies(*cif_models)
+    indicies_index = 0
 
     for method, cif_models in cif_models_dict.items():
-        indicies_index = 0
 
         for cif_model in cif_models:
             model_index = int(cif_model.name.split("_")[-1])
@@ -79,7 +79,7 @@ def plot_plddt(
             indicies_index += 1
             chain_ranges = {
                 chain: len(plddt)
-                for chain, plddt in cif_model.residue_plddt_per_chain.items()
+                for chain, plddt in cif_model.get_plddt_per_residue().items()
             }
             line_ranges = {
                 chain: max(chain_ranges[chain], line_ranges.get(chain, 0))
@@ -102,11 +102,11 @@ def plot_plddt(
     counter = 0
     colour_index = 0
     for chain, chain_range in line_ranges.items():
-        counter += chain_range[-1]
+        counter += chain_range
         chain_name = f"Chain {chain}"
 
         fig.add_vline(
-            x=counter,
+            x=counter - 1,
             line=dict(color=colours[colour_index % len(colours)], dash="dash"),
             opacity=chain_line_occupancy,
             annotation_text=Bold(chain_name),
