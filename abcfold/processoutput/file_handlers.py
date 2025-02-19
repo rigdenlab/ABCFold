@@ -151,6 +151,7 @@ class CifFile(FileBase):
         super().__init__(cif_file)
         self.cif_file = Path(cif_file)
         self.clashes = 0
+        self.clashes = 0
         self.model = self.load_cif_file()
         self.__ligand_plddts = None
         self.__plddts = None
@@ -709,7 +710,7 @@ for reordering"
                 atom_site_group_pdb.extend(["HETATM"] * chain_length)
             else:
                 atom_site_group_pdb.extend(
-                    out_dict["_atom_site.group_PDB"][counter:counter + chain_length]
+                    out_dict["_atom_site.group_PDB"][counter:counter+chain_length]
                 )
 
             counter += chain_length

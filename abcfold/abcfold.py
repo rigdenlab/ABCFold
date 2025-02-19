@@ -15,7 +15,7 @@ from abcfold.argparse_utils import (alphafold_argparse_util,
                                     custom_template_argpase_util,
                                     main_argpase_util, mmseqs2_argparse_util,
                                     prediction_argparse_util)
-from abcfold.plots.plotter import (NoCacheHTTPRequestHandler,
+from abcfold.plots.plotter import (PORT, NoCacheHTTPRequestHandler,
                                    get_all_cif_files, get_model_data,
                                    get_model_sequence_data,
                                    output_open_html_script, plots,
@@ -32,7 +32,6 @@ logger = setup_logger()
 HTML_DIR = Path(__file__).parent / "html"
 HTML_TEMPLATE = HTML_DIR.joinpath("abcfold.html.jinja2")
 PLOTS_DIR = ".plots"
-PORT = 8000
 
 
 def run(args, config, defaults, config_file):
