@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 
 from abcfold.processoutput.file_handlers import CifFile, ConfidenceJsonFile
+from abcfold.processoutput.utils import Af3Pae
 
 
 class AlphafoldOutput:
@@ -61,6 +62,8 @@ class AlphafoldOutput:
             seed: [value["af3_pae"] for value in self.output[seed].values()]
             for seed in self.seeds
         }
+        self.pae_to_af3()
+
         self.scores_files = {
             seed: [value["summary"] for value in self.output[seed].values()]
             for seed in self.seeds
@@ -88,6 +91,7 @@ class AlphafoldOutput:
                     if file.suffix == ".cif":
                         cif_file = CifFile(str(file), self.input_params)
                         cif_file.name = f"Alphafold3_{seed}_{sample}"
+
                         cif_file = self.reorder_chains(cif_file)
                         cif_file.to_file(str(file))
                         file_groups[seed][sample]["cif"] = cif_file
@@ -124,6 +128,44 @@ class AlphafoldOutput:
 
         return ids
 
+    def pae_to_af3(self):
+        """
+        Convert the PAE data from Boltz-1 to the format used by Alphafold3
+
+        Returns:
+            None
+        """
+        new_pae_files = {}
+        for seed in self.seeds:
+            for i, (pae_file, cif_file) in enumerate(
+                zip(self.af3_pae_files[seed], self.cif_files[seed])
+            ):
+                pae = Af3Pae.from_alphafold3(
+                    pae_file.data,
+                    cif_file,
+                )
+
+                out_name = pae_file.pathway
+
+                pae.to_file(out_name)
+
+                if seed not in new_pae_files:
+                    new_pae_files[seed] = []
+                new_pae_files[seed].append(ConfidenceJsonFile(out_name))
+
+        self.af3_pae_files = new_pae_files
+        self.output = {
+            seed: {
+                i: {
+                    "cif": cif_file,
+                    "af3_pae": new_pae_files[seed][i],
+                    "summary": self.output[seed][i]["summary"],
+                }
+                for i, cif_file in enumerate(self.cif_files[seed])
+            }
+            for seed in self.seeds
+        }
+
     def reorder_chains(self, cif_file: CifFile) -> CifFile:
         """
         Function to update the chain order in the CIF file according to the ids in the
@@ -133,47 +175,7 @@ class AlphafoldOutput:
             cif_file (CifFile): CifFile object to update the chain labels for
 
         """
-
+        if [chain.id for chain in cif_file.get_chains()] == self.get_chain_ids():
+            return cif_file
         cif_file.reorder_chains(self.get_chain_ids())
         return cif_file
-
-
-if __name__ == "__main__":
-    input_params = {
-        "name": "Hello_fold",
-        "modelSeeds": [42],
-        "sequences": [
-            {
-                "protein": {
-                    "id": "A",
-                    "sequence": "PVLSCGEWQL",
-                    "modifications": [
-                        {"ptmType": "HY3", "ptmPosition": 1},
-                        {"ptmType": "P1L", "ptmPosition": 5},
-                    ],
-                }
-            },
-            {"protein": {"id": "B", "sequence": "QIQLVQSGPELKKPGET"}},
-            {"protein": {"id": "C", "sequence": "DVLMIQTPLSLPVS"}},
-            {"ligand": {"id": ["F"], "ccdCodes": ["ATP"]}},
-            {"ligand": {"id": "I", "ccdCodes": ["NAG", "FUC", "FUC"]}},
-            {"dna": {"id": ["D", "K"], "sequence": "AGCT"}},
-            {"rna": {"id": "L", "sequence": "AGCU"}},
-            {"ligand": {"id": "Z", "smiles": "CC(=O)OC1C[NH+]2CCC1CC2"}},
-        ],
-        "bondedAtomPairs": [
-            [["A", 1, "CA"], ["B", 1, "CA"]],
-            [["C", 7, "CA"], ["A", 10, "CA"]],
-            [["I", 1, "O3"], ["I", 2, "C1"]],
-            [["I", 2, "C1"], ["I", 3, "C1"]],
-        ],
-        "dialect": "alphafold3",
-        "version": 2,
-    }
-    ao = AlphafoldOutput(
-        "/home/etk48667/folding/aaa_bbb/alphafold3_Hello_fold/",
-        input_params=input_params,
-        name="Hello_fold",
-    )
-
-    ao.process_af3_output()
