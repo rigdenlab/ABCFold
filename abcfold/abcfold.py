@@ -163,7 +163,7 @@ by default"
             )
             bolt_out_dir = list(args.output_dir.glob("boltz_results*"))[0]
             bo = BoltzOutput(bolt_out_dir, input_params, name)
-            bo.add_plddt_to_cif()
+            # bo.add_plddt_to_cif()
             outputs.append(bo)
 
         if args.chai1:
