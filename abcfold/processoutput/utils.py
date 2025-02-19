@@ -19,6 +19,92 @@ AF3TEMPLATE: dict = {
 
 
 class Af3Pae:
+    @classmethod
+    def from_alphafold3(cls, scores: dict, cif_file: CifFile):
+        def reorder_matrix(pae_matrix, chain_lengths, af3_chain_lengths):
+            if not isinstance(pae_matrix, np.ndarray):
+                pae_matrix = np.array(pae_matrix)
+            desired_order = flatten(
+                [[key] * value for key, value in chain_lengths.items()]
+            )
+            current_order = flatten(
+                [[key] * value for key, value in af3_chain_lengths.items()]
+            )
+
+            order_mapping = {}
+
+            for i, chain_id in enumerate(current_order):
+                if chain_id in desired_order:
+                    order_mapping[i] = desired_order.index(chain_id)
+                    desired_order[desired_order.index(chain_id)] = None  # Mark as used
+                else:
+                    order_mapping[i] = i
+
+            # Reorder the PAE matrix rows and columns based on the mapping
+
+            reordered_matrix = np.zeros_like(pae_matrix)
+            for i in range(len(pae_matrix)):
+                for j in range(len(pae_matrix)):
+
+                    reordered_matrix[order_mapping[i], order_mapping[j]] = pae_matrix[
+                        i, j
+                    ]
+
+            return reordered_matrix.tolist()
+
+        af3_scores = AF3TEMPLATE.copy()
+
+        chain_lengths = cif_file.chain_lengths(
+            mode="residues", ligand_atoms=True, ptm_atoms=True
+        )
+
+        af3pae_chain_lengths = {
+            k: chain_lengths[k] for k in np.unique(scores["token_chain_ids"])
+        }
+        if list(chain_lengths.keys()) == list(af3pae_chain_lengths.keys()):
+            return cls(scores)
+
+        residue_lengths = cif_file.chain_lengths(mode="all", ligand_atoms=True)
+
+        atom_chain_ids = flatten(
+            [[key] * value for key, value in residue_lengths.items()]
+        )
+        atom_plddts = cif_file.plddts
+
+        token_res_ids_dict = cif_file.token_residue_ids()
+        token_res_ids = flatten([value for _, value in token_res_ids_dict.items()])
+
+        reordered_pae = reorder_matrix(
+            scores["pae"], chain_lengths, af3pae_chain_lengths
+        )
+        contact_probs = reorder_matrix(
+            scores["contact_probs"], chain_lengths, af3pae_chain_lengths
+        )
+        token_chain_ids = flatten(
+            [[key] * len(value) for key, value in token_res_ids_dict.items()]
+        )
+
+        assert len(atom_chain_ids) == len(scores["atom_chain_ids"])
+        assert sum([len(value) for value in token_res_ids_dict.values()]) == len(
+            scores["pae"]
+        )
+        assert len(atom_plddts) == len(scores["atom_plddts"])
+
+        assert len(reordered_pae) == len(scores["pae"])
+        assert len(contact_probs) == len(scores["contact_probs"])
+        assert len(reordered_pae[0]) == len(scores["pae"][0])
+        assert len(contact_probs[0]) == len(scores["contact_probs"][0])
+        assert len(token_chain_ids) == len(scores["token_chain_ids"])
+        assert len(token_res_ids) == len(scores["token_res_ids"])
+
+        af3_scores["atom_chain_ids"] = atom_chain_ids
+        af3_scores["atom_plddts"] = atom_plddts
+        af3_scores["contact_probs"] = contact_probs
+        af3_scores["pae"] = reordered_pae
+        af3_scores["token_chain_ids"] = token_chain_ids
+        af3_scores["token_res_ids"] = token_res_ids
+
+        return cls(af3_scores)
 
     @classmethod
     def from_boltz1(cls, scores: dict, cif_file: CifFile):
@@ -89,7 +175,7 @@ class Af3Pae:
 
     def to_file(self, file_path: Union[str, Path]):
         with open(file_path, "w") as f:
-            json.dump(self.scores, f, indent=2)
+            json.dump(self.scores, f, indent=4)
 
 
 def flatten(xss):
@@ -138,7 +224,6 @@ def get_gap_indicies(*cif_objs) -> List[np.ndarray]:
 
     for chain_id in chain_lengths[0]:
         if chain_id in unequal_chain_lengths:
-            # indicies[chain_id] = []
             chain_atoms = [
                 "".join([atom.element for atom in cif.get_atoms(chain_id=chain_id)])
                 for cif in cif_objs
@@ -189,53 +274,3 @@ def insert_none_by_minus_one(indices, values):
     assert len(indices) == len(result)
 
     return result
-
-
-# WIP - local testing purposes
-
-# if __name__ == "__main__":
-#     input_params = {
-#         "name": "Hello_fold",
-#         "modelSeeds": [42],
-#         "sequences": [
-#             {
-#                 "protein": {
-#                     "id": "A",
-#                     "sequence": "PVLSCGEWQL",
-#                     "modifications": [
-#                         {"ptmType": "HY3", "ptmPosition": 1},
-#                         {"ptmType": "P1L", "ptmPosition": 5},
-#                     ],
-#                 }
-#             },
-#             {"protein": {"id": "B", "sequence": "QIQLVQSGPELKKPGET"}},
-#             {"protein": {"id": "C", "sequence": "DVLMIQTPLSLPVS"}},
-#             {"ligand": {"id": ["F"], "ccdCodes": ["ATP"]}},
-#             {"ligand": {"id": "I", "ccdCodes": ["NAG", "FUC", "FUC"]}},
-#             {"dna": {"id": ["D", "K"], "sequence": "AGCT"}},
-#             {"rna": {"id": "L", "sequence": "AGCU"}},
-#             {"ligand": {"id": "Z", "smiles": "CC(=O)OC1C[NH+]2CCC1CC2"}},
-#         ],
-#         "bondedAtomPairs": [
-#             [["A", 1, "CA"], ["B", 1, "CA"]],
-#             [["C", 7, "CA"], ["A", 10, "CA"]],
-#             [["I", 1, "O3"], ["I", 2, "C1"]],
-#             [["I", 2, "C1"], ["I", 3, "C1"]],
-#         ],
-#         "dialect": "alphafold3",
-#         "version": 2,
-#     }
-
-#     # cif_file = CifFile(
-#     #     "/home/etk48667/folding/aaa_bbb_ccc/chai1_Hello_fold/pred.model_idx_0.cif",
-#     #     input_params,
-#     # )
-#     cif_file = CifFile(
-#         "/home/etk48667/folding/drtest/alphafold3_Hello_fold/seed-42_sample-0/m\
-# odel.cif",
-#         input_params,
-#     )
-
-#     cif_file.pathway = "tmp.cif"
-
-#     print(cif_file.chain_lengths(mode="residues", ligand_atoms=True))
