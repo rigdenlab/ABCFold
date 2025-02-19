@@ -118,6 +118,7 @@ class BoltzOutput:
                     intermediate_dict["pde"] = file_
                 elif file_.pathway.suffix == ".cif":
                     file_.name = f"Boltz-1_{model_number}"
+                    file_ = self.update_chain_labels(file_)
                     intermediate_dict["cif"] = file_
                 else:
                     intermediate_dict[file_.suffix] = file_
@@ -149,7 +150,7 @@ class BoltzOutput:
                 plddt_score = (plddt_score * 100).astype(float)
 
             chain_lengths = cif_file.chain_lengths(
-                mode=ModelCount.RESIDUES, ligand_atoms=True
+                mode=ModelCount.RESIDUES, ligand_atoms=True, ptm_atoms=True
             )
 
             assert sum(chain_lengths.values()) == len(plddt_score), "Length mismatch"
