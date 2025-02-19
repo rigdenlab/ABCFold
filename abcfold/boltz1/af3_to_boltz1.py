@@ -307,7 +307,6 @@ class BoltzYaml:
         self.__non_ligands.extend(id_)
 
         if self.msa_file is not None:
-            print("not none")
             (
                 self.msa_to_file(sequence_dict["unpairedMsa"], self.msa_file)
                 if self.__create_files
@@ -315,7 +314,6 @@ class BoltzYaml:
             )
             yaml_string += self.add_msa(self.msa_file)
         if "modifications" in sequence_dict:
-            print("here")
             yaml_string += self.add_modifications(sequence_dict["modifications"])
         return yaml_string
 
