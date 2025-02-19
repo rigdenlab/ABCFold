@@ -11,6 +11,7 @@ import numpy as np
 from Bio.PDB import MMCIFIO, Chain, MMCIFParser, Model
 from Bio.PDB.Atom import Atom
 from Bio.PDB.kdtrees import KDTree
+from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
 
 from abcfold.processoutput.atoms import VANDERWALLS
@@ -270,8 +271,8 @@ class CifFile(FileBase):
                 if self.check_other(chain, ["protein", "rna", "dna"]) and ptm_atoms:
                     counter = 0
                     for residue in chain:
-
-                        if residue.id[0] == " ":
+                        print(is_aa(residue.resname, standard=True), residue.resname)
+                        if is_aa(residue.resname, standard=True):
                             counter += 1
                             continue
                         else:
