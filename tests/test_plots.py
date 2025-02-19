@@ -3,12 +3,10 @@ from pathlib import Path
 
 from abcfold.plots.pae_plot import create_pae_plots
 from abcfold.plots.plddt_plot import plot_plddt
+from abcfold.plots.plotter import get_model_sequence_data
 
 
 def test_plddt_plot(output_objs):
-    af3_files = output_objs.af3_output.cif_files["seed-1"][0:1]
-    boltz_files = output_objs.boltz_output.cif_files[0:1]
-    chai_files = output_objs.chai_output.cif_files[0:1]
 
     af3_files = output_objs.af3_output.cif_files["seed-1"]
     boltz_files = output_objs.boltz_output.cif_files
@@ -75,3 +73,30 @@ test_mmseqs_model_1.cif"
         assert "tests/test_data/chai1_6BJ9/pred.model_idx_1.cif" in plot_pathways
 
         assert len(list(temp_dir.glob("*.html"))) == 6
+
+
+def test_get_sequence_data(output_objs):
+    af3_files = output_objs.af3_output.cif_files["seed-1"]
+    boltz_files = output_objs.boltz_output.cif_files
+    chai_files = output_objs.chai_output.cif_files
+
+    cif_files = []
+
+    [cif_files.extend(files) for files in [af3_files, boltz_files, chai_files]]
+
+    outputdic = get_model_sequence_data(cif_files)
+
+    assert outputdic == {
+        "A": "GTGSRPITDVVFVGAARTPIGSFRSAFNNVPVTVLGREALKGALKNANVKPSLVQEAFIGVVVPSNAGQGPA\
+RQVVLGAGCDVSTVVTAVNKMCASGMKAIACAASILQLDLQEMVVAGGMESMSCVPFYLPRGEIPFGGTKLIDGIPRDGLNDVYND\
+ILMGACADKVAKQFAITREEQDKYAILSYKRSAAAWKEGIFAKEIIPLEVTQGKKTITVEEDEEYKKVNFEKIPKLKPAFTSEGSV\
+TAANASTLNDGAAMVVMTTVDGAKKHGLKPLARMLAYGDAATHPIDFGIAPASVIPKVLKLAGLQIKDIDLWEINEAFAVVPLYTM\
+KTLGLDESKVNIHGGAVSLGHPIGMSGARIVGHLVHTLKPGQKGCAAICNGGGGAGGMIIEKL",
+        "B": "GTGSRPITDVVFVGAARTPIGSFRSAFNNVPVTVLGREALKGALKNANVKPSLVQEAFIGVVVPSNAGQGPA\
+RQVVLGAGCDVSTVVTAVNKMCASGMKAIACAASILQLDLQEMVVAGGMESMSCVPFYLPRGEIPFGGTKLIDGIPRDGLNDVYND\
+ILMGACADKVAKQFAITREEQDKYAILSYKRSAAAWKEGIFAKEIIPLEVTQGKKTITVEEDEEYKKVNFEKIPKLKPAFTSEGSV\
+TAANASTLNDGAAMVVMTTVDGAKKHGLKPLARMLAYGDAATHPIDFGIAPASVIPKVLKLAGLQIKDIDLWEINEAFAVVPLYTM\
+KTLGLDESKVNIHGGAVSLGHPIGMSGARIVGHLVHTLKPGQKGCAAICNGGGGAGGMIIEKL",
+        "C": "NCNCCCNNCNCCOCOPOOOCOCOPOOOPOOOCCCCCOCONCCCONCCSCOC",
+        "D": "NCNCCCNNCNCCOCOPOOOCOCOPOOOPOOOCCCCCOCONCCCONCCSCOC",
+    }

@@ -1,9 +1,12 @@
+import json
+import tempfile
 from pathlib import Path
 
 from abcfold.abc_script_utils import (align_and_map, check_input_json,
                                       extract_sequence_from_mmcif, get_chains,
                                       get_mmcif)
-from abcfold.processoutput.file_handlers import CifFile
+from abcfold.processoutput.file_handlers import CifFile, ConfidenceJsonFile
+from abcfold.processoutput.utils import Af3Pae
 
 
 def test_get_chains(test_data):
@@ -76,3 +79,34 @@ def test_clash_checker(test_data):
     clashes = structure.check_clashes()
     assert isinstance(clashes, list)
     assert len(clashes) == 2
+
+
+def test_af3_pae_reorder(test_data):
+    test_cif = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+        "seed-1_sample-0", "model.cif"
+    )
+    test_pae = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+        "seed-1_sample-0", "confidences.json"
+    )
+    # /home/etk48667/dev/ABCFold/tests/test_data/alphafold3_6BJ9/6bj9_data.json
+    input_params_path = Path(test_data.test_alphafold3_6BJ9_).joinpath("6bj9_data.json")
+
+    with open(input_params_path, "r") as f:
+        input_params = json.load(f)
+
+    cif = CifFile(test_cif, input_params)
+    pae = ConfidenceJsonFile(test_pae)
+    pae_to_compare_tci = pae.data["token_chain_ids"][786:]
+
+    cif.reorder_chains(["B", "A", "D", "C"])
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        cif.to_file(Path(temp_dir).joinpath("test.cif"))
+        cif_file = Path(temp_dir).joinpath("test.cif")
+        structure = CifFile(cif_file, input_params=input_params)
+        assert [chain.id for chain in structure.get_chains()] == ["B", "A", "D", "C"]
+        structure.update()
+        assert [chain.id for chain in structure.get_chains()] == ["B", "A", "D", "C"]
+        pae_obj = Af3Pae.from_alphafold3(pae.data, structure)
+
+        assert pae_obj.scores["token_chain_ids"][787+50:] == pae_to_compare_tci[:51]
