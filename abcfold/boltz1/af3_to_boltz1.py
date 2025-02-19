@@ -205,6 +205,25 @@ class BoltzYaml:
             raise FileNotFoundError()
         return f"{DELIM}{DELIM}msa: {msa}\n"
 
+    def add_modifications(self, list_of_modifications: list):
+        """
+        Adds the modifications to the yaml string, double tabbed
+
+        Args:
+            list_of_modifications (list): list of modifications
+
+        Returns:
+            str: yaml string
+        """
+        yaml_string = ""
+        yaml_string += f"{DELIM}{DELIM}modifications:\n"
+        for modification in list_of_modifications:
+            yaml_string += (
+                f"{DELIM}{DELIM}{DELIM}- position: {modification['ptmPosition']}\n"
+            )
+            yaml_string += f"{DELIM}{DELIM}{DELIM}  ccd: {modification['ptmType']}\n"
+        return yaml_string
+
     def add_key_and_value(self, key: str, value: str):
         """
         Adds the key and value to the yaml string, double tabbed
@@ -287,14 +306,17 @@ class BoltzYaml:
 
         self.__non_ligands.extend(id_)
 
-        if self.msa_file is None:
-            return yaml_string
-        (
-            self.msa_to_file(sequence_dict["unpairedMsa"], self.msa_file)
-            if self.__create_files
-            else None
-        )
-        yaml_string += self.add_msa(self.msa_file)
+        if self.msa_file is not None:
+            print("not none")
+            (
+                self.msa_to_file(sequence_dict["unpairedMsa"], self.msa_file)
+                if self.__create_files
+                else None
+            )
+            yaml_string += self.add_msa(self.msa_file)
+        if "modifications" in sequence_dict:
+            print("here")
+            yaml_string += self.add_modifications(sequence_dict["modifications"])
         return yaml_string
 
     def add_title(self, name: str):
