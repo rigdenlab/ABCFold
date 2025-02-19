@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 from typing import Union
@@ -152,9 +151,7 @@ class BoltzOutput:
             chain_lengths = cif_file.chain_lengths(
                 mode=ModelCount.RESIDUES, ligand_atoms=True
             )
-            print(chain_lengths)
 
-            print(len(plddt_score), sum(chain_lengths.values()))
             assert sum(chain_lengths.values()) == len(plddt_score), "Length mismatch"
 
             counter = 0
@@ -191,8 +188,7 @@ class BoltzOutput:
                 cif_file.pathway.stem + "_af3_pae.json"
             )
 
-            with open(out_name, "w") as f:
-                json.dump(pae.scores, f)
+            pae.to_file(out_name)
 
             self.output[i]["af3_pae"] = ConfidenceJsonFile(out_name)
 
@@ -221,43 +217,3 @@ class BoltzOutput:
         by.json_to_yaml(self.input_params)
 
         return by
-
-
-if __name__ == "__main__":
-    input_params = {
-        "name": "Hello_fold",
-        "modelSeeds": [42],
-        "sequences": [
-            {
-                "protein": {
-                    "id": "A",
-                    "sequence": "PVLSCGEWQL",
-                    "modifications": [
-                        {"ptmType": "HY3", "ptmPosition": 1},
-                        {"ptmType": "P1L", "ptmPosition": 5},
-                    ],
-                }
-            },
-            {"protein": {"id": "B", "sequence": "QIQLVQSGPELKKPGET"}},
-            {"protein": {"id": "C", "sequence": "DVLMIQTPLSLPVS"}},
-            {"ligand": {"id": ["F"], "ccdCodes": ["ATP"]}},
-            {"ligand": {"id": "I", "ccdCodes": ["NAG", "FUC", "FUC"]}},
-            {"dna": {"id": ["D", "K"], "sequence": "AGCT"}},
-            {"rna": {"id": "L", "sequence": "AGCU"}},
-            {"ligand": {"id": "Z", "smiles": "CC(=O)OC1C[NH+]2CCC1CC2"}},
-        ],
-        "bondedAtomPairs": [
-            [["A", 1, "CA"], ["B", 1, "CA"]],
-            [["C", 7, "CA"], ["A", 10, "CA"]],
-            [["I", 1, "O3"], ["I", 2, "C1"]],
-            [["I", 2, "C1"], ["I", 3, "C1"]],
-        ],
-        "dialect": "alphafold3",
-        "version": 2,
-    }
-    bo = BoltzOutput(
-        "/home/etk48667/folding/aaa_bbb_ccc/boltz-1_Hello_fold",
-        input_params,
-        "Hello_fold",
-    )
-    bo.add_plddt_to_cif()
