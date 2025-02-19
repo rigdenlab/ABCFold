@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 from typing import Union
@@ -146,8 +145,7 @@ class ChaiOutput:
             )
 
             out_name = self.output_dir.joinpath(cif_file.pathway.stem + "_af3_pae.json")
-            with open(out_name, "w") as f:
-                json.dump(pae.scores, f)
+            pae.to_file(out_name)
 
             self.output[i]["af3_pae"] = ConfidenceJsonFile(out_name)
 
