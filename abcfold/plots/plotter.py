@@ -26,8 +26,10 @@ def get_plddt_regions(plddts: Union[np.ndarray, list]) -> dict:
         plddts = np.array(plddts)
 
     regions = {}
+    # replace none values with -1
+    plddts = np.where(plddts is None, -1, plddts)
 
-    v_low = np.where(plddts <= 50)[0]
+    v_low = np.where((0 <= plddts) & (plddts <= 50))[0]
     regions["v_low"] = get_regions_helper(v_low)
     low = np.where((plddts > 50) & (plddts < 70))[0]
     regions["low"] = get_regions_helper(low)
@@ -56,6 +58,9 @@ def get_model_sequence_data(cif_objs) -> dict:
     Get the sequence for each chain and ligand in the model, used internally
     for plotting
 
+    Args:
+        cif_objs : A list of CifFile objs
+
     Returns:
         dict : Chain ID and sequence data
     """
@@ -64,7 +69,9 @@ def get_model_sequence_data(cif_objs) -> dict:
         sequence_data_ = {}
         for chain in cif_obj.get_chains():
             if cif_obj.check_ligand(chain):
-                sequence_data_[chain.id] = "".join(
+                if chain.id not in sequence_data_:
+                    sequence_data_[chain.id] = ""
+                sequence_data_[chain.id] += "".join(
                     [atom.id[0] for residue in chain for atom in residue]
                 )
             elif cif_obj.check_other(chain, ["dna"]):
