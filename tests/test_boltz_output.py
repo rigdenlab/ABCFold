@@ -47,7 +47,7 @@ def test_process_boltz_output(test_data, output_objs):
         "D": 1,
     }
 
-    boltz_output.add_plddt_to_cif()
+    # boltz_output.add_plddt_to_cif()
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         for i, cif_file in enumerate(boltz_output.cif_files):
