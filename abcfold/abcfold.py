@@ -203,9 +203,9 @@ by default"
                     model = ao.output[seed][idx]["cif"]
                     model.check_clashes()
                     plddt = model.residue_plddts
+
                     plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
                     index_counter += 1
-
                     model_data = get_model_data(
                         model, plot_dict, "AlphaFold3", plddt, args.output_dir
                     )
@@ -220,7 +220,6 @@ by default"
                 plddt = model.residue_plddts
                 plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
                 index_counter += 1
-
                 model_data = get_model_data(
                     model, plot_dict, "Boltz-1", plddt, args.output_dir
                 )
@@ -236,7 +235,6 @@ by default"
                     plddt = model.residue_plddts
                     plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
                     index_counter += 1
-
                     model_data = get_model_data(
                         model, plot_dict, "Chai-1", plddt, args.output_dir
                     )
@@ -250,13 +248,11 @@ by default"
         sequence = ""
         for key in sequence_data.keys():
             sequence += sequence_data[key]
-
         chain_data = {}
         ref = 0
         for key in sequence_data.keys():
             chain_data["Chain " + key] = (ref, len(sequence_data[key]) + ref - 1)
             ref += len(sequence_data[key])
-
         results_dict = {
             "sequence": sequence,
             "models": combined_models,
