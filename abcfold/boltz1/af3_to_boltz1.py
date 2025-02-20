@@ -313,8 +313,10 @@ class BoltzYaml:
                 else None
             )
             yaml_string += self.add_msa(self.msa_file)
-        if "modifications" in sequence_dict:
+
+        if "modifications" in sequence_dict and sequence_dict["modifications"]:
             yaml_string += self.add_modifications(sequence_dict["modifications"])
+
         return yaml_string
 
     def add_title(self, name: str):

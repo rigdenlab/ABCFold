@@ -271,7 +271,6 @@ class CifFile(FileBase):
                 if self.check_other(chain, ["protein", "rna", "dna"]) and ptm_atoms:
                     counter = 0
                     for residue in chain:
-                        print(is_aa(residue.resname, standard=True), residue.resname)
                         if is_aa(residue.resname, standard=True):
                             counter += 1
                             continue
