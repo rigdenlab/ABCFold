@@ -48,11 +48,17 @@ def run_inference_wrapper(
     msa_server_url: str = "https://api.colabfold.com",
     msa_directory: Path | None = None,
     constraint_path: Path | None = None,
+    use_templates_server: bool = False,
+    template_hits_path: Path | None = None,
+    # Parameters controlling how we do inference
+    recycle_msa_subsample: int = 0,
     num_trunk_recycles: int = 3,
     num_diffn_timesteps: int = 200,
     num_diffn_samples: int = 5,
+    num_trunk_samples: int = 1,
     seed: int | None = None,
     device: str | None = None,
+    low_memory: bool = True,
 ):
 
     result = run_inference(
@@ -63,12 +69,16 @@ def run_inference_wrapper(
         msa_server_url=msa_server_url,
         msa_directory=msa_directory,
         constraint_path=constraint_path,
+        use_templates_server=use_templates_server,
+        templates_hits_path=template_hits_path,
+        recycle_msa_subsample=recycle_msa_subsample,
         num_trunk_recycles=num_trunk_recycles,
         num_diffn_timesteps=num_diffn_timesteps,
         num_diffn_samples=num_diffn_samples,
+        num_trunk_samples=num_trunk_samples,
         seed=seed,
         device=device,
-        low_memory=True,
+        low_memory=low_memory,
     )
 
     np.save(f"{output_dir}/pae_scores.npy", result.pae)

@@ -54,7 +54,6 @@ def add_msa_to_json(
         if "protein" in sequence:
             input_sequence = sequence["protein"]["sequence"]
             with tempfile.TemporaryDirectory() as tmpdir:
-
                 logger.info(f"Running MMseqs2 on sequence: {input_sequence}")
                 # Run MMseqs2 to get unpaired MSA
                 if templates:
