@@ -120,6 +120,15 @@ def plot_plddt(
     buttons = []
     num_models = len(cif_models_dict[next(iter(cif_models_dict))])
 
+    # Add a button to show all traces
+    buttons.append(
+        dict(
+            method="update",
+            args=[{"visible": [True] * len(fig.data)}, {"showlegend": True}],
+            label="All",
+        )
+    )
+
     # Add buttons for each individual model
     for model_index in range(num_models):
         button: Dict[str, Any] = dict(
@@ -137,15 +146,6 @@ def plot_plddt(
         for i in range(model_index, len(fig.data), num_models):
             button["args"][0]["visible"][i] = True
         buttons.append(button)
-
-    # Add a button to show all traces
-    buttons.append(
-        dict(
-            method="update",
-            args=[{"visible": [True] * len(fig.data)}, {"showlegend": True}],
-            label="All",
-        )
-    )
 
     # Add the updatemenu to the layout
     fig.update_layout(
