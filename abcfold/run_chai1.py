@@ -131,9 +131,9 @@ def generate_chai_command(
         ), "Cannot specify both templates server and path"
 
     if use_templates_server:
-        cmd += ["--use_templates_server"]
+        cmd += ["--use-templates-server"]
     if template_hits_path:
-        cmd += ["--template_hits_path", str(template_hits_path)]
+        cmd += ["--template-hits-path", str(template_hits_path)]
 
     cmd += [str(output_dir)]
 
