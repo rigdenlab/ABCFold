@@ -18,7 +18,7 @@ def run_chai(
     test: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
-    use_template_server: bool = False,
+    use_templates_server: bool = False,
     template_hits_path: Path | None = None,
 ) -> None:
     """
@@ -65,7 +65,7 @@ def run_chai(
                 output_dir,
                 number_of_models,
                 num_recycles=num_recycles,
-                use_template_server=use_template_server,
+                use_templates_server=use_templates_server,
                 template_hits_path=template_hits_path,
             )
             if not test
@@ -94,7 +94,7 @@ def generate_chai_command(
     output_dir: Union[str, Path],
     number_of_models: int = 5,
     num_recycles: int = 10,
-    use_template_server: bool = False,
+    use_templates_server: bool = False,
     template_hits_path: Path | None = None,
 ) -> list:
     """
@@ -107,7 +107,7 @@ def generate_chai_command(
         output_dir (Union[str, Path]): Path to the output directory
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of trunk recycles
-        use_template_server (bool): If True, use templates from the server
+        use_templates_server (bool): If True, use templates from the server
         template_hits_path (Path): Path to the template hits m8 file
 
     Returns:
@@ -127,10 +127,10 @@ def generate_chai_command(
     cmd += ["--num-trunk-recycles", str(num_recycles)]
 
     assert not(
-        use_template_server and template_hits_path
+        use_templates_server and template_hits_path
         ), "Cannot specify both templates server and path"
 
-    if use_template_server:
+    if use_templates_server:
         cmd += ["--use_templates_server"]
     if template_hits_path:
         cmd += ["--template_hits_path", str(template_hits_path)]
