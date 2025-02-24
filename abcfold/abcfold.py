@@ -54,7 +54,7 @@ def run(args, config, defaults, config_file):
     args.output_dir = Path(args.output_dir)
 
     if args.mmseqs2:
-        logger.error("MMSeqs2 Selected, all other MSAs will be ignored")
+        logger.info("MMSeqs2 Selected, all other MSAs will be ignored")
 
     make_dir(args.output_dir, overwrite=args.override)
     make_dir(args.output_dir.joinpath(PLOTS_DIR))
