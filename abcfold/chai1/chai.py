@@ -49,7 +49,6 @@ def run_inference_wrapper(
     msa_directory: Path | None = None,
     constraint_path: Path | None = None,
     use_templates_server: bool = False,
-    template_hits_path: Path | None = None,
     # Parameters controlling how we do inference
     recycle_msa_subsample: int = 0,
     num_trunk_recycles: int = 3,
@@ -70,7 +69,6 @@ def run_inference_wrapper(
         msa_directory=msa_directory,
         constraint_path=constraint_path,
         use_templates_server=use_templates_server,
-        templates_hits_path=template_hits_path,
         recycle_msa_subsample=recycle_msa_subsample,
         num_trunk_recycles=num_trunk_recycles,
         num_diffn_timesteps=num_diffn_timesteps,
