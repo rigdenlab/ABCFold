@@ -170,10 +170,7 @@ by default"
             from abcfold.run_chai1 import run_chai
 
             use_templates_server = False
-            template_hits_path = None
-            if args.templates and args.mmseqs2:
-                template_hits_path = temp_dir.joinpath("pdb70.m8")
-            elif args.templates and not args.mmseqs2:
+            if args.templates:
                 use_templates_server = True
             elif args.use_af3_template_search:
                 # Can potentially convert AF3 templates to m8 file in the future
@@ -188,7 +185,6 @@ by default"
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 use_templates_server=use_templates_server,
-                template_hits_path=template_hits_path,
             )
 
             co = ChaiOutput(chai_output_dir, input_params, name)

@@ -19,7 +19,6 @@ def run_chai(
     number_of_models: int = 5,
     num_recycles: int = 10,
     use_templates_server: bool = False,
-    template_hits_path: Path | None = None,
 ) -> None:
     """
     Run Chai-1 using the input JSON file
@@ -66,7 +65,6 @@ def run_chai(
                 number_of_models,
                 num_recycles=num_recycles,
                 use_templates_server=use_templates_server,
-                template_hits_path=template_hits_path,
             )
             if not test
             else generate_chai_test_command()
@@ -126,14 +124,8 @@ def generate_chai_command(
     cmd += ["--num-diffn-samples", str(number_of_models)]
     cmd += ["--num-trunk-recycles", str(num_recycles)]
 
-    assert not(
-        use_templates_server and template_hits_path
-        ), "Cannot specify both templates server and path"
-
     if use_templates_server:
         cmd += ["--use-templates-server"]
-    if template_hits_path:
-        cmd += ["--template-hits-path", str(template_hits_path)]
 
     cmd += [str(output_dir)]
 
