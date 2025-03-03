@@ -116,6 +116,7 @@ def run(args, config, defaults, config_file):
                 input_json=input_json,
                 templates=args.templates,
                 num_templates=args.num_templates,
+                chai_template_output=temp_dir.joinpath("all_chains.m8"),
                 custom_template=args.custom_template,
                 custom_template_chain=args.custom_template_chain,
                 target_id=args.target_id,
@@ -169,13 +170,14 @@ by default"
         if args.chai1:
             from abcfold.run_chai1 import run_chai
 
-            use_templates_server = False
-            if args.templates:
-                use_templates_server = True
+            template_hits_path = None
+            if args.templates and args.mmseqs2:
+                template_hits_path = temp_dir.joinpath("all_chain.m8")
             elif args.use_af3_template_search:
                 # Can potentially convert AF3 templates to m8 file in the future
                 # For now, just use the templates from the server
-                use_templates_server = True
+                logger.warning('Templates from AlphaFold3 are not currently supported by Chai-1')
+            
 
             chai_output_dir = args.output_dir.joinpath("chai1")
             run_chai(
@@ -184,7 +186,7 @@ by default"
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
-                use_templates_server=use_templates_server,
+                template_hits_path=template_hits_path,
             )
 
             co = ChaiOutput(chai_output_dir, input_params, name)

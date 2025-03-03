@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import pandas as pd
 import random
 import tarfile
 import tempfile
@@ -39,6 +40,7 @@ def add_msa_to_json(
     input_json,
     templates,
     num_templates,
+    chai_template_output
     custom_template,
     custom_template_chain,
     target_id,
@@ -52,6 +54,7 @@ def add_msa_to_json(
 
     for sequence in input_params["sequences"]:
         if "protein" in sequence:
+            input_id = sequence["protein"]["id"]
             input_sequence = sequence["protein"]["sequence"]
             with tempfile.TemporaryDirectory() as tmpdir:
                 logger.info(f"Running MMseqs2 on sequence: {input_sequence}")
@@ -63,6 +66,36 @@ def add_msa_to_json(
                         use_templates=True,
                         num_templates=num_templates,
                     )
+
+                    for i in input_id:
+                        table = pd.read_csv(
+                            f"{tmpdir}/pdb70.m8",
+                            delimiter="\t",
+                            header=None,
+                            names=[
+                                "query_id",
+                                "subject_id",
+                                "pident",
+                                "length",
+                                "mismatch",
+                                "gapopen",
+                                "query_start",
+                                "query_end",
+                                "subject_start",
+                                "subject_end",
+                                "evalue",
+                                "bitscore",
+                                "comment",
+                            ],
+                        )
+
+                        table["query_id"] = i
+                        if os.path.exists(chai_template_output):
+                            table.to_csv(chai_template_output, 
+                            sep="\t", index=False, header=False, mode='a')
+                        else:
+                            table.to_csv(chai_template_output, 
+                            sep="\t", index=False, header=False)
 
                 else:
                     a3m_lines = run_mmseqs(input_sequence, tmpdir, use_templates=False)
@@ -101,6 +134,7 @@ target id so that custom template can be added to the correct sequence"
                 sequence["protein"]["unpairedMsa"] = a3m_lines[0]
                 sequence["protein"]["pairedMsa"] = ""
                 sequence["protein"]["templates"] = templates
+
     if to_file:
         if output_json:
             with open(output_json, "w") as f:
@@ -306,7 +340,7 @@ def run_mmseqs(
                 tested_pdbs.append(pdb_id)
                 count += 1
         logger.info(f"Found the following templates: {tested_pdbs}")
-
+                
     return (a3m_lines_list, templates) if use_templates else a3m_lines_list
 
 
