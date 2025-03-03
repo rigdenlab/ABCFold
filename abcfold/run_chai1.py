@@ -132,8 +132,9 @@ def generate_chai_command(
 
     if shutil.which("kalign") is None:
         logger.warning(
-            "kalign not found, please install to use templates with Chai-1"
-            )
+            "kalign not found, skipping template search kalign is required. \
+            Please install kalign to use templates with Chai-1."
+        )
     else:
         if use_templates_server:
             cmd += ["--use-templates-server"]

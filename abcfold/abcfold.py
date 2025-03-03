@@ -176,9 +176,10 @@ by default"
             elif args.use_af3_template_search:
                 # Can potentially convert AF3 templates to m8 file in the future
                 # For now, just use the templates from the server
-                logger.warning('Templates from AlphaFold3 are not currently supported by Chai-1')
+                logger.warning(
+                    'Templates from AlphaFold3 are not currently supported by Chai-1'
+                    )
             
-
             chai_output_dir = args.output_dir.joinpath("chai1")
             run_chai(
                 input_json=run_json,

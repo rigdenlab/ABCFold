@@ -91,11 +91,18 @@ def add_msa_to_json(
 
                         table["query_id"] = i
                         if os.path.exists(chai_template_output):
-                            table.to_csv(chai_template_output, 
-                            sep="\t", index=False, header=False, mode='a')
+                            table.to_csv(
+                                chai_template_output, 
+                                sep="\t", 
+                                index=False, 
+                                header=False, 
+                                mode='a')
                         else:
-                            table.to_csv(chai_template_output, 
-                            sep="\t", index=False, header=False)
+                            table.to_csv(
+                                chai_template_output, 
+                                sep="\t", 
+                                index=False, 
+                                header=False)
 
                 else:
                     a3m_lines = run_mmseqs(input_sequence, tmpdir, use_templates=False)
