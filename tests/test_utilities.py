@@ -76,7 +76,7 @@ def test_clash_checker(test_data):
     )
 
     structure = CifFile(cif_file)
-    clashes = structure.check_clashes()
+    clashes, _ = structure.check_clashes()
     assert isinstance(clashes, list)
     assert len(clashes) == 2
 

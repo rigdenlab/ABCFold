@@ -118,3 +118,19 @@ def alphafold_argparse_util(parser):
     )
 
     return parser
+
+
+def visuals_argparse_util(parser):
+    parser.add_argument(
+        "--no_visuals",
+        action="store_true",
+        help="Do not generate the output pages, best for running on a cluster\
+ without a display",
+    )
+    parser.add_argument(
+        "--no_server",
+        action="store_true",
+        help="Do not start a local server to view the results, the output page is \
+stil generated and is accessible in the output directory",
+    )
+    return parser

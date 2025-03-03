@@ -314,7 +314,7 @@ def create_subdirs(output_dir: Union[str, Path], subdirs: List[str]):
 def clashes_csv(cif_file: CifFile, output_name: Union[str, Path]):
     output_name = Path(output_name)
 
-    clashes = cif_file.check_clashes()
+    _, clashes = cif_file.check_clashes()
     df = pd.DataFrame(columns=COLUMNS)
 
     for clash in clashes:

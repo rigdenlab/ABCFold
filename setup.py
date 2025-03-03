@@ -25,6 +25,11 @@ class BuildCommand(build):
         build.run(self)
 
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     cmdclass={"build": BuildCommand},
+    long_description=long_description,
+    long_description_content_type="text/markdown",
 )

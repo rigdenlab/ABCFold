@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Union
 
 import numpy as _  # noqa F401
 import pandas as pd
+import pyarrow as _  # noqa F401
 import requests
 
 from abcfold.processoutput.atoms import VANDERWALLS

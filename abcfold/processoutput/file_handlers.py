@@ -12,6 +12,7 @@ from Bio.PDB import MMCIFIO, Chain, MMCIFParser, Model
 from Bio.PDB.Atom import Atom
 from Bio.PDB.kdtrees import KDTree
 from Bio.PDB.Polypeptide import is_aa
+from Bio.PDB.Residue import Residue
 from Bio.SeqUtils import seq1
 
 from abcfold.processoutput.atoms import VANDERWALLS
@@ -152,7 +153,7 @@ class CifFile(FileBase):
         super().__init__(cif_file)
         self.cif_file = Path(cif_file)
         self.clashes = 0
-        self.clashes = 0
+        self.clashes_residues = 0
         self.model = self.load_cif_file()
         self.__ligand_plddts = None
         self.__plddts = None
@@ -576,7 +577,7 @@ for reordering"
         threshold: Union[int, float] = 3.4,
         bucket: int = 10,
         clash_cutoff: float = 0.63,
-    ) -> List[Tuple[Atom, Atom]]:
+    ) -> Tuple[List[Tuple[Atom, Atom]], List[Tuple[Residue, Residue]]]:
         """
         Check for clashes between atoms in different chains
 
@@ -598,7 +599,7 @@ for reordering"
 
         tree = KDTree(coords, bucket)
         neighbors = tree.neighbor_search(threshold)
-        clashes = []
+        clashes_atoms, clashes_residues = [], []
 
         for neighbor in neighbors:
             i1, i2 = neighbor.index1, neighbor.index2
@@ -625,11 +626,17 @@ for reordering"
                 VANDERWALLS.get(element1, 1.7) + VANDERWALLS.get(element2, 1.7)
             ) * 0.63
             if distance < clash_radius:
+                residue1 = atom1.get_parent()
+                residue2 = atom2.get_parent()
 
-                clashes.append((atom1, atom2))
-        self.clashes = len(clashes)
+                clashes_atoms.append((atom1, atom2))
 
-        return clashes
+                if (residue1, residue2) not in clashes_residues:
+                    clashes_residues.append((residue1, residue2))
+
+        self.clashes = len(clashes_atoms)
+        self.clashes_residues = len(clashes_residues)
+        return (clashes_atoms, clashes_residues)
 
     def get_atoms(self, chain_id=None) -> list:
         """

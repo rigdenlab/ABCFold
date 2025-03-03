@@ -12,3 +12,8 @@ build/
 .vscode/
 
 .history/
+
+
+# pip packages
+dist/
+*.egg-info/

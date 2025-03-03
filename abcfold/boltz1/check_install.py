@@ -4,22 +4,46 @@ import sys
 
 logger = logging.getLogger("logger")
 
+BOLTZ_VERSION = "0.4.1"
+
 
 def check_boltz1():
     try:
         import boltz as _  # noqa F401
+
+        cmd = [sys.executable, "-m", "pip", "show", "boltz"]
+        with subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ) as proc:
+            stdout, stderr = proc.communicate()
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(proc.returncode, cmd, stderr)
+
+            version = None
+            for line in stdout.decode().split("\n"):
+                if line.startswith("Version:"):
+                    version = line.split(":", 1)[1].strip()
+                    break
+
+            if version != BOLTZ_VERSION:
+                raise ImportError(
+                    f"Expected boltz version {BOLTZ_VERSION}, found {version}"
+                )
+
     except (ImportError, ModuleNotFoundError):
-        try:
-            import chai_lab as _  # noqa F401
 
-            no_deps = True
-        except (ImportError, ModuleNotFoundError):
-            no_deps = False
         logger.info("Installing boltz package")
-        logger.info("No dependencies will be installed") if no_deps else None
-        cmd = [sys.executable, "-m", "pip", "install", "boltz", "--no-cache-dir"]
+        cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            f"boltz=={BOLTZ_VERSION}",
+            "--no-cache-dir",
+        ]
 
-        cmd.append("--no-deps") if no_deps else None
         logger.info("Running %s", " ".join(cmd))
         with subprocess.Popen(
             cmd,

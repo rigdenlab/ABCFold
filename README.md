@@ -1,7 +1,7 @@
 # ABCFold
 
 ![Build Status](https://github.com/rigdenlab/ABCFold/actions/workflows/python-package.yml/badge.svg)
-![Coverage](./.blob/coverage.svg)
+![Coverage](https://raw.githubusercontent.com/rigdenlab/ABCFold/refs/heads/main/.blob/coverage.svg)
 
 
 Scripts to run AlphaFold3, Boltz-1 and Chai-1 with MMseqs2 MSAs and custom templates.

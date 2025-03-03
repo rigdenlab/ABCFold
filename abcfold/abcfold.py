@@ -14,7 +14,8 @@ from abcfold.argparse_utils import (alphafold_argparse_util,
                                     boltz_argparse_util, chai_argparse_util,
                                     custom_template_argpase_util,
                                     main_argpase_util, mmseqs2_argparse_util,
-                                    prediction_argparse_util)
+                                    prediction_argparse_util,
+                                    visuals_argparse_util)
 from abcfold.plots.plotter import (PORT, NoCacheHTTPRequestHandler,
                                    get_all_cif_files, get_model_data,
                                    get_model_sequence_data,
@@ -147,7 +148,13 @@ by default"
             )
 
             # Need to find the name of the af3_dir
-            af3_out_dir = list(args.output_dir.iterdir())[0]
+            af3_out_dir = list(
+                [
+                    file
+                    for file in args.output_dir.iterdir()
+                    if not file.suffix == ".json"
+                ]
+            )[0]
             ao = AlphafoldOutput(af3_out_dir, input_params, name)
             outputs.append(ao)
             run_json = ao.input_json
@@ -164,7 +171,6 @@ by default"
             )
             bolt_out_dir = list(args.output_dir.glob("boltz_results*"))[0]
             bo = BoltzOutput(bolt_out_dir, input_params, name)
-            # bo.add_plddt_to_cif()
             outputs.append(bo)
 
         if args.chai1:
@@ -192,6 +198,10 @@ by default"
 
             co = ChaiOutput(chai_output_dir, input_params, name)
             outputs.append(co)
+
+        if args.no_visuals:
+            logger.info("Visuals disabled")
+            return
 
         plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
 
@@ -307,6 +317,14 @@ by default"
         # Make a script to open the output HTML file in the default web browser
         output_open_html_script("open_output.py", port=PORT)
 
+        if args.no_server:
+            logger.info("Server disabled")
+            logger.info(
+                "Run 'python open_output.py' in the output directory to \
+view the output pages"
+            )
+            return
+
         try:
             # Start the server
             with socketserver.TCPServer(("", PORT), NoCacheHTTPRequestHandler) as httpd:
@@ -346,6 +364,7 @@ def main():
     parser = mmseqs2_argparse_util(parser)
     parser = custom_template_argpase_util(parser)
     parser = prediction_argparse_util(parser)
+    parser = visuals_argparse_util(parser)
 
     parser.set_defaults(**defaults)
     args = parser.parse_args()
