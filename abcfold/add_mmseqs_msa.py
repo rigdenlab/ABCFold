@@ -40,7 +40,7 @@ def add_msa_to_json(
     input_json,
     templates,
     num_templates,
-    chai_template_output
+    chai_template_output,
     custom_template,
     custom_template_chain,
     target_id,
