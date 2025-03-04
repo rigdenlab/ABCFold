@@ -3,7 +3,6 @@
 import json
 import logging
 import os
-import pandas as pd
 import random
 import tarfile
 import tempfile
@@ -11,6 +10,7 @@ import time
 from io import StringIO
 from typing import Sequence
 
+import pandas as pd
 import requests  # type: ignore
 from tqdm.autonotebook import tqdm
 
@@ -92,16 +92,16 @@ def add_msa_to_json(
                         table["query_id"] = i
                         if os.path.exists(chai_template_output):
                             table.to_csv(
-                                chai_template_output, 
-                                sep="\t", 
-                                index=False, 
-                                header=False, 
+                                chai_template_output,
+                                sep="\t",
+                                index=False,
+                                header=False,
                                 mode='a')
                         else:
                             table.to_csv(
-                                chai_template_output, 
-                                sep="\t", 
-                                index=False, 
+                                chai_template_output,
+                                sep="\t",
+                                index=False,
                                 header=False)
 
                 else:
@@ -109,33 +109,62 @@ def add_msa_to_json(
                     templates = []
 
                 if custom_template:
-                    if not os.path.exists(custom_template):
-                        msg = f"Custom template file {custom_template} not found"
-                        logger.critical(msg)
-                        raise FileNotFoundError()
-                    # Can only add templates to protein sequences, so check if there
-                    # are multiple protein sequences in the input json
-                    if (
-                        len(
-                            [
-                                x
-                                for x in input_params["sequences"]
-                                if "protein" in x.keys()
-                            ]
-                        )
-                        > 1
-                        and not target_id
-                    ):
-                        msg = "Multiple sequences found in input json. Please specify \
-target id so that custom template can be added to the correct sequence"
-                        raise ValueError(msg)
+                    for template in custom_template:
+                        if not os.path.exists(template):
+                            msg = f"Custom template file {template} not found"
+                            logger.critical(msg)
+                            raise FileNotFoundError()
+                        # Can only add templates to protein sequences, so check if there
+                        # are multiple protein sequences in the input json
+                        if (
+                            len(
+                                [
+                                    x
+                                    for x in input_params["sequences"]
+                                    if "protein" in x.keys()
+                                ]
+                            )
+                            > 1
+                            and not target_id
+                        ):
+                            msg = "Multiple sequences found in input json. \
+Please specify target id so that custom template can be added to the correct sequence"
+                            raise ValueError(msg)
 
-                    sequence = get_custom_template(
-                        sequence,
-                        target_id,
-                        custom_template,
-                        custom_template_chain,
-                    )
+                    if target_id and len(target_id) > 1:
+                        if (len(custom_template) != len(target_id)) or (
+                            len(custom_template_chain) != len(target_id)
+                        ):
+                            msg = "If providing templates for multiple targets, the \
+number of target ids must match the number of custom templates and custom template \
+chains"
+                            raise ValueError(msg)
+                        custom_templates = zip(
+                            target_id, custom_template, custom_template_chain
+                            )
+                    else:
+                        if len(custom_template) != len(custom_template_chain):
+                            msg = "Number of custom templates must match the number of \
+custom template chains"
+                            raise ValueError(msg)
+                        # if a single target id is provided, assume all custom templates
+                        # are for the same target
+                        if target_id:
+                            target_ids = [target_id[0]] * len(custom_template)
+                        else:
+                            target_ids = [None] * len(custom_template)
+                        custom_templates = zip(
+                            target_ids, custom_template, custom_template_chain
+                            )
+
+                    for i in custom_templates:
+                        tid, c_tem, c_tem_chn = i
+                        sequence = get_custom_template(
+                            sequence,
+                            tid,
+                            c_tem,
+                            c_tem_chn,
+                            )
 
                 # Add unpaired MSA to the json
                 sequence["protein"]["unpairedMsa"] = a3m_lines[0]
@@ -347,7 +376,7 @@ def run_mmseqs(
                 tested_pdbs.append(pdb_id)
                 count += 1
         logger.info(f"Found the following templates: {tested_pdbs}")
-                
+
     return (a3m_lines_list, templates) if use_templates else a3m_lines_list
 
 

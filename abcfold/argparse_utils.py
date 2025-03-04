@@ -25,12 +25,15 @@ def mmseqs2_argparse_util(parser):
 
 
 def custom_template_argpase_util(parser):
-    parser.add_argument("--target_id", help="Target id relating to the custom template")
     parser.add_argument(
-        "--custom_template", help="Custom template to include in the output json"
+        "--target_id", nargs='+',
+        help="Target id relating to the custom template")
+    parser.add_argument(
+        "--custom_template", nargs='+',
+        help="Custom template to include in the output json"
     )
     parser.add_argument(
-        "--custom_template_chain",
+        "--custom_template_chain", nargs='+',
         help="Custom template chain to include in the output json",
     )
 
