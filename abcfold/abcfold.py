@@ -185,7 +185,7 @@ by default"
                 logger.warning(
                     'Templates from AlphaFold3 are not currently supported by Chai-1'
                     )
-            
+
             chai_output_dir = args.output_dir.joinpath("chai1")
             run_chai(
                 input_json=run_json,
