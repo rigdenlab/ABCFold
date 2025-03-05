@@ -25,7 +25,8 @@ from abcfold.processoutput.alphafold3 import AlphafoldOutput
 from abcfold.processoutput.boltz import BoltzOutput
 from abcfold.processoutput.chai import ChaiOutput
 from abcfold.processoutput.utils import (get_gap_indicies,
-                                         insert_none_by_minus_one)
+                                         insert_none_by_minus_one,
+                                         make_dummy_m8_file)
 from abcfold.run_alphafold3 import run_alphafold3
 
 logger = setup_logger()
@@ -180,11 +181,9 @@ by default"
             if args.templates and args.mmseqs2:
                 template_hits_path = temp_dir.joinpath("all_chain.m8")
             elif args.use_af3_template_search:
-                # Can potentially convert AF3 templates to m8 file in the future
-                # For now, just use the templates from the server
-                logger.warning(
-                    'Templates from AlphaFold3 are not currently supported by Chai-1'
-                    )
+                # Find the templates from the AlphaFold3 output
+                # Create a dummy m8 file to pass to Chai-1
+                template_hits_path = make_dummy_m8_file(run_json, temp_dir)
 
             chai_output_dir = args.output_dir.joinpath("chai1")
             run_chai(

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Union
 
 import numpy as np
+import pandas as pd
 from Bio.Align import PairwiseAligner
 
 from abcfold.processoutput.file_handlers import CifFile
@@ -274,3 +275,31 @@ def insert_none_by_minus_one(indices, values):
     assert len(indices) == len(result)
 
     return result
+
+
+def make_dummy_m8_file(run_json, output_dir):
+    """
+    Make a dummy m8 file with the templates from the run JSON file
+    """
+    with open(run_json) as f:
+        input_json = json.load(f)
+
+    templates = {}
+    for sequence in input_json["sequences"]:
+        if "protein" not in sequence:
+            continue
+        for id in sequence["protein"]["id"]:
+            for template in sequence["protein"]["templates"]:
+                if id in templates:
+                    templates[id].append(template['mmcif'].split('\n')[0].split('_')[1])
+                else:
+                    templates[id] = [template['mmcif'].split('\n')[0].split('_')[1]]
+
+    m8_file = output_dir / "dummy.m8"
+    table = []
+    for id in templates:
+        for template in templates[id]:
+            table.append([id, template, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    pd.DataFrame(table).to_csv(m8_file, sep='\t', header=False, index=False)
+
+    return m8_file
