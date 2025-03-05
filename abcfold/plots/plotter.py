@@ -116,7 +116,8 @@ def get_model_data(model, plot_dict, method, plddt_scores, output_dir):
         "plddt_regions": regions,
         "avg_plddt": model.average_plddt,
         "h_score": model.h_score,
-        "clashes": model.clashes_residues,
+        "residue_clashes": model.clashes_residues,
+        "atom_clashes": model.clashes,
         "pae_path": Path(plot_dict[model.pathway.as_posix()])
         .relative_to(output_dir)
         .as_posix(),

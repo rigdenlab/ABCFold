@@ -76,8 +76,10 @@ Vue.component('abc-table', {
                         onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 2)">Average pLDDT</th>
                     <th title="The H-score of the model"
                         onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1',  3)">H-score</th>
-                    <th title="The number of possible clashes found in the model - lower is better"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 4)">Clashes</th>
+                    <th title="The number of possible residue clashes found in the model - lower is better"
+                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 4)">Residue Clashes</th>
+                     <th title="The number of possible atom clashes found in the model - lower is better"
+                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 5)">Atom Clashes</th>
                     <th title="Link to a visualisation of the model and it's corresponding PAE plot">Model visualisations</th>
                 </tr>
             </thead>
@@ -87,7 +89,8 @@ Vue.component('abc-table', {
                     <td>{{ abcmodel.model_source }}</td>
                     <td>{{ abcmodel.avg_plddt | decimalPlaces }}</td>
                     <td>{{ abcmodel.h_score }}</td>
-                    <td>{{ abcmodel.clashes }}</td>
+                    <td>{{ abcmodel.residue_clashes }}</td>
+                    <td>{{ abcmodel.atom_clashes }}</td>
                     <td><a v-bind:href="abcmodel.pae_path" target="_blank"><button :class="getButtonClass(abcmodel.model_source)">Click for PAE Plot</button></a></td>
                 </tr>
             </tbody>
