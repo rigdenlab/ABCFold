@@ -207,6 +207,7 @@ def output_open_html_script(file_out: str, port: int = 8000):
             httpd.serve_forever()
     except KeyboardInterrupt:
         print("Server stopped")
+        httpd.server_close()
         sys.exit(0)
     """
 
