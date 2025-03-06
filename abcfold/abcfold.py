@@ -8,7 +8,8 @@ import tempfile
 import webbrowser
 from pathlib import Path
 
-from abcfold.abc_script_utils import check_input_json, make_dir, setup_logger
+from abcfold.abc_script_utils import (check_input_json, make_dir,
+                                      make_dummy_af3_db, setup_logger)
 from abcfold.add_mmseqs_msa import add_msa_to_json
 from abcfold.argparse_utils import (alphafold_argparse_util,
                                     boltz_argparse_util, chai_argparse_util,
@@ -138,12 +139,20 @@ by default"
             args.alphafold3 = True
 
         if args.alphafold3:
+            af3_database = args.database_dir
+            if args.mmseqs2 or (
+                any(
+                    seq["protein"]["unpairedMsa"] is not None or
+                    seq["protein"]["unpairedMsaPath"] is not None for seq in
+                    input_params["sequences"])
+                    ):
+                af3_database = make_dummy_af3_db(temp_dir)
 
             run_alphafold3(
                 input_json=run_json,
                 output_dir=args.output_dir,
                 model_params=args.model_params,
-                database_dir=args.database_dir,
+                database_dir=af3_database,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
             )
@@ -337,6 +346,7 @@ view the output pages"
                 httpd.serve_forever()
         except KeyboardInterrupt:
             logger.info("Server stopped")
+            httpd.server_close()
             sys.exit(0)
 
 

@@ -352,3 +352,27 @@ def check_input_json(
         json.dump(input_data, f, indent=4)
 
     return output_json
+
+
+def make_dummy_af3_db(output_dir):
+    dummy_af3_db = output_dir.joinpath("af3_db")
+    dummy_files = [
+        "bfd-first_non_consensus_sequences.fasta",
+        "rfam_14_9_clust_seq_id_90_cov_80_rep_seq.fasta",
+        "uniprot_all_2021_04.fa",
+        "mgy_clusters_2022_05.fa",
+        "nt_rna_2023_02_23_clust_seq_id_90_cov_80_rep_seq.fasta",
+        "pdb_seqres_2022_09_28.fasta",
+        "rnacentral_active_seq_id_90_cov_80_linclust.fasta",
+        "uniref90_2022_05.fa"
+        ]
+    dummy_dirs = ["mmcif_files"]
+
+    dummy_af3_db.mkdir(parents=True, exist_ok=True)
+    for dummy_file in dummy_files:
+        with open(dummy_af3_db.joinpath(dummy_file), "w") as f:
+            f.write("")
+    for dummy_dir in dummy_dirs:
+        dummy_af3_db.joinpath(dummy_dir).mkdir(parents=True, exist_ok=True)
+
+    return dummy_af3_db
