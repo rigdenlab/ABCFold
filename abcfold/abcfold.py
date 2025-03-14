@@ -223,8 +223,8 @@ def run(args, config, defaults, config_file):
                     model = ao.output[seed][idx]["cif"]
                     model.check_clashes()
                     plddt = model.residue_plddts
-
-                    plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                    if len(indicies) > 0:
+                        plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
                     index_counter += 1
                     model_data = get_model_data(
                         model, plot_dict, "AlphaFold3", plddt, args.output_dir
@@ -238,7 +238,8 @@ def run(args, config, defaults, config_file):
                 model = bo.output[idx]["cif"]
                 model.check_clashes()
                 plddt = model.residue_plddts
-                plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                if len(indicies) > 0:
+                    plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
                 index_counter += 1
                 model_data = get_model_data(
                     model, plot_dict, "Boltz-1", plddt, args.output_dir
@@ -253,7 +254,8 @@ def run(args, config, defaults, config_file):
                     model = co.output[idx]["cif"]
                     model.check_clashes()
                     plddt = model.residue_plddts
-                    plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                    if len(indicies) > 0:
+                        plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
                     index_counter += 1
                     model_data = get_model_data(
                         model, plot_dict, "Chai-1", plddt, args.output_dir

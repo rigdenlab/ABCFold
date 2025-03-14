@@ -73,7 +73,8 @@ def plot_plddt(
 
             plddt = cif_model.residue_plddts
 
-            plddt = insert_none_by_minus_one(indicies[indicies_index], plddt)
+            if len(indicies) > 0:
+                plddt = insert_none_by_minus_one(indicies[indicies_index], plddt)
 
             indicies_index += 1
             chain_ranges = {
