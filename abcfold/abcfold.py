@@ -151,12 +151,11 @@ def run(args, config, defaults, config_file):
                 num_recycles=args.num_recycles,
             )
 
-            # Need to find the name of the af3_dir
             af3_out_dir = list(
                 [
-                    file
-                    for file in args.output_dir.iterdir()
-                    if not file.suffix == ".json"
+                    dir_
+                    for dir_ in args.output_dir.glob(f"*{name.lower()}*")
+                    if dir_.is_dir()
                 ]
             )[0]
             ao = AlphafoldOutput(af3_out_dir, input_params, name)
