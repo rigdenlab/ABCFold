@@ -71,7 +71,15 @@ def run_boltz(
             if proc.returncode != 0:
                 if proc.stderr:
                     logger.error(stderr.decode())
-                raise subprocess.CalledProcessError(proc.returncode, proc.args)
+                    output_err_file = output_dir / "boltz_error.log"
+                    with open(output_err_file, "w") as f:
+                        f.write(stderr.decode())
+                    logger.error(
+                        "Boltz1 run failed. Error log is in %s", output_err_file
+                    )
+                else:
+                    logger.error("Boltz1 run failed")
+                return
 
         logger.info("Boltz1 run complete")
         logger.info("Output files are in %s", output_dir)

@@ -54,7 +54,12 @@ def run_alphafold3(
         _, stderr = p.communicate()
         if p.returncode != 0:
             logger.error(stderr.decode())
-            raise subprocess.CalledProcessError(p.returncode, cmd, stderr)
+            output_err_file = output_dir / "af3_error.log"
+            with open(output_err_file, "w") as f:
+                f.write(stderr.decode())
+            logger.error("Alphafold3 run failed. Error log is in %s", output_err_file)
+            return
+
     logger.info("Alphafold3 run complete")
     logger.info("Output files are in %s", output_dir)
 

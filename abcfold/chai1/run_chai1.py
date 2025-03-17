@@ -83,7 +83,15 @@ def run_chai(
             if proc.returncode != 0:
                 if proc.stderr:
                     logger.error(stderr.decode())
-                raise subprocess.CalledProcessError(proc.returncode, proc.args)
+                    output_err_file = output_dir / "chai_error.log"
+                    with open(output_err_file, "w") as f:
+                        f.write(stderr.decode())
+                    logger.error(
+                        "Chai-1 run failed. Error log is in %s", output_err_file
+                    )
+                else:
+                    logger.error("Chai-1 run failed")
+                return
 
         logger.info("Chai-1 run complete")
 
