@@ -132,6 +132,7 @@ def run(args, config, defaults, config_file):
             run_json = Path(args.input_json)
 
         if args.alphafold3:
+
             af3_database = args.database_dir
             if args.mmseqs2 or (
                 any(
@@ -140,6 +141,7 @@ def run(args, config, defaults, config_file):
                     for seq in input_params["sequences"]
                 )
             ):
+
                 af3_database = make_dummy_af3_db(temp_dir)
 
             run_alphafold3(

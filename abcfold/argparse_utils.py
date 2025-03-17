@@ -159,13 +159,6 @@ by default"
 
     if (
         args.alphafold3
-        and (not args.database_dir or not Path(args.database_dir).exists())
-        and not args.mmseqs2
-    ):
-        logger.error(f"Database directory not found: {args.database_dir}")
-        sys.exit(1)
-    elif (
-        args.alphafold3
         and (not args.model_params or not Path(args.model_params).exists())
         and not args.mmseqs2
     ):
