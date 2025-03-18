@@ -21,7 +21,7 @@ def run_chai(
     num_recycles: int = 10,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
-) -> None:
+) -> bool:
     """
     Run Chai-1 using the input JSON file
 
@@ -37,7 +37,7 @@ def run_chai(
         template_hits_path (Path): Path to the template hits m8 file
 
     Returns:
-        None
+        Bool: True if the Chai-1 run was successful, False otherwise
 
     """
     input_json = Path(input_json)
@@ -82,8 +82,10 @@ def run_chai(
             _, stderr = proc.communicate()
             if proc.returncode != 0:
                 if proc.stderr:
-                    logger.error(stderr.decode())
-                    output_err_file = output_dir / "chai_error.log"
+                    if output_dir.exists():
+                        output_err_file = output_dir / "chai_error.log"
+                    else:
+                        output_err_file = output_dir.parent / "chai_error.log"
                     with open(output_err_file, "w") as f:
                         f.write(stderr.decode())
                     logger.error(
@@ -91,9 +93,10 @@ def run_chai(
                     )
                 else:
                     logger.error("Chai-1 run failed")
-                return
+                return False
 
         logger.info("Chai-1 run complete")
+        return True
 
 
 def generate_chai_command(

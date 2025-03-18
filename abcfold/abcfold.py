@@ -131,20 +131,18 @@ def run(args, config, defaults, config_file):
         else:
             run_json = Path(args.input_json)
 
+        successful_runs = []
         if args.alphafold3:
-
             af3_database = args.database_dir
             if args.mmseqs2 or (
                 any(
-                    seq["protein"]["unpairedMsa"] is not None
-                    or seq["protein"]["unpairedMsaPath"] is not None
+                    seq.get("protein", {}).get("unpairedMsa")
+                    or seq.get("protein", {}).get("unpairedMsaPath")
                     for seq in input_params["sequences"]
-                )
-            ):
-
+                    )):
                 af3_database = make_dummy_af3_db(temp_dir)
 
-            run_alphafold3(
+            af3_success = run_alphafold3(
                 input_json=run_json,
                 output_dir=args.output_dir,
                 model_params=args.model_params,
@@ -153,30 +151,35 @@ def run(args, config, defaults, config_file):
                 num_recycles=args.num_recycles,
             )
 
-            af3_out_dir = list(
-                [
-                    dir_
-                    for dir_ in args.output_dir.glob(f"*{name.lower()}*")
-                    if dir_.is_dir()
-                ]
-            )[0]
-            ao = AlphafoldOutput(af3_out_dir, input_params, name)
-            outputs.append(ao)
-            run_json = ao.input_json
+            if af3_success:
+                af3_out_dir = list(
+                    [
+                        dir_
+                        for dir_ in args.output_dir.glob(f"*{name.lower()}*")
+                        if dir_.is_dir()
+                    ]
+                )[0]
+                ao = AlphafoldOutput(af3_out_dir, input_params, name)
+                outputs.append(ao)
+                run_json = ao.input_json
+            successful_runs.append(af3_success)
 
         if args.boltz1:
             from abcfold.boltz1.run_boltz import run_boltz
 
-            run_boltz(
+            boltz_success = run_boltz(
                 input_json=run_json,
                 output_dir=args.output_dir,
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
             )
-            bolt_out_dir = list(args.output_dir.glob("boltz_results*"))[0]
-            bo = BoltzOutput(bolt_out_dir, input_params, name)
-            outputs.append(bo)
+
+            if boltz_success:
+                bolt_out_dir = list(args.output_dir.glob("boltz_results*"))[0]
+                bo = BoltzOutput(bolt_out_dir, input_params, name)
+                outputs.append(bo)
+            successful_runs.append(boltz_success)
 
         if args.chai1:
             from abcfold.chai1.run_chai1 import run_chai
@@ -184,11 +187,11 @@ def run(args, config, defaults, config_file):
             template_hits_path = None
             if args.templates and args.mmseqs2:
                 template_hits_path = temp_dir.joinpath("all_chain.m8")
-
-            template_hits_path = make_dummy_m8_file(run_json, temp_dir)
+            elif args.templates:
+                template_hits_path = make_dummy_m8_file(run_json, temp_dir)
 
             chai_output_dir = args.output_dir.joinpath("chai1")
-            run_chai(
+            chai_success = run_chai(
                 input_json=run_json,
                 output_dir=chai_output_dir,
                 save_input=args.save_input,
@@ -197,11 +200,17 @@ def run(args, config, defaults, config_file):
                 template_hits_path=template_hits_path,
             )
 
-            co = ChaiOutput(chai_output_dir, input_params, name)
-            outputs.append(co)
+            if chai_success:
+                co = ChaiOutput(chai_output_dir, input_params, name)
+                outputs.append(co)
+            successful_runs.append(chai_success)
 
         if args.no_visuals:
             logger.info("Visuals disabled")
+            return
+
+        if not any(successful_runs):
+            logger.error("No models were generated")
             return
 
         plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
@@ -219,50 +228,62 @@ def run(args, config, defaults, config_file):
         alphafold_models = {"models": []}
 
         if args.alphafold3:
-            programs_run.append("AlphaFold3")
-            for seed in ao.output.keys():
-                for idx in ao.output[seed].keys():
-                    model = ao.output[seed][idx]["cif"]
-                    model.check_clashes()
-                    plddt = model.residue_plddts
-                    if len(indicies) > 0:
-                        plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
-                    index_counter += 1
-                    model_data = get_model_data(
-                        model, plot_dict, "AlphaFold3", plddt, args.output_dir
-                    )
-                    alphafold_models["models"].append(model_data)
+            if af3_success:
+                programs_run.append("AlphaFold3")
+                for seed in ao.output.keys():
+                    for idx in ao.output[seed].keys():
+                        model = ao.output[seed][idx]["cif"]
+                        model.check_clashes()
+                        plddt = model.residue_plddts
+                        if len(indicies) > 0:
+                            plddt = insert_none_by_minus_one(
+                                indicies[index_counter],
+                                plddt
+                                )
+                        index_counter += 1
+                        model_data = get_model_data(
+                            model, plot_dict, "AlphaFold3", plddt, args.output_dir
+                        )
+                        alphafold_models["models"].append(model_data)
 
         boltz_models = {"models": []}
         if args.boltz1:
-            programs_run.append("Boltz-1")
-            for idx in bo.output.keys():
-                model = bo.output[idx]["cif"]
-                model.check_clashes()
-                plddt = model.residue_plddts
-                if len(indicies) > 0:
-                    plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
-                index_counter += 1
-                model_data = get_model_data(
-                    model, plot_dict, "Boltz-1", plddt, args.output_dir
-                )
-                boltz_models["models"].append(model_data)
-
-        chai_models = {"models": []}
-        if args.chai1:
-            programs_run.append("Chai-1")
-            for idx in co.output.keys():
-                if idx >= 0:
-                    model = co.output[idx]["cif"]
+            if boltz_success:
+                programs_run.append("Boltz-1")
+                for idx in bo.output.keys():
+                    model = bo.output[idx]["cif"]
                     model.check_clashes()
                     plddt = model.residue_plddts
                     if len(indicies) > 0:
-                        plddt = insert_none_by_minus_one(indicies[index_counter], plddt)
+                        plddt = insert_none_by_minus_one(
+                            indicies[index_counter],
+                            plddt
+                            )
                     index_counter += 1
                     model_data = get_model_data(
-                        model, plot_dict, "Chai-1", plddt, args.output_dir
+                        model, plot_dict, "Boltz-1", plddt, args.output_dir
                     )
-                    chai_models["models"].append(model_data)
+                    boltz_models["models"].append(model_data)
+
+        chai_models = {"models": []}
+        if args.chai1:
+            if chai_success:
+                programs_run.append("Chai-1")
+                for idx in co.output.keys():
+                    if idx >= 0:
+                        model = co.output[idx]["cif"]
+                        model.check_clashes()
+                        plddt = model.residue_plddts
+                        if len(indicies) > 0:
+                            plddt = insert_none_by_minus_one(
+                                indicies[index_counter],
+                                plddt
+                                )
+                        index_counter += 1
+                        model_data = get_model_data(
+                            model, plot_dict, "Chai-1", plddt, args.output_dir
+                        )
+                        chai_models["models"].append(model_data)
 
         combined_models = (
             alphafold_models["models"] + boltz_models["models"] + chai_models["models"]

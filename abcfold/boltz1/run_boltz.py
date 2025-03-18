@@ -18,7 +18,7 @@ def run_boltz(
     test: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
-):
+) -> bool:
     """
     Run Boltz1 using the input JSON file
 
@@ -31,7 +31,7 @@ def run_boltz(
         number_of_models (int): Number of models to generate
 
     Returns:
-        None
+        Bool: True if the Boltz1 run was successful, False otherwise
 
     Raises:
         subprocess.CalledProcessError: If the Boltz1 command returns an error
@@ -64,9 +64,15 @@ def run_boltz(
 
         with subprocess.Popen(
             cmd,
-            stdout=sys.stdout,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ) as proc:
+            stdout = ""
+            if proc.stdout:
+                for line in proc.stdout:
+                    sys.stdout.write(line.decode())
+                    sys.stdout.flush()
+                    stdout += line.decode()
             _, stderr = proc.communicate()
             if proc.returncode != 0:
                 if proc.stderr:
@@ -79,10 +85,14 @@ def run_boltz(
                     )
                 else:
                     logger.error("Boltz1 run failed")
-                return
+                return False
+            elif "WARNING: ran out of memory" in stdout:
+                logger.error("Boltz1 ran out of memory")
+                return False
 
         logger.info("Boltz1 run complete")
         logger.info("Output files are in %s", output_dir)
+        return True
 
 
 def generate_boltz_command(
