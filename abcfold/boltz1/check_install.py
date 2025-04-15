@@ -38,6 +38,7 @@ def check_boltz1():
         cmd = [
             sys.executable,
             "-m",
+            "uv",
             "pip",
             "install",
             f"boltz=={BOLTZ_VERSION}",

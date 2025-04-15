@@ -44,6 +44,7 @@ def check_chai1():
         cmd = [
             sys.executable,
             "-m",
+            "uv",
             "pip",
             "install",
             f"chai_lab=={CHAI_VERSION}",
