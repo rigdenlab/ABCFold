@@ -18,14 +18,14 @@ We recommend installing this package in a virtual environment or conda / microma
 
 To set up a conda/micromamba environment, run:
 ```bash
-conda env create -n abcfold python=3.11
+conda create -n abcfold python=3.11
 conda activate abcfold
 ```
 
 or
 
 ```bash
-micromamba env create -n abcfold python=3.11
+micromamba create -n abcfold python=3.11
 micromamba activate abcfold
 ```
 
