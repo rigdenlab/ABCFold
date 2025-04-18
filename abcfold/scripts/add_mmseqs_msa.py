@@ -40,10 +40,10 @@ def add_msa_to_json(
     input_json,
     templates,
     num_templates,
-    chai_template_output,
-    custom_template,
-    custom_template_chain,
-    target_id,
+    chai_template_output=None,
+    custom_template=None,
+    custom_template_chain=None,
+    target_id=None,
     input_params=None,
     output_json=None,
     to_file=True,
@@ -196,7 +196,7 @@ def run_mmseqs(
     use_templates=False,
     filter=None,
     use_pairing=False,
-    host_url="https://a3m.mmseqs.com",
+    host_url="https://api.colabfold.com",
     num_templates=20,
 ) -> Sequence[object]:
     submission_endpoint = "ticket/pair" if use_pairing else "ticket/msa"
@@ -422,13 +422,14 @@ def main():
 
     args = parser.parse_args()
 
-    add_msa_to_json(  # pragma: no cover
-        args.input_json,
-        args.templates,
-        args.num_templates,
-        args.custom_template,
-        args.custom_template_chain,
-        args.target_id,
+    add_msa_to_json(
+        input_json=args.input_json,
+        templates=args.templates,
+        num_templates=args.num_templates,
+        chai_template_output=None,              
+        custom_template=args.custom_template,
+        custom_template_chain=args.custom_template_chain,
+        target_id=None,                          
         output_json=args.output_json,
         to_file=True,
     )

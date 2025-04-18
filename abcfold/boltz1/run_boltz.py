@@ -16,13 +16,12 @@ def normalize_gpus(gpus: str) -> str:
     if gpus == "cpu":
         return ""
     if gpus == "all":
-        return None  # Используем все GPU
-    # Проверяем и нормализуем список GPU
+        return None
     gpu_ids = []
     for gpu in gpus.split(","):
         gpu = gpu.strip()
         if not gpu.isdigit():
-            raise ValueError(f"Неверный ID GPU: {gpu}")
+            raise ValueError(f"Invalid GPU ID: {gpu}")
         gpu_ids.append(gpu)
     return ",".join(gpu_ids)
 
@@ -85,7 +84,7 @@ def run_boltz(
             if cuda_devices is not None:
                 env["CUDA_VISIBLE_DEVICES"] = cuda_devices
         except ValueError as e:
-            logger.error(f"Ошибка при настройке GPU: {e}")
+            logger.error(f"Error setting up GPU: {e}")
             return False
         def run_cmd(cmd, env):
             with subprocess.Popen(

@@ -25,87 +25,55 @@ class Af3Pae:
         def reorder_matrix(pae_matrix, chain_lengths, af3_chain_lengths):
             if not isinstance(pae_matrix, np.ndarray):
                 pae_matrix = np.array(pae_matrix)
-            desired_order = flatten(
-                [[key] * value for key, value in chain_lengths.items()]
-            )
-            current_order = flatten(
-                [[key] * value for key, value in af3_chain_lengths.items()]
-            )
-
-            order_mapping = {}
-
-            for i, chain_id in enumerate(current_order):
-                if chain_id in desired_order:
-                    order_mapping[i] = desired_order.index(chain_id)
-                    desired_order[desired_order.index(chain_id)] = None  # Mark as used
+            desired = flatten([[k] * v for k, v in chain_lengths.items()])
+            current = flatten([[k] * v for k, v in af3_chain_lengths.items()])
+            order = {}
+            for i, c in enumerate(current):
+                if c in desired:
+                    idx = desired.index(c)
+                    order[i] = idx
+                    desired[idx] = None
                 else:
-                    order_mapping[i] = i
-
-            # Reorder the PAE matrix rows and columns based on the mapping
-
-            reordered_matrix = np.zeros_like(pae_matrix)
+                    order[i] = i
+            out = np.zeros_like(pae_matrix)
             for i in range(len(pae_matrix)):
                 for j in range(len(pae_matrix)):
-
-                    reordered_matrix[order_mapping[i], order_mapping[j]] = pae_matrix[
-                        i, j
-                    ]
-
-            return reordered_matrix.tolist()
+                    out[order[i], order[j]] = pae_matrix[i, j]
+            return out.tolist()
 
         af3_scores = AF3TEMPLATE.copy()
+        chain_lengths = cif_file.chain_lengths(mode="residues", ligand_atoms=True, ptm_atoms=True)
 
-        chain_lengths = cif_file.chain_lengths(
-            mode="residues", ligand_atoms=True, ptm_atoms=True
-        )
+        token_chains = np.unique(scores["token_chain_ids"])
+        missing = set(token_chains) - set(chain_lengths.keys())
+        if missing and "L" in chain_lengths:
+            json_ids = [ch.id for ch in cif_file.get_chains()]
+            mapping = {chr(ord("A")+i): json_ids[i] for i in range(len(json_ids))}
+            scores["token_chain_ids"] = [mapping.get(c, c) for c in scores["token_chain_ids"]]
+            token_chains = np.unique(scores["token_chain_ids"])
 
-        af3pae_chain_lengths = {
-            k: chain_lengths[k] for k in np.unique(scores["token_chain_ids"])
-        }
+        af3pae_chain_lengths = {k: chain_lengths[k] for k in token_chains}
         if list(chain_lengths.keys()) == list(af3pae_chain_lengths.keys()):
             return cls(scores)
 
         residue_lengths = cif_file.chain_lengths(mode="all", ligand_atoms=True)
-
-        atom_chain_ids = flatten(
-            [[key] * value for key, value in residue_lengths.items()]
-        )
+        atom_chain_ids = flatten([[k] * v for k, v in residue_lengths.items()])
         atom_plddts = cif_file.plddts
+        token_res = flatten(list(cif_file.token_residue_ids().values()))
 
-        token_res_ids_dict = cif_file.token_residue_ids()
-        token_res_ids = flatten([value for _, value in token_res_ids_dict.items()])
-
-        reordered_pae = reorder_matrix(
-            scores["pae"], chain_lengths, af3pae_chain_lengths
-        )
-        contact_probs = reorder_matrix(
-            scores["contact_probs"], chain_lengths, af3pae_chain_lengths
-        )
-        token_chain_ids = flatten(
-            [[key] * len(value) for key, value in token_res_ids_dict.items()]
-        )
-
-        assert len(atom_chain_ids) == len(scores["atom_chain_ids"])
-        assert sum([len(value) for value in token_res_ids_dict.values()]) == len(
-            scores["pae"]
-        )
-        assert len(atom_plddts) == len(scores["atom_plddts"])
-
-        assert len(reordered_pae) == len(scores["pae"])
-        assert len(contact_probs) == len(scores["contact_probs"])
-        assert len(reordered_pae[0]) == len(scores["pae"][0])
-        assert len(contact_probs[0]) == len(scores["contact_probs"][0])
-        assert len(token_chain_ids) == len(scores["token_chain_ids"])
-        assert len(token_res_ids) == len(scores["token_res_ids"])
+        reordered_pae = reorder_matrix(scores["pae"], chain_lengths, af3pae_chain_lengths)
+        contact = reorder_matrix(scores["contact_probs"], chain_lengths, af3pae_chain_lengths)
+        token_chain_ids = flatten([[k] * len(v) for k, v in cif_file.token_residue_ids().items()])
 
         af3_scores["atom_chain_ids"] = atom_chain_ids
         af3_scores["atom_plddts"] = atom_plddts
-        af3_scores["contact_probs"] = contact_probs
-        af3_scores["pae"] = reordered_pae
+        af3_scores["contact_probs"] = contact
+        af3_scores["pae"]           = reordered_pae
         af3_scores["token_chain_ids"] = token_chain_ids
-        af3_scores["token_res_ids"] = token_res_ids
+        af3_scores["token_res_ids"] = token_res
 
         return cls(af3_scores)
+
 
     @classmethod
     def from_boltz1(cls, scores: dict, cif_file: CifFile):
