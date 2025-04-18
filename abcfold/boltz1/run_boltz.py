@@ -4,11 +4,27 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Union
+import os
 
 from abcfold.boltz1.af3_to_boltz1 import BoltzYaml
 from abcfold.boltz1.check_install import check_boltz1
 
 logger = logging.getLogger("logger")
+
+
+def normalize_gpus(gpus: str) -> str:
+    if gpus == "cpu":
+        return ""
+    if gpus == "all":
+        return None  # Используем все GPU
+    # Проверяем и нормализуем список GPU
+    gpu_ids = []
+    for gpu in gpus.split(","):
+        gpu = gpu.strip()
+        if not gpu.isdigit():
+            raise ValueError(f"Неверный ID GPU: {gpu}")
+        gpu_ids.append(gpu)
+    return ",".join(gpu_ids)
 
 
 def run_boltz(
@@ -18,6 +34,7 @@ def run_boltz(
     test: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
+    gpus: str = "all",
 ) -> bool:
     """
     Run Boltz1 using the input JSON file
@@ -57,39 +74,54 @@ def run_boltz(
         boltz_yaml.write_yaml(out_file)
         logger.info("Running Boltz1")
         cmd = (
-            generate_boltz_command(out_file, output_dir, number_of_models, num_recycles)
+            generate_boltz_command(out_file, output_dir, number_of_models, num_recycles, gpus)
             if not test
             else generate_boltz_test_command()
         )
 
-        with subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        ) as proc:
-            stdout = ""
-            if proc.stdout:
-                for line in proc.stdout:
-                    sys.stdout.write(line.decode())
-                    sys.stdout.flush()
-                    stdout += line.decode()
-            _, stderr = proc.communicate()
-            if proc.returncode != 0:
-                if proc.stderr:
-                    logger.error(stderr.decode())
-                    output_err_file = output_dir / "boltz_error.log"
-                    with open(output_err_file, "w") as f:
-                        f.write(stderr.decode())
-                    logger.error(
-                        "Boltz1 run failed. Error log is in %s", output_err_file
-                    )
-                else:
-                    logger.error("Boltz1 run failed")
-                return False
-            elif "WARNING: ran out of memory" in stdout:
-                logger.error("Boltz1 ran out of memory")
-                return False
-
+        env = os.environ.copy()
+        try:
+            cuda_devices = normalize_gpus(gpus)
+            if cuda_devices is not None:
+                env["CUDA_VISIBLE_DEVICES"] = cuda_devices
+        except ValueError as e:
+            logger.error(f"Ошибка при настройке GPU: {e}")
+            return False
+        def run_cmd(cmd, env):
+            with subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            ) as proc:
+                stdout = ""
+                if proc.stdout:
+                    for line in proc.stdout:
+                        sys.stdout.write(line.decode())
+                        sys.stdout.flush()
+                        stdout += line.decode()
+                _, stderr = proc.communicate()
+                return proc.returncode, stdout, stderr
+        returncode, stdout, stderr = run_cmd(cmd, env)
+        if returncode != 0 and b"Missing MSA's in input and --use_msa_server flag not set" in stderr:
+            logger.warning("MSA not found, retrying with --use_msa_server")
+            cmd.append("--use_msa_server")
+            returncode, stdout, stderr = run_cmd(cmd, env)
+        if returncode != 0:
+            if stderr:
+                logger.error(stderr.decode())
+                output_err_file = output_dir / "boltz_error.log"
+                with open(output_err_file, "w") as f:
+                    f.write(stderr.decode())
+                logger.error(
+                    "Boltz1 run failed. Error log is in %s", output_err_file
+                )
+            else:
+                logger.error("Boltz1 run failed")
+            return False
+        elif "WARNING: ran out of memory" in stdout:
+            logger.error("Boltz1 ran out of memory")
+            return False
         logger.info("Boltz1 run complete")
         logger.info("Output files are in %s", output_dir)
         return True
@@ -100,6 +132,7 @@ def generate_boltz_command(
     output_dir: Union[str, Path],
     number_of_models: int = 5,
     num_recycles: int = 10,
+    gpus: str = "all",
 ) -> list:
     """
     Generate the Boltz1 command
@@ -112,7 +145,7 @@ def generate_boltz_command(
     Returns:
         list: The Boltz1 command
     """
-    return [
+    cmd = [
         "boltz",
         "predict",
         str(input_yaml),
@@ -126,6 +159,7 @@ def generate_boltz_command(
         "--recycling_steps",
         str(num_recycles),
     ]
+    return cmd
 
 
 def generate_boltz_test_command() -> list:

@@ -17,3 +17,5 @@ build/
 # pip packages
 dist/
 *.egg-info/
+
+config.ini

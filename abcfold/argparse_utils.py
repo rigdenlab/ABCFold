@@ -8,6 +8,12 @@ logger = logging.getLogger("logger")
 def main_argpase_util(parser):
     parser.add_argument("input_json", help="Input sequence file")
     parser.add_argument("output_dir", help="Output directory")
+    parser.add_argument(
+        "--gpus",
+        type=str,
+        default="all",
+        help="GPU device(s) to use, e.g. 'all', '0', '0,1', 'cpu'"
+    )
 
     return parser
 

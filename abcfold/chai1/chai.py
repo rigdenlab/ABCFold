@@ -39,6 +39,20 @@ def citation():
     typer.echo(CITATION)
 
 
+def normalize_device(device):
+    if device is None:
+        return None
+    if device == "cpu":
+        return "cpu"
+    if device == "all":
+        return "cuda"
+    if "," in device:
+        device = device.split(",")[0]
+    if device.isdigit():
+        return f"cuda:{device}"
+    return device
+
+
 def run_inference_wrapper(
     fasta_file: Path,
     *,
@@ -77,7 +91,7 @@ def run_inference_wrapper(
         num_diffn_samples=num_diffn_samples,
         num_trunk_samples=num_trunk_samples,
         seed=seed,
-        device=device,
+        device=normalize_device(device),
         low_memory=low_memory,
     )
 

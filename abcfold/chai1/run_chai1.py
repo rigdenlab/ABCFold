@@ -12,6 +12,26 @@ from abcfold.chai1.check_install import check_chai1
 logger = logging.getLogger("logger")
 
 
+def normalize_device(gpus: str | None) -> str | None:
+    if gpus is None:
+        return None
+    if gpus == "cpu":
+        return "cpu"
+    if gpus == "all":
+        return "cuda"
+        
+    # Проверяем и нормализуем список GPU
+    gpu_ids = []
+    for gpu in gpus.split(","):
+        gpu = gpu.strip()
+        if not gpu.isdigit():
+            raise ValueError(f"Неверный ID GPU: {gpu}")
+        gpu_ids.append(gpu)
+        
+    # Для Chai берем только первую GPU из списка
+    return f"cuda:{gpu_ids[0]}"
+
+
 def run_chai(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
@@ -21,6 +41,7 @@ def run_chai(
     num_recycles: int = 10,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    device: str | None = None,
 ) -> bool:
     """
     Run Chai-1 using the input JSON file
@@ -35,6 +56,7 @@ def run_chai(
         num_recycles (int): Number of trunk recycles
         use_templates_server (bool): If True, use templates from the server
         template_hits_path (Path): Path to the template hits m8 file
+        device (str | None): If specified, use the specified GPU
 
     Returns:
         Bool: True if the Chai-1 run was successful, False otherwise
@@ -68,6 +90,7 @@ def run_chai(
                 num_recycles=num_recycles,
                 use_templates_server=use_templates_server,
                 template_hits_path=template_hits_path,
+                device=normalize_device(device),
             )
             if not test
             else generate_chai_test_command()
@@ -108,6 +131,7 @@ def generate_chai_command(
     num_recycles: int = 10,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    device: str | None = None,
 ) -> list:
     """
     Generate the Chai-1 command
@@ -121,6 +145,7 @@ def generate_chai_command(
         num_recycles (int): Number of trunk recycles
         use_templates_server (bool): If True, use templates from the server
         template_hits_path (Path): Path to the template hits m8 file
+        device (str | None): If specified, use the specified GPU
 
     Returns:
         list: The Chai-1 command
@@ -152,6 +177,9 @@ Please install kalign to use templates with Chai-1."
             cmd += ["--use-templates-server"]
         if template_hits_path:
             cmd += ["--template-hits-path", str(template_hits_path)]
+
+    if device is not None and device != "all":
+        cmd += ["--device", device]
 
     cmd += [str(output_dir)]
 

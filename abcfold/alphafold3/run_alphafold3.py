@@ -15,6 +15,7 @@ def run_alphafold3(
     interactive: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
+    gpus: str = "all",
 ) -> bool:
     """
     Run Alphafold3 using the input JSON file
@@ -45,6 +46,7 @@ def run_alphafold3(
         interactive=interactive,
         number_of_models=number_of_models,
         num_recycles=num_recycles,
+        gpus=gpus,
     )
 
     logger.info("Running Alphafold3")
@@ -73,6 +75,7 @@ def generate_af3_cmd(
     number_of_models: int = 10,
     num_recycles: int = 5,
     interactive: bool = False,
+    gpus: str = "all",
 ) -> str:
     """
     Generate the Alphafold3 command
@@ -90,13 +93,24 @@ def generate_af3_cmd(
     """
     input_json = Path(input_json)
     output_dir = Path(output_dir)
+    
+    gpu_flag = ""
+    if gpus == "cpu":
+        gpu_flag = ""  # Не используем GPU вообще
+    elif gpus == "all":
+        gpu_flag = '--gpus all'
+    else:
+        # Преобразуем список GPU в формат Docker
+        gpu_ids = [g.strip() for g in gpus.split(",")]
+        gpu_flag = f'--gpus \'"device={",".join(gpu_ids)}"\''
+    
     return f"""
     docker run {'-it' if interactive else ''} \
     --volume {input_json.parent.resolve()}:/root/af_input \
     --volume {output_dir.resolve()}:/root/af_output \
     --volume {model_params}:/root/models \
     --volume {database_dir}:/root/public_databases \
-    --gpus all \
+    {gpu_flag} \
     alphafold3 \
     python run_alphafold.py \
     --json_path=/root/af_input/{input_json.name} \
