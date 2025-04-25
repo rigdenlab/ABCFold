@@ -20,15 +20,15 @@ def normalize_device(gpus: str | None) -> str | None:
     if gpus == "all":
         return "cuda"
         
-    # Проверяем и нормализуем список GPU
+
     gpu_ids = []
     for gpu in gpus.split(","):
         gpu = gpu.strip()
         if not gpu.isdigit():
-            raise ValueError(f"Неверный ID GPU: {gpu}")
+            raise ValueError(f"Invalid GPU ID: {gpu}")
         gpu_ids.append(gpu)
         
-    # Для Chai берем только первую GPU из списка
+
     return f"cuda:{gpu_ids[0]}"
 
 
@@ -178,8 +178,10 @@ Please install kalign to use templates with Chai-1."
         if template_hits_path:
             cmd += ["--template-hits-path", str(template_hits_path)]
 
-    if device is not None and device != "all":
-        cmd += ["--device", device]
+    if device and device.lower() not in ("all", "cpu"):
+        cmd += ["--device", f"cuda:{device.split(',')[0]}"]
+    elif device and device.lower() == "cpu":
+        cmd += ["--device", "cpu"]
 
     cmd += [str(output_dir)]
 

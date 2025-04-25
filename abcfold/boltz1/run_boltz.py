@@ -12,19 +12,6 @@ from abcfold.boltz1.check_install import check_boltz1
 logger = logging.getLogger("logger")
 
 
-def normalize_gpus(gpus: str) -> str:
-    if gpus == "cpu":
-        return ""
-    if gpus == "all":
-        return None
-    gpu_ids = []
-    for gpu in gpus.split(","):
-        gpu = gpu.strip()
-        if not gpu.isdigit():
-            raise ValueError(f"Invalid GPU ID: {gpu}")
-        gpu_ids.append(gpu)
-    return ",".join(gpu_ids)
-
 
 def run_boltz(
     input_json: Union[str, Path],
@@ -79,13 +66,11 @@ def run_boltz(
         )
 
         env = os.environ.copy()
-        try:
-            cuda_devices = normalize_gpus(gpus)
-            if cuda_devices is not None:
-                env["CUDA_VISIBLE_DEVICES"] = cuda_devices
-        except ValueError as e:
-            logger.error(f"Error setting up GPU: {e}")
-            return False
+        if gpus.lower() not in ("all", "cpu"):
+            env["CUDA_VISIBLE_DEVICES"] = gpus
+        elif gpus.lower() == "cpu":
+            env["CUDA_VISIBLE_DEVICES"] = ""
+
         def run_cmd(cmd, env):
             with subprocess.Popen(
                 cmd,

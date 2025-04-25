@@ -235,8 +235,8 @@ class BoltzYaml:
             str: yaml string
         """
         if key == "smiles":
-            val = value.replace('"', '\\"')
-            value = f'"{val}"'
+            val = value.replace("'", "''")
+            return f"{DELIM}{DELIM}{key}: '{val}'\n"
         return f"{DELIM}{DELIM}{key}: {value}\n"
 
     def add_ligand_information(self, ligand_dict: dict, linked_id=None):

@@ -1,121 +1,69 @@
-import logging
-import subprocess
-import sys
 from pathlib import Path
-from typing import Union
+import subprocess
+import logging
 
 logger = logging.getLogger("logger")
 
-
 def run_alphafold3(
-    input_json: Union[str, Path],
-    output_dir: Union[str, Path],
-    model_params: Union[str, Path],
-    database_dir: Union[str, Path],
-    interactive: bool = False,
+    input_json: Path,
+    output_dir: Path,
+    model_params: Path,
+    database_dir: Path,
     number_of_models: int = 5,
     num_recycles: int = 10,
     gpus: str = "all",
+    interactive: bool = False,
 ) -> bool:
-    """
-    Run Alphafold3 using the input JSON file
 
-    Args:
-        input_json (Union[str, Path]): Path to the input JSON file
-        output_dir (Union[str, Path]): Path to the output directory
-        model_params (Union[str, Path]): Path to the model parameters
-        database_dir (Union[str, Path]): Path to the database directory
-        interactive (bool): If True, run the docker container in interactive mode
-        number_of_models (int): Number of models to generate
-
-    Returns:
-        Bool: True if the Alphafold3 run was successful, False otherwise
-
-    Raises:
-        subprocess.CalledProcessError: If the Alphafold3 command returns an error
-
-    """
-
-    input_json = Path(input_json)
-    output_dir = Path(output_dir)
-    cmd = generate_af3_cmd(
-        input_json=input_json,
-        output_dir=output_dir,
-        model_params=model_params,
-        database_dir=database_dir,
-        interactive=interactive,
-        number_of_models=number_of_models,
-        num_recycles=num_recycles,
-        gpus=gpus,
+    cmd = _build_docker_cmd(
+        input_json, output_dir, model_params, database_dir,
+        number_of_models, num_recycles, gpus, interactive
     )
 
-    logger.info("Running Alphafold3")
-    with subprocess.Popen(
-        cmd, shell=True, stdout=sys.stdout, stderr=subprocess.PIPE
-    ) as p:
-        _, stderr = p.communicate()
-        if p.returncode != 0:
-            logger.error(stderr.decode())
-            output_err_file = output_dir / "af3_error.log"
-            with open(output_err_file, "w") as f:
-                f.write(stderr.decode())
-            logger.error("Alphafold3 run failed. Error log is in %s", output_err_file)
-            return False
+    logger.info("Running Alphafold3 → GPU=%s", gpus)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        (output_dir / "af3_error.log").write_text(e.stderr.decode() if e.stderr else "")
+        logger.error("Alphafold3 failed, see af3_error.log")
+        return False
 
-    logger.info("Alphafold3 run complete")
-    logger.info("Output files are in %s", output_dir)
     return True
 
 
-def generate_af3_cmd(
-    input_json: Union[str, Path],
-    output_dir: Union[str, Path],
-    model_params: Union[str, Path],
-    database_dir: Union[str, Path],
-    number_of_models: int = 10,
-    num_recycles: int = 5,
-    interactive: bool = False,
-    gpus: str = "all",
-) -> str:
-    """
-    Generate the Alphafold3 command
+def _build_docker_cmd(
+    input_json: Path,
+    output_dir: Path,
+    model_params: Path,
+    database_dir: Path,
+    n_models: int,
+    n_recycles: int,
+    gpus: str,
+    interactive: bool,
+) -> list[str]:
 
-    Args:
-        input_json (Union[str, Path]): Path to the input JSON file
-        output_dir (Union[str, Path]): Path to the output directory
-        model_params (Union[str, Path]): Path to the model parameters
-        database_dir (Union[str, Path]): Path to the database directory
-        number_of_models (int): Number of models to generate
-        interactive (bool): If True, run the docker container in interactive mode
+    cmd = ["docker", "run", "-i"] if interactive else ["docker", "run", "--rm"]
 
-    Returns:
-        str: The Alphafold3 command
-    """
-    input_json = Path(input_json)
-    output_dir = Path(output_dir)
-    
-    gpu_flag = ""
-    if gpus == "cpu":
-        gpu_flag = ""  # Не используем GPU вообще
-    elif gpus == "all":
-        gpu_flag = '--gpus all'
+
+    if gpus.lower() == "cpu":
+        pass
+    elif gpus.lower() == "all":
+        cmd += ["--gpus", "all"]
     else:
-        # Преобразуем список GPU в формат Docker
-        gpu_ids = [g.strip() for g in gpus.split(",")]
-        gpu_flag = f'--gpus \'"device={",".join(gpu_ids)}"\''
-    
-    return f"""
-    docker run {'-it' if interactive else ''} \
-    --volume {input_json.parent.resolve()}:/root/af_input \
-    --volume {output_dir.resolve()}:/root/af_output \
-    --volume {model_params}:/root/models \
-    --volume {database_dir}:/root/public_databases \
-    {gpu_flag} \
-    alphafold3 \
-    python run_alphafold.py \
-    --json_path=/root/af_input/{input_json.name} \
-    --model_dir=/root/models \
-    --output_dir=/root/af_output \
-    --num_diffusion_samples {number_of_models}\
-    --num_recycles {num_recycles}
-    """
+        cmd += ["--gpus", f"device={gpus}"]
+
+
+    cmd += [
+        "--volume", f"{input_json.parent.resolve()}:/root/af_input:ro",
+        "--volume", f"{output_dir.resolve()}:/root/af_output",
+        "--volume", f"{model_params}:/root/models:ro",
+        "--volume", f"{database_dir}:/root/public_databases:ro",
+        "alphafold3",
+        "python", "run_alphafold.py",
+        "--json_path", f"/root/af_input/{input_json.name}",
+        "--model_dir", "/root/models",
+        "--output_dir", "/root/af_output",
+        "--num_diffusion_samples", str(n_models),
+        "--num_recycles", str(n_recycles),
+    ]
+    return cmd
