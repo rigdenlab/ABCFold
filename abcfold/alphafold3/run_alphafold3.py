@@ -1,8 +1,11 @@
 from pathlib import Path
 import subprocess
 import logging
+from rich.logging import RichHandler
 
-logger = logging.getLogger("logger")
+logger = logging.getLogger("alphafold3")
+logger.setLevel(logging.INFO)
+logger.addHandler(RichHandler())
 
 def run_alphafold3(
     input_json: Path,
@@ -22,13 +25,21 @@ def run_alphafold3(
 
     logger.info("Running Alphafold3 → GPU=%s", gpus)
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(
+            cmd,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
     except subprocess.CalledProcessError as e:
-        (output_dir / "af3_error.log").write_text(e.stderr.decode() if e.stderr else "")
-        logger.error("Alphafold3 failed, see af3_error.log")
+        err_file = output_dir / "af3_error.log"
+        err_file.write_text(e.stderr or "")
+        logger.error("Alphafold3 failed, see %s", err_file)
         return False
 
     return True
+
 
 
 def _build_docker_cmd(

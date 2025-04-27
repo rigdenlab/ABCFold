@@ -15,21 +15,13 @@ logger = logging.getLogger("logger")
 def normalize_device(gpus: str | None) -> str | None:
     if gpus is None:
         return None
-    if gpus == "cpu":
+    g = gpus.lower()
+    if g == "cpu":
         return "cpu"
-    if gpus == "all":
+    if g == "all":
         return "cuda"
-        
 
-    gpu_ids = []
-    for gpu in gpus.split(","):
-        gpu = gpu.strip()
-        if not gpu.isdigit():
-            raise ValueError(f"Invalid GPU ID: {gpu}")
-        gpu_ids.append(gpu)
-        
-
-    return f"cuda:{gpu_ids[0]}"
+    return "cuda:0"
 
 
 def run_chai(
@@ -134,22 +126,7 @@ def generate_chai_command(
     device: str | None = None,
 ) -> list:
     """
-    Generate the Chai-1 command
-
-    Args:
-        input_fasta (Union[str, Path]): Path to the input fasta file
-        msa_dir (Union[str, Path]): Path to the MSA directory
-        input_constraints (Union[str, Path]): Path to the input constraints file
-        output_dir (Union[str, Path]): Path to the output directory
-        number_of_models (int): Number of models to generate
-        num_recycles (int): Number of trunk recycles
-        use_templates_server (bool): If True, use templates from the server
-        template_hits_path (Path): Path to the template hits m8 file
-        device (str | None): If specified, use the specified GPU
-
-    Returns:
-        list: The Chai-1 command
-
+    Build the Chai-1 CLI call.
     """
 
     chai_exe = Path(__file__).parent / "chai.py"
@@ -163,14 +140,13 @@ def generate_chai_command(
     cmd += ["--num-diffn-samples", str(number_of_models)]
     cmd += ["--num-trunk-recycles", str(num_recycles)]
 
-    assert not (
-        use_templates_server and template_hits_path
-    ), "Cannot specify both templates server and path"
+    assert not (use_templates_server and template_hits_path), \
+        "Cannot specify both templates server and path"
 
     if shutil.which("kalign") is None and (use_templates_server or template_hits_path):
         logger.warning(
-            "kalign not found, skipping template search kalign is required. \
-Please install kalign to use templates with Chai-1."
+            "kalign not found, skipping template search. "
+            "Please install kalign to use templates with Chai-1."
         )
     else:
         if use_templates_server:
@@ -178,13 +154,10 @@ Please install kalign to use templates with Chai-1."
         if template_hits_path:
             cmd += ["--template-hits-path", str(template_hits_path)]
 
-    if device and device.lower() not in ("all", "cpu"):
-        cmd += ["--device", f"cuda:{device.split(',')[0]}"]
-    elif device and device.lower() == "cpu":
-        cmd += ["--device", "cpu"]
+    if device is not None:
+        cmd += ["--device", device]
 
     cmd += [str(output_dir)]
-
     return cmd
 
 

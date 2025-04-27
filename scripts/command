@@ -1,0 +1,2 @@
+abcfold 6np4.json ./out_fast -abc --gpus 6 --mmseqs2 --override --number_of_models 5 --no_server
+
