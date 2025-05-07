@@ -1,4 +1,5 @@
 import http.server
+import json
 import textwrap
 from itertools import groupby
 from operator import itemgetter
@@ -98,7 +99,7 @@ def get_model_sequence_data(cif_objs) -> dict:
     return sequence_data
 
 
-def get_model_data(model, plot_dict, method, plddt_scores, output_dir):
+def get_model_data(model, plot_dict, method, plddt_scores, score_file, output_dir):
     """
     Get the model data for the output page
 
@@ -106,9 +107,11 @@ def get_model_data(model, plot_dict, method, plddt_scores, output_dir):
         model (CifFile): Model object
         plot_dict (dict): Dictionary of plots
         method (str): Method used to generate the model
+        score_file (str): Path to the file containing model scores
         output_dir (Path): Path to the output directory
     """
     regions = get_plddt_regions(plddt_scores)
+    ptm_score, iptm_score = parse_scores(score_file)
     model_data = {
         "model_id": model.name,
         "model_source": method,
@@ -116,6 +119,8 @@ def get_model_data(model, plot_dict, method, plddt_scores, output_dir):
         "plddt_regions": regions,
         "avg_plddt": model.average_plddt,
         "h_score": model.h_score,
+        "ptm_score": ptm_score,
+        "iptm_score": iptm_score,
         "residue_clashes": model.clashes_residues,
         "atom_clashes": model.clashes,
         "pae_path": Path(plot_dict[model.pathway.as_posix()])
@@ -232,3 +237,33 @@ def get_all_cif_files(outputs) -> Dict[str, list]:
             method_cif_objs["Chai-1"] = output.cif_files
 
     return method_cif_objs
+
+
+def parse_scores(score_file: str) -> tuple:
+    """
+    Parse the scores from the score file
+
+    Args:
+        score_file (str): Path to the score file
+
+    Returns:
+        tuple: ptm_score, iptm_score
+    """
+    ptm_score = None
+    iptm_score = None
+
+    if not Path(score_file).exists():
+        raise FileNotFoundError(f"Score file {score_file} not found")
+
+    if Path(score_file).suffix == ".json":
+        with open(score_file, "r") as f:
+            data = json.load(f)
+            ptm_score = float(data["ptm"])
+            iptm_score = float(data["iptm"])
+    elif Path(score_file).suffix == ".npz":
+        with open(score_file, "rb") as f:
+            data = np.load(f)
+            ptm_score = float(data["ptm"])
+            iptm_score = float(data["iptm"])
+
+    return ptm_score, iptm_score

@@ -235,6 +235,7 @@ def run(args, config, defaults, config_file):
                     for idx in ao.output[seed].keys():
                         model = ao.output[seed][idx]["cif"]
                         model.check_clashes()
+                        score_file = ao.output[seed][idx]["summary"]
                         plddt = model.residue_plddts
                         if len(indicies) > 0:
                             plddt = insert_none_by_minus_one(
@@ -243,7 +244,8 @@ def run(args, config, defaults, config_file):
                                 )
                         index_counter += 1
                         model_data = get_model_data(
-                            model, plot_dict, "AlphaFold3", plddt, args.output_dir
+                            model, plot_dict, "AlphaFold3",
+                            plddt, score_file, args.output_dir
                         )
                         alphafold_models["models"].append(model_data)
 
@@ -254,6 +256,7 @@ def run(args, config, defaults, config_file):
                 for idx in bo.output.keys():
                     model = bo.output[idx]["cif"]
                     model.check_clashes()
+                    score_file = bo.output[idx]["json"]
                     plddt = model.residue_plddts
                     if len(indicies) > 0:
                         plddt = insert_none_by_minus_one(
@@ -262,7 +265,8 @@ def run(args, config, defaults, config_file):
                             )
                     index_counter += 1
                     model_data = get_model_data(
-                        model, plot_dict, "Boltz-1", plddt, args.output_dir
+                        model, plot_dict, "Boltz-1",
+                        plddt, score_file, args.output_dir
                     )
                     boltz_models["models"].append(model_data)
 
@@ -274,6 +278,7 @@ def run(args, config, defaults, config_file):
                     if idx >= 0:
                         model = co.output[idx]["cif"]
                         model.check_clashes()
+                        score_file = co.output[idx]["scores"]
                         plddt = model.residue_plddts
                         if len(indicies) > 0:
                             plddt = insert_none_by_minus_one(
@@ -282,7 +287,8 @@ def run(args, config, defaults, config_file):
                                 )
                         index_counter += 1
                         model_data = get_model_data(
-                            model, plot_dict, "Chai-1", plddt, args.output_dir
+                            model, plot_dict, "Chai-1",
+                            plddt, score_file, args.output_dir
                         )
                         chai_models["models"].append(model_data)
 

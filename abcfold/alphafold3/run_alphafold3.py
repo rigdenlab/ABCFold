@@ -111,8 +111,8 @@ def generate_af3_cmd(
         --output_dir=/root/af_output \
         --num_diffusion_samples {number_of_models}\
         --num_recycles {num_recycles}
-
     """
+
     else:
         return f"""
         docker run {'-it' if interactive else ''} \
