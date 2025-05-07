@@ -25,7 +25,7 @@ def run_alphafold3(
         output_dir (Union[str, Path]): Path to the output directory
         model_params (Union[str, Path]): Path to the model parameters
         database_dir (Union[str, Path]): Path to the database directory
-        sif_path (Union[str, Path]): Path to a Singularity image file
+        sif_path (Union[str, Path, None]): Path to a Singularity image file
         interactive (bool): If True, run the docker container in interactive mode
         number_of_models (int): Number of models to generate
 
@@ -86,7 +86,7 @@ def generate_af3_cmd(
         output_dir (Union[str, Path]): Path to the output directory
         model_params (Union[str, Path]): Path to the model parameters
         database_dir (Union[str, Path]): Path to the database directory
-        sif_path (Union[str, Path]): Path to a Singularity image file
+        sif_path (Union[str, Path, None]): Path to a Singularity image file
         number_of_models (int): Number of models to generate
         interactive (bool): If True, run the docker container in interactive mode
 
@@ -105,7 +105,7 @@ def generate_af3_cmd(
         --bind {model_params}:/root/models \
         --bind {database_dir}:/root/public_databases \
         {sif_path} \
-        python run_alphafold.py \
+        python /app/alphafold/run_alphafold.py \
         --json_path=/root/af_input/{input_json.name} \
         --model_dir=/root/models \
         --output_dir=/root/af_output \
