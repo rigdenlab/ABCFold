@@ -149,6 +149,7 @@ def run(args, config, defaults, config_file):
                 database_dir=af3_database,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                sif_path=args.sif_path,
             )
 
             if af3_success:

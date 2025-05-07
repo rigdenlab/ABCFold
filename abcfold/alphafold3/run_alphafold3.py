@@ -12,6 +12,7 @@ def run_alphafold3(
     output_dir: Union[str, Path],
     model_params: Union[str, Path],
     database_dir: Union[str, Path],
+    sif_path: Union[str, Path, None],
     interactive: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
@@ -24,6 +25,7 @@ def run_alphafold3(
         output_dir (Union[str, Path]): Path to the output directory
         model_params (Union[str, Path]): Path to the model parameters
         database_dir (Union[str, Path]): Path to the database directory
+        sif_path (Union[str, Path]): Path to a Singularity image file
         interactive (bool): If True, run the docker container in interactive mode
         number_of_models (int): Number of models to generate
 
@@ -42,6 +44,7 @@ def run_alphafold3(
         output_dir=output_dir,
         model_params=model_params,
         database_dir=database_dir,
+        sif_path=sif_path,
         interactive=interactive,
         number_of_models=number_of_models,
         num_recycles=num_recycles,
@@ -70,6 +73,7 @@ def generate_af3_cmd(
     output_dir: Union[str, Path],
     model_params: Union[str, Path],
     database_dir: Union[str, Path],
+    sif_path: Union[str, Path, None],
     number_of_models: int = 10,
     num_recycles: int = 5,
     interactive: bool = False,
@@ -82,6 +86,7 @@ def generate_af3_cmd(
         output_dir (Union[str, Path]): Path to the output directory
         model_params (Union[str, Path]): Path to the model parameters
         database_dir (Union[str, Path]): Path to the database directory
+        sif_path (Union[str, Path]): Path to a Singularity image file
         number_of_models (int): Number of models to generate
         interactive (bool): If True, run the docker container in interactive mode
 
@@ -90,18 +95,37 @@ def generate_af3_cmd(
     """
     input_json = Path(input_json)
     output_dir = Path(output_dir)
-    return f"""
-    docker run {'-it' if interactive else ''} \
-    --volume {input_json.parent.resolve()}:/root/af_input \
-    --volume {output_dir.resolve()}:/root/af_output \
-    --volume {model_params}:/root/models \
-    --volume {database_dir}:/root/public_databases \
-    --gpus all \
-    alphafold3 \
-    python run_alphafold.py \
-    --json_path=/root/af_input/{input_json.name} \
-    --model_dir=/root/models \
-    --output_dir=/root/af_output \
-    --num_diffusion_samples {number_of_models}\
-    --num_recycles {num_recycles}
+
+    if sif_path is not None:
+        return f"""
+        singularity exec \
+        --nv \
+        --bind {input_json.parent.resolve()}:/root/af_input \
+        --bind {output_dir.resolve()}:/root/af_output \
+        --bind {model_params}:/root/models \
+        --bind {database_dir}:/root/public_databases \
+        {sif_path} \
+        python run_alphafold.py \
+        --json_path=/root/af_input/{input_json.name} \
+        --model_dir=/root/models \
+        --output_dir=/root/af_output \
+        --num_diffusion_samples {number_of_models}\
+        --num_recycles {num_recycles}
+
     """
+    else:
+        return f"""
+        docker run {'-it' if interactive else ''} \
+        --volume {input_json.parent.resolve()}:/root/af_input \
+        --volume {output_dir.resolve()}:/root/af_output \
+        --volume {model_params}:/root/models \
+        --volume {database_dir}:/root/public_databases \
+        --gpus all \
+        alphafold3 \
+        python run_alphafold.py \
+        --json_path=/root/af_input/{input_json.name} \
+        --model_dir=/root/models \
+        --output_dir=/root/af_output \
+        --num_diffusion_samples {number_of_models}\
+        --num_recycles {num_recycles}
+        """

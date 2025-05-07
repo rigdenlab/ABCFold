@@ -111,6 +111,12 @@ def alphafold_argparse_util(parser):
     )
 
     parser.add_argument(
+        "--sif_path",
+        help="The path to the Singularity image of AlphaFold3",
+        default=None,
+    )
+
+    parser.add_argument(
         "-a",
         "--alphafold3",
         action="store_true",
