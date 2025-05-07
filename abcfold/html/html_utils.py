@@ -115,7 +115,7 @@ def get_model_data(model, plot_dict, method, plddt_scores, score_file, output_di
     model_data = {
         "model_id": model.name,
         "model_source": method,
-        "model_path": model.pathway.as_posix(),
+        "model_path": "/".join(Path(model.pathway).parts[1:]),
         "plddt_regions": regions,
         "avg_plddt": model.average_plddt,
         "h_score": model.h_score,

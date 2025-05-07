@@ -145,10 +145,9 @@ ABCFold will output the AlphaFold, Boltz and/or Chai models in the `<output_dir>
 Unless the `--no_visuals` flag is used, you can then open the output pages by running:
 
 ```bash
-python <output_dir>/open_output.py
+cd <output_dir>
+python open_output.py
 ```
-
-
 
 ## Main Page Example
 ![main_page_example](https://raw.githubusercontent.com/rigdenlab/ABCFold/refs/heads/main/abcfold/html/static/main_page_example.png)
@@ -158,7 +157,6 @@ python <output_dir>/open_output.py
 
 The output page will be available on `http://localhost:8000/index.html`. If you need to rerun the server to create the output,
 you will find `open_output.py` in your `<output_dir>`. This needs to be run from your `<output_dir>`.
-
 
 
 
