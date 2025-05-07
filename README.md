@@ -18,7 +18,7 @@ We recommend installing this package in a virtual environment or conda / microma
 
 To set up a conda/micromamba environment, run:
 ```bash
-conda env create -n abcfold python=3.11
+conda create -n abcfold python=3.11
 conda activate abcfold
 ```
 
@@ -98,7 +98,7 @@ However, there you may wish to use the following flags to add run time options s
 - `<input_json>`: Path to the input AlphaFold3 JSON file.
 - `<output_dir>`: Path to the output directory.
 - `-a`, `-b`, `-c` (`--alphafold3`, `--boltz1`,`--chai1`): Flags to run Alphafold3, Boltz-1 and Chai-1 respectively. If none of these flags are provided, Alphafold3 will be run by default.
-- `--mmseqs2`: [optional] Flag to use MMseqs2 MSAs and templates.
+- `--mmseqs2`: [optional] Flag to use MMseqs2 MSAs and templates (if specified).
 - `--override`: [optional] Flag to override the existing output directory.
 - `--save_input`: [optional] Flag to save the input JSON file in the output directory.
 
@@ -107,10 +107,12 @@ However, there you may wish to use the following flags to add run time options s
 - `--model_params`: Path to the directory containing the AlphaFold3 model parameters.
 - `--database`: [optional] Path to the directory containing the AlphaFold3 databases #Note: This is not used if using the
 `--mmseqs2` flag.
-- `--use_af3_template_search`[optional] If providing your own custom MSA or you've ran `--mmseqs`, allow Alphafold3 to search for templates
+- `--sif_path`: [optional] Path to sif file if using an AlphaFold3 singularity instead of Docker
+- `--use_af3_template_search`[optional] If providing your own custom MSA or you've ran `--mmseqs2`, allow Alphafold3 to search for templates
 
-#### Template and MSA arguments
+#### Template arguments
 
+- `--templates`: Flag to enable a template search
 - `--num_templates`: [optional] The number of templates to use (default: 20)
 
 - `--custom_template`: [optional] Path to a custom template file in mmCIF format or a list of custom templates. A more detailed decription on how to use the custom template argument can be found below Visualisation arguments.
