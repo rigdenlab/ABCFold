@@ -1,5 +1,4 @@
 import http.server
-import json
 import textwrap
 from itertools import groupby
 from operator import itemgetter
@@ -13,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader
 from abcfold.output.alphafold3 import AlphafoldOutput
 from abcfold.output.boltz import BoltzOutput
 from abcfold.output.chai import ChaiOutput
+from abcfold.output.file_handlers import ConfidenceJsonFile, NpzFile
 from abcfold.plots.pae_plot import create_pae_plots
 from abcfold.plots.plddt_plot import plot_plddt
 
@@ -239,31 +239,26 @@ def get_all_cif_files(outputs) -> Dict[str, list]:
     return method_cif_objs
 
 
-def parse_scores(score_file: str) -> tuple:
+def parse_scores(score_file: Union[ConfidenceJsonFile, NpzFile]) -> tuple:
     """
     Parse the scores from the score file
 
     Args:
-        score_file (str): Path to the score file
+        score_file (Union[ConfidenceJsonFile, NpzFile]): The score file object.
 
     Returns:
-        tuple: ptm_score, iptm_score
+        tuple: A tuple containing ptm_score and iptm_score as floats.
     """
     ptm_score = None
     iptm_score = None
 
-    if not Path(score_file).exists():
-        raise FileNotFoundError(f"Score file {score_file} not found")
-
-    if Path(score_file).suffix == ".json":
-        with open(score_file, "r") as f:
-            data = json.load(f)
-            ptm_score = float(data["ptm"])
-            iptm_score = float(data["iptm"])
-    elif Path(score_file).suffix == ".npz":
-        with open(score_file, "rb") as f:
-            data = np.load(f)
-            ptm_score = float(data["ptm"])
-            iptm_score = float(data["iptm"])
+    if isinstance(score_file, ConfidenceJsonFile):
+        data = score_file.load_json_file()
+        ptm_score = float(data["ptm"])
+        iptm_score = float(data["iptm"])
+    elif isinstance(score_file, NpzFile):
+        data = score_file.load_npz_file()
+        ptm_score = float(data["ptm"])
+        iptm_score = float(data["iptm"])
 
     return ptm_score, iptm_score
