@@ -202,7 +202,7 @@ def run(args, config, defaults, config_file):
             )
 
             if chai_success:
-                co = ChaiOutput(chai_output_dir, input_params, name)
+                co = ChaiOutput(chai_output_dir, input_params, name, args.save_input)
                 outputs.append(co)
             successful_runs.append(chai_success)
 

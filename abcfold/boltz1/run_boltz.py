@@ -49,7 +49,6 @@ def run_boltz(
         if save_input:
             logger.info("Saving input yaml file and msa to the output directory")
             working_dir = output_dir
-            working_dir.mkdir(parents=True, exist_ok=True)
 
         boltz_yaml = BoltzYaml(working_dir)
         boltz_yaml.json_to_yaml(input_json)

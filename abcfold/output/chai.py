@@ -16,6 +16,7 @@ class ChaiOutput:
         chai_output_dir: Union[str, Path],
         input_params: dict,
         name: str,
+        save_input: bool = False,
     ):
         """
         Object to process the output of an Chai-1 run
@@ -25,6 +26,7 @@ class ChaiOutput:
             input_params (dict): Dictionary containing the input parameters used for the
             Chai-1 run
             name (str): Name given to the Chai-1 run
+            save_input (bool): If True, Chai-1 was run with the save_input flag
 
         Attributes:
             input_params (dict): Dictionary containing the input parameters used for the
@@ -56,11 +58,13 @@ class ChaiOutput:
         self.input_params = input_params
         self.output_dir = Path(chai_output_dir)
         self.name = name
+        self.save_input = save_input
 
         if not self.output_dir.name.startswith("chai1_" + self.name):
             self.output_dir = self.output_dir.rename(
                 self.output_dir.parent / f"chai1_{self.name}"
             )
+
         self.input_fasta = self.get_input_fasta()
 
         self.output = self.process_chai_output()
@@ -80,6 +84,9 @@ class ChaiOutput:
 
     def process_chai_output(self):
         file_groups = {}
+
+        if self.save_input:
+            self.output_dir = self.output_dir / "chai_output"
 
         for pathway in self.output_dir.iterdir():
             number = pathway.stem.split("model_idx_")[-1]
