@@ -42,6 +42,7 @@ def run_chai(
     """
     input_json = Path(input_json)
     output_dir = Path(output_dir)
+
     logger.debug("Checking if Chai-1 is installed")
     check_chai1()
 
@@ -50,6 +51,7 @@ def run_chai(
         if save_input:
             logger.info("Saving input fasta file and msa to the output directory")
             working_dir = output_dir
+            working_dir.mkdir(parents=True, exist_ok=True)
 
         chai_fasta = ChaiFasta(working_dir)
         chai_fasta.json_to_fasta(input_json)

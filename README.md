@@ -50,7 +50,7 @@ If you wish to help develop this package, you can install the development depend
 ```bash
 python -m pip install -e .
 python -m pip install -r requirements-dev.txt
-python -m pre-commit install
+python -m pre_commit install
 ```
 
 ## Usage
