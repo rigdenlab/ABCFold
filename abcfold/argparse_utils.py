@@ -6,8 +6,24 @@ logger = logging.getLogger("logger")
 
 
 def main_argpase_util(parser):
-    parser.add_argument("input_json", help="Input sequence file")
-    parser.add_argument("output_dir", help="Output directory")
+    parser.add_argument(
+        "input_json",
+        help="Path to the input JSON in AlphaFold3 format"
+    )
+    parser.add_argument(
+        "output_dir",
+        help="Path to the output directory"
+    )
+    parser.add_argument(
+        "--override",
+        help="[optional] Override the existing output directory, if it exists",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--output_json",
+        help="[optional] Specify the path of the output ABCFold json file, this \
+can be used to run subsequent runs of ABCFold with the same input features (e.g. MSA)",
+    )
 
     return parser
 
@@ -16,16 +32,19 @@ def mmseqs2_argparse_util(parser):
     parser.add_argument(
         "--mmseqs2",
         action="store_true",
-        help="Use MMseqs2 for MSA",
+        help="[optional] Use MMseqs2 for MSA generation and template \
+searching (if used with --templates flag)",
     )
     parser.add_argument(
-        "--templates", action="store_true", help="Include templates in the output json"
+        "--templates",
+        action="store_true",
+        help="[optional] Enable template search"
     )
     parser.add_argument(
         "--num_templates",
         type=int,
         default=20,
-        help="Number of templates to include in the output json",
+        help="[optional] The number of templates to use (default: 20)",
     )
 
     return parser
@@ -33,17 +52,27 @@ def mmseqs2_argparse_util(parser):
 
 def custom_template_argpase_util(parser):
     parser.add_argument(
-        "--target_id", nargs="+", help="Target id relating to the custom template"
+        "--target_id",
+        nargs="+",
+        help="[conditionally required] The ID of the sequence that the \
+custom template relates to. This is only required if modelling a complex. \
+If providing a list of custom templates, the target_id must be a list of \
+the same length as the custom template list",
     )
     parser.add_argument(
         "--custom_template",
         nargs="+",
-        help="Custom template to include in the output json",
+        help="[optional] Path to a custom template file in mmCif format or a list \
+of paths to custom template files in mmCif format. If providing a list of \
+custom templates, you must also provide a list of custom template chains.",
     )
     parser.add_argument(
         "--custom_template_chain",
         nargs="+",
-        help="Custom template chain to include in the output json",
+        help="[conditionally required] The chain ID of the chain to use in your \
+custom template. This is only required if using a multi-chain template. If \
+providing a list of custom templates, you must also provide a list of custom \
+template chains of the same length as the custom template list",
     )
 
     return parser
@@ -54,13 +83,14 @@ def prediction_argparse_util(parser):
         "--number_of_models",
         type=int,
         default=5,
-        help="Number of models to generate",
+        help="[optional] The number of models to generate with each method \
+(default: 5)",
     )
     parser.add_argument(
         "--num_recycles",
         type=int,
         default=10,
-        help="Number of recycles to use during the inference",
+        help="[optional] Number of recycles to use during inference (default: 10)",
     )
     return parser
 
@@ -94,25 +124,24 @@ def chai_argparse_util(parser):
 
 
 def alphafold_argparse_util(parser):
-
-    parser.add_argument("--output_json", help="Output json file")
-    # make the vartible saved as database_dir
     parser.add_argument(
         "--database",
-        help="The Database directory for the generation of the MSA.",
+        help="[optional] The database directory for the generation of the MSA. This \
+is only required if using the built in AlphaFold3 MSA generation",
         dest="database_dir",
         default=None,
     )
 
     parser.add_argument(
         "--model_params",
-        help="The directory containing the model parameters",
+        help="[required] The directory containing the AlphaFold3 model parameters",
         default=None,
     )
 
     parser.add_argument(
         "--sif_path",
-        help="The path to the Singularity image of AlphaFold3",
+        help="[conditionally required] The path to the sif image of AlphaFold3 if \
+using Singularity",
         default=None,
     )
 
@@ -124,15 +153,9 @@ def alphafold_argparse_util(parser):
     )
 
     parser.add_argument(
-        "--override",
-        help="Override the existing output directory, if it exists",
-        action="store_true",
-    )
-
-    parser.add_argument(
         "--use_af3_template_search",
         action="store_true",
-        help="If providing your own custom MSA or you've ran `--mmseqs`, allow \
+        help="If providing your own custom MSA or if you've run `--mmseqs2`, allow \
 Alphafold3 to search for templates",
     )
 
@@ -143,14 +166,15 @@ def visuals_argparse_util(parser):
     parser.add_argument(
         "--no_visuals",
         action="store_true",
-        help="Do not generate the output pages, best for running on a cluster\
- without a display",
+        help="[optional] Do not generate the output pages, best for running on a \
+cluster without a display",
     )
+
     parser.add_argument(
         "--no_server",
         action="store_true",
-        help="Do not start a local server to view the results, the output page is \
-stil generated and is accessible in the output directory",
+        help="[optional] Do not start a local server to view the results, the output \
+page is still generated and is accessible in the output directory",
     )
     return parser
 
