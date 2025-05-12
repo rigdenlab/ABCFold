@@ -90,6 +90,9 @@ abcfold <input_json>  <output_dir> -abc --mmseqs2 --model_params <path_to_af3_mo
 > The `--database` path will also be stored after the first run and won't be required in subsequent ABCFold jobs.
 
 >[!WARNING]
+> When using the `--mmseqs2` flag, AlphaFold3 will be run without pairedMSA information. If this is important for your target (e.g. modelling a complex), we recommend running the AlphaFold3 JACKHMMER MSA search as the pairedMSA is automatically generated.
+
+>[!WARNING]
 >`--model_params` and `--database` will need to be provided again if you do a fresh install.
 
 However, there you may wish to use the following flags to add run time options such as the use of templates, or the number of models to create.
