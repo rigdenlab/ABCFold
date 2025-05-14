@@ -1,3 +1,4 @@
+import argparse
 import logging
 import sys
 from pathlib import Path
@@ -5,9 +6,23 @@ from pathlib import Path
 logger = logging.getLogger("logger")
 
 
+def validate_json_file(value):
+    """
+    Validate that the input is a JSON file with a .json suffix.
+    """
+    if not value.endswith(".json"):
+        raise argparse.ArgumentTypeError(
+            f"Input file must have a .json suffix: {value}"
+        )
+    if not Path(value).exists():
+        raise argparse.ArgumentTypeError(f"Input file does not exist: {value}")
+    return value
+
+
 def main_argpase_util(parser):
     parser.add_argument(
         "input_json",
+        type=validate_json_file,
         help="Path to the input JSON in AlphaFold3 format"
     )
     parser.add_argument(
@@ -195,9 +210,20 @@ by default"
         logger.error(f"Model parameters directory not found: {args.model_params}")
         sys.exit(1)
 
-    if args.templates and not args.mmseqs2:
-        logger.error("Cannot include templates without using MMseqs2")
+    if args.templates and not args.mmseqs2 and not args.alphafold3:
+        logger.error(
+            "Cannot use --templates flag without using MMseqs2 or Alphafold3"
+        )
         sys.exit(1)
+
+    if (
+        args.templates
+        and args.alphafold3
+        and not args.mmseqs2
+        and not args.use_af3_template_search
+    ):
+        # Ensure templates are used with Alphafold3 if --templates is set
+        args.use_af3_template_search = True
 
     if args.custom_template_chain and not args.custom_template:
         logger.error("Custom template chain provided without a custom template")
