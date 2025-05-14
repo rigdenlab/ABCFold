@@ -234,7 +234,7 @@ mmseqs2msa --input_json <input_json> --output_json <output_json> --templates --n
 - `<target_id>`: [conditionally required] The ID of the sequence the custom template relates to, only required if modelling a complex. If providing a list of custom templates, you can provide a single target ID if they all relate to the same target. Otherwise, you should provide a list of target IDs corresponding to the list of custom templates.
 
 
-### Common Issues
+### Possible Issues
 
 #### Using `--target_id` with homo-oligomer
 
@@ -265,6 +265,52 @@ Below is an example of a hetero-3-mer. When modelling a homo-oligomer, id is giv
 
 If you want to add a custom template to the first sequence, you can use `--target_id A`. If you wish to add a custom template to the second sequence, use `--target_id B` or `--target_id C`.
 
+#### Boltz-1 limitations
+
+If modelling multiple copies of the same sequence in Boltz-1, the input JSON must be set up as follows:
+
+```json
+{
+  "name": "7ZYH",
+  "sequences": [
+    {
+      "protein": {
+        "id": ["A", "B"],
+        "sequence": "SNAESKIKDCPWYDRGFCKHGPLCRHRHTRRVICVNYLVGFCPEGPSCKFMHPRFELPMGTTEQ"
+      }
+    },
+  ],
+  "modelSeeds": [1],
+  "dialect": "alphafold3",
+  "version": 1
+}
+
+If the sequences are given as seperate entities (as shown below) you will encounter an error.
+
+```json
+{
+  "name": "7ZYH",
+  "sequences": [
+    {
+      "protein": {
+        "id": "A",
+        "sequence": "SNAESKIKDCPWYDRGFCKHGPLCRHRHTRRVICVNYLVGFCPEGPSCKFMHPRFELPMGTTEQ"
+      }
+    },
+    {
+      "protein": {
+        "id": "B",
+        "sequence": "SNAESKIKDCPWYDRGFCKHGPLCRHRHTRRVICVNYLVGFCPEGPSCKFMHPRFELPMGTTEQ"
+      }
+    }
+  ],
+  "modelSeeds": [1],
+  "dialect": "alphafold3",
+  "version": 1
+}
+```
+
+Additionally, Boltz-1 currently lacks the ability to create linked-ligands and therefore covalent bonds between the chain/ligand will be missing.
 
 ## Contributing
 
