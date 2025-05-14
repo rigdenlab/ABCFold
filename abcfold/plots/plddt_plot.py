@@ -99,6 +99,15 @@ def plot_plddt(
             )
             fig.add_trace(trace)
 
+    fig.update_layout(
+        legend=dict(
+            title=dict(
+                text="Click to Show/Hide Methods",
+                font=dict(size=12, color="black"),
+            )
+        )
+    )
+
     counter = 0
     colour_index = 0
     for chain, chain_range in line_ranges.items():
