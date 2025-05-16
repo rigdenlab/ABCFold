@@ -2,13 +2,17 @@
 
 import json
 import logging
+import math
 import os
 import random
+import shutil
+import subprocess
 import tarfile
 import tempfile
 import time
 from io import StringIO
-from typing import Sequence
+from pathlib import Path
+from typing import List, Sequence, Union
 
 import pandas as pd
 import requests  # type: ignore
@@ -26,6 +30,19 @@ TQDM_BAR_FORMAT = (
     "{l_bar}{bar}| {n_fmt}/{total_fmt} [elapsed: {elapsed} remaining: {remaining}]"
 )
 
+MODULE_OUTPUT_POS = {
+    "align":        4,
+    "convertalis":  4,
+    "expandaln":    5,
+    "filterresult": 4,
+    "lndb":         2,
+    "mergedbs":     2,
+    "mvdb":         2,
+    "pairaln":      4,
+    "result2msa":   4,
+    "search":       3,
+}
+
 
 class MMseqs2Exception(Exception):
     def __init__(self):
@@ -38,6 +55,7 @@ protein sequence. If error persists, please try again an hour later."
 
 def add_msa_to_json(
     input_json,
+    mmseqs_db,
     templates,
     num_templates,
     chai_template_output,
@@ -57,15 +75,26 @@ def add_msa_to_json(
             input_id = sequence["protein"]["id"]
             input_sequence = sequence["protein"]["sequence"]
             with tempfile.TemporaryDirectory() as tmpdir:
-                logger.info(f"Running MMseqs2 on sequence: {input_sequence}")
-                # Run MMseqs2 to get unpaired MSA
-                if templates:
-                    a3m_lines, templates = run_mmseqs(
-                        input_sequence,
-                        tmpdir,
-                        use_templates=True,
-                        num_templates=num_templates,
-                    )
+                if mmseqs_db:
+                    logger.info(f"Running Local MMseqs2 on sequence: {input_sequence}")
+                    if templates:
+                        a3m_lines, templates = run_local_mmseqs(
+                            input_sequence,
+                            Path(tmpdir),
+                            use_templates=True,
+                            num_templates=num_templates,
+                            mmseqs_db=mmseqs_db,
+                        )
+                else:
+                    logger.info(f"Running MMseqs2 on sequence: {input_sequence}")
+                    # Run MMseqs2 to get unpaired MSA
+                    if templates:
+                        a3m_lines, templates = run_mmseqs(
+                            input_sequence,
+                            tmpdir,
+                            use_templates=True,
+                            num_templates=num_templates,
+                        )
 
                     for i in input_id:
                         table = pd.read_csv(
@@ -108,9 +137,12 @@ def add_msa_to_json(
                                     header=False,
                                 )
 
-                else:
-                    a3m_lines = run_mmseqs(input_sequence, tmpdir, use_templates=False)
-                    templates = []
+                    else:
+                        a3m_lines = run_mmseqs(
+                            input_sequence,
+                            tmpdir,
+                            use_templates=False)
+                        templates = []
 
                 if custom_template:
                     for template in custom_template:
@@ -197,7 +229,7 @@ def run_mmseqs(
     filter=None,
     use_pairing=False,
     host_url="https://a3m.mmseqs.com",
-    num_templates=20,
+    num_templates=20
 ) -> Sequence[object]:
     submission_endpoint = "ticket/pair" if use_pairing else "ticket/msa"
 
@@ -384,6 +416,346 @@ def run_mmseqs(
     return (a3m_lines_list, templates) if use_templates else a3m_lines_list
 
 
+def run_mmseqs_command(mmseqs: Path, params: List[Union[str, Path]]):
+    module = str(params[0])
+    if module in MODULE_OUTPUT_POS:
+        output_pos = MODULE_OUTPUT_POS[module]
+        output_path = Path(params[output_pos]).with_suffix('.dbtype')
+        if output_path.exists():
+            logger.info(f"Skipping {module} because {output_path} already exists")
+            return
+
+    params_log = " ".join(str(i) for i in params)
+    logger.info(f"Running {mmseqs} {params_log}")
+    # hide MMseqs2 verbose paramters list that clogs up the log
+    os.environ["MMSEQS_CALL_DEPTH"] = "1"
+    subprocess.check_call([str(mmseqs)] + [str(i) for i in params])
+
+
+def run_local_mmseqs(
+    x,
+    base,
+    use_env=True,
+    use_templates=False,
+    filter=None,
+    num_templates=20,
+    mmseqs_db=None,
+    expand_eval: float = math.inf,
+    align_eval: int = 10,
+    diff: int = 3000,
+    qsc: float = -20.0,
+    max_accept: int = 1000000,
+    prefilter_mode: int = 0,
+    s: float = 8,
+    db_load_mode: int = 2,
+    threads: int = 32,
+    gpu: int = 0,
+    gpu_server: int = 0,
+    unpack: bool = True,
+) -> Sequence[object]:
+
+    if filter:
+        # 0.1 was not used in benchmarks due to POSIX shell bug in line above
+        #  EXPAND_EVAL=0.1
+        align_eval = 10
+        qsc = 0.8
+        max_accept = 100000
+
+    mmseqs = Path("mmseqs")
+    uniref_db = Path("uniref30_2021_03")
+    metagenomic_db = Path("colabfold_envdb_202108_db")
+    template_db = Path("pdb")
+
+    base.mkdir(exist_ok=True, parents=True)
+    query_file = base.joinpath("query.fas")
+    with query_file.open("w") as f:
+        query_seq_headername = 101
+        f.write(f">{query_seq_headername}\n{x}\n")
+
+    run_mmseqs_command(
+        mmseqs,
+        ["createdb", query_file, base.joinpath("qdb"), "--shuffle", "0"],
+    )
+
+    used_dbs = [uniref_db]
+    if use_templates:
+        used_dbs.append(template_db)
+    if use_env:
+        used_dbs.append(metagenomic_db)
+
+    for db in used_dbs:
+        if not mmseqs_db.joinpath(f"{db}.dbtype").is_file():
+            raise FileNotFoundError(f"Database {db} does not exist")
+        if (
+            (
+                not mmseqs_db.joinpath(f"{db}.idx").is_file()
+                and not mmseqs_db.joinpath(f"{db}.idx.index").is_file()
+            )
+            or os.environ.get("MMSEQS_IGNORE_INDEX", False)
+        ):
+            logger.info("Search does not use index")
+            db_load_mode = 0
+            dbSuffix1 = "_seq"
+            dbSuffix2 = "_aln"
+            dbSuffix3 = ""
+        else:
+            dbSuffix1 = ".idx"
+            dbSuffix2 = ".idx"
+            dbSuffix3 = ".idx"
+
+    search_param = ["--num-iterations", "3",
+                    "--db-load-mode", str(db_load_mode),
+                    "-a", "-e", "0.1", "--max-seqs", "10000"]
+    if gpu:
+        # gpu version only supports ungapped prefilter currently
+        search_param += ["--gpu", str(gpu), "--prefilter-mode", "1"]
+    else:
+        search_param += ["--prefilter-mode", str(prefilter_mode)]
+        # sensitivy can only be set for non-gpu version,
+        # gpu version runs at max sensitivity
+        if s is not None:
+            search_param += ["-s", "{:.1f}".format(s)]
+        else:
+            search_param += ["--k-score", "'seq:96,prof:80'"]
+    if gpu_server:
+        search_param += ["--gpu-server", str(gpu_server)]
+
+    filter_param = ["--filter-msa", str(filter),
+                    "--filter-min-enable", "1000",
+                    "--diff", str(diff),
+                    "--qid", "0.0,0.2,0.4,0.6,0.8,1.0",
+                    "--qsc", "0", "--max-seq-id", "0.95"]
+    expand_param = ["--expansion-mode", "0",
+                    "-e", str(expand_eval),
+                    "--expand-filter-clusters", str(filter),
+                    "--max-seq-id", "0.95"]
+
+    if not base.joinpath("uniref.a3m").with_suffix('.a3m.dbtype').exists():
+        run_mmseqs_command(mmseqs,
+                           ["search", base.joinpath("qdb"),
+                            mmseqs_db.joinpath(uniref_db),
+                            base.joinpath("res"),
+                            base.joinpath("tmp"),
+                            "--threads", str(threads)] + search_param)
+        run_mmseqs_command(mmseqs,
+                           ["mvdb",
+                            base.joinpath("tmp/latest/profile_1"),
+                            base.joinpath("prof_res")])
+        run_mmseqs_command(mmseqs,
+                           ["lndb",
+                            base.joinpath("qdb_h"),
+                            base.joinpath("prof_res_h")])
+        run_mmseqs_command(mmseqs,
+                           ["expandaln",
+                            base.joinpath("qdb"),
+                            mmseqs_db.joinpath(f"{uniref_db}{dbSuffix1}"),
+                            base.joinpath("res"),
+                            mmseqs_db.joinpath(f"{uniref_db}{dbSuffix2}"),
+                            base.joinpath("res_exp"),
+                            "--db-load-mode", str(db_load_mode),
+                            "--threads", str(threads)] + expand_param)
+        run_mmseqs_command(mmseqs,
+                           ["align",
+                            base.joinpath("prof_res"),
+                            mmseqs_db.joinpath(f"{uniref_db}{dbSuffix1}"),
+                            base.joinpath("res_exp"),
+                            base.joinpath("res_exp_realign"),
+                            "--db-load-mode", str(db_load_mode),
+                            "-e", str(align_eval),
+                            "--max-accept", str(max_accept),
+                            "--threads", str(threads),
+                            "--alt-ali", "10", "-a"])
+        run_mmseqs_command(mmseqs,
+                           ["filterresult",
+                            base.joinpath("qdb"),
+                            mmseqs_db.joinpath(f"{uniref_db}{dbSuffix1}"),
+                            base.joinpath("res_exp_realign"),
+                            base.joinpath("res_exp_realign_filter"),
+                            "--db-load-mode",
+                            str(db_load_mode),
+                            "--qid", "0",
+                            "--qsc", str(qsc),
+                            "--diff", "0",
+                            "--threads", str(threads),
+                            "--max-seq-id", "1.0",
+                            "--filter-min-enable", "100"])
+        run_mmseqs_command(mmseqs,
+                           ["result2msa",
+                            base.joinpath("qdb"),
+                            mmseqs_db.joinpath(f"{uniref_db}{dbSuffix1}"),
+                            base.joinpath("res_exp_realign_filter"),
+                            base.joinpath("uniref.a3m"),
+                            "--msa-format-mode", "6",
+                            "--db-load-mode", str(db_load_mode),
+                            "--threads", str(threads)] + filter_param)
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_exp_realign_filter")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_exp_realign")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_exp")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res")])
+    else:
+        logger.info(f"Skipping {uniref_db} search because uniref.a3m already exists")
+
+    bfd_exists = base.joinpath(
+        "bfd.mgnify30.metaeuk30.smag30.a3m"
+    ).with_suffix('.a3m.dbtype').exists()
+    if use_env and not bfd_exists:
+        run_mmseqs_command(mmseqs,
+                           ["search",
+                            base.joinpath("prof_res"),
+                            mmseqs_db.joinpath(metagenomic_db),
+                            base.joinpath("res_env"),
+                            base.joinpath("tmp3"),
+                            "--threads", str(threads)] + search_param)
+        run_mmseqs_command(mmseqs,
+                           ["expandaln",
+                            base.joinpath("prof_res"),
+                            mmseqs_db.joinpath(f"{metagenomic_db}{dbSuffix1}"),
+                            base.joinpath("res_env"),
+                            mmseqs_db.joinpath(f"{metagenomic_db}{dbSuffix2}"),
+                            base.joinpath("res_env_exp"), "-e", str(expand_eval),
+                            "--expansion-mode", "0",
+                            "--db-load-mode", str(db_load_mode),
+                            "--threads", str(threads)])
+        run_mmseqs_command(mmseqs,
+                           ["align",
+                            base.joinpath("tmp3/latest/profile_1"),
+                            mmseqs_db.joinpath(f"{metagenomic_db}{dbSuffix1}"),
+                            base.joinpath("res_env_exp"),
+                            base.joinpath("res_env_exp_realign"),
+                            "--db-load-mode", str(db_load_mode),
+                            "-e", str(align_eval),
+                            "--max-accept", str(max_accept),
+                            "--threads", str(threads),
+                            "--alt-ali", "10", "-a"])
+        run_mmseqs_command(mmseqs,
+                           ["filterresult",
+                            base.joinpath("qdb"),
+                            mmseqs_db.joinpath(f"{metagenomic_db}{dbSuffix1}"),
+                            base.joinpath("res_env_exp_realign"),
+                            base.joinpath("res_env_exp_realign_filter"),
+                            "--db-load-mode",
+                            str(db_load_mode),
+                            "--qid", "0",
+                            "--qsc", str(qsc),
+                            "--diff", "0",
+                            "--max-seq-id", "1.0",
+                            "--threads", str(threads),
+                            "--filter-min-enable", "100"])
+        run_mmseqs_command(mmseqs,
+                           ["result2msa",
+                            base.joinpath("qdb"),
+                            mmseqs_db.joinpath(f"{metagenomic_db}{dbSuffix1}"),
+                            base.joinpath("res_env_exp_realign_filter"),
+                            base.joinpath("bfd.mgnify30.metaeuk30.smag30.a3m"),
+                            "--msa-format-mode", "6",
+                            "--db-load-mode", str(db_load_mode),
+                            "--threads", str(threads)] + filter_param)
+        run_mmseqs_command(mmseqs,
+                           ["rmdb", base.joinpath("res_env_exp_realign_filter")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_env_exp_realign")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_env_exp")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_env")])
+    elif use_env:
+        logger.info(
+            f"Skipping {metagenomic_db} search because \
+bfd.mgnify30.metaeuk30.smag30.a3m already exists")
+
+    tmpl_db_exists = base.joinpath(
+        f"{template_db}.m8"
+    ).with_suffix('.m8.dbtype').exists()
+    if use_templates and not tmpl_db_exists:
+        run_mmseqs_command(mmseqs,
+                           ["search",
+                            base.joinpath("prof_res"),
+                            mmseqs_db.joinpath(template_db),
+                            base.joinpath("res_pdb"),
+                            base.joinpath("tmp2"),
+                            "--db-load-mode", str(db_load_mode),
+                            "--threads", str(threads),
+                            "-s", "7.5",
+                            "-a", "-e", "0.1",
+                            "--prefilter-mode", str(prefilter_mode)])
+        run_mmseqs_command(mmseqs,
+                           ["convertalis",
+                            base.joinpath("prof_res"),
+                            mmseqs_db.joinpath(f"{template_db}{dbSuffix3}"),
+                            base.joinpath("res_pdb"),
+                            base.joinpath(f"{template_db}"),
+                            "--format-output",
+                            "query,target,fident,alnlen,mismatch,\
+gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
+                            "--db-output", "1",
+                            "--db-load-mode", str(db_load_mode),
+                            "--threads", str(threads)])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("res_pdb")])
+    elif use_templates:
+        logger.info(
+            f"Skipping {template_db} search because {template_db}.m8 already exists"
+            )
+
+    if use_env:
+        run_mmseqs_command(mmseqs,
+                           ["mergedbs", base.joinpath("qdb"),
+                            base.joinpath("final.a3m"),
+                            base.joinpath("uniref.a3m"),
+                            base.joinpath("bfd.mgnify30.metaeuk30.smag30.a3m")])
+        run_mmseqs_command(mmseqs,
+                           ["rmdb",
+                            base.joinpath("bfd.mgnify30.metaeuk30.smag30.a3m")])
+        run_mmseqs_command(mmseqs,
+                           ["rmdb",
+                            base.joinpath("uniref.a3m")])
+    else:
+        run_mmseqs_command(mmseqs,
+                           ["mvdb",
+                            base.joinpath("uniref.a3m"),
+                            base.joinpath("final.a3m")])
+        run_mmseqs_command(mmseqs,
+                           ["rmdb",
+                            base.joinpath("uniref.a3m")])
+
+    if unpack:
+        run_mmseqs_command(mmseqs,
+                           ["unpackdb",
+                            base.joinpath("final.a3m"),
+                            base.joinpath("."),
+                            "--unpack-name-mode", "0",
+                            "--unpack-suffix", ".a3m"])
+        run_mmseqs_command(mmseqs,
+                           ["rmdb",
+                            base.joinpath("final.a3m")])
+
+        if use_templates:
+            run_mmseqs_command(mmseqs,
+                               ["unpackdb",
+                                base.joinpath(f"{template_db}"),
+                                base.joinpath("."),
+                                "--unpack-name-mode", "0",
+                                "--unpack-suffix", ".m8"])
+            if base.joinpath(f"{template_db}").exists():
+                run_mmseqs_command(mmseqs, ["rmdb", base.joinpath(f"{template_db}")])
+
+    run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("prof_res")])
+    run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("prof_res_h")])
+    shutil.rmtree(base.joinpath("tmp"))
+    if use_templates:
+        shutil.rmtree(base.joinpath("tmp2"))
+    if use_env:
+        shutil.rmtree(base.joinpath("tmp3"))
+
+    if unpack:
+        run_mmseqs(mmseqs, ["rmdb", base.joinpath("qdb")])
+        run_mmseqs(mmseqs, ["rmdb", base.joinpath("qdb_h")])
+
+    query_file.unlink()
+
+    # TODO: add code to get af3 lines and templates
+    a3m_lines_list: List[str] = []
+    templates: List[str] = []
+
+    return (a3m_lines_list, templates) if use_templates else a3m_lines_list
+
+
 def fetch_mmcif(
     pdb_id,
     chain_id,
@@ -424,6 +796,7 @@ def main():
 
     add_msa_to_json(  # pragma: no cover
         args.input_json,
+        args.mmseqs_database,
         args.templates,
         args.num_templates,
         args.custom_template,

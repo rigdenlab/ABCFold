@@ -51,6 +51,11 @@ def mmseqs2_argparse_util(parser):
 searching (if used with --templates flag)",
     )
     parser.add_argument(
+        "--mmseqs_database",
+        help="[optional] The database directory for the generation of the MSA. This \
+is only required if using a local installation of MMseqs2"
+    )
+    parser.add_argument(
         "--templates",
         action="store_true",
         help="[optional] Enable template search"

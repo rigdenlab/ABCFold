@@ -117,6 +117,7 @@ def run(args, config, defaults, config_file):
 
             input_params = add_msa_to_json(
                 input_json=input_json,
+                mmseqs_db=args.mmseqs_database,
                 templates=args.templates,
                 num_templates=args.num_templates,
                 chai_template_output=temp_dir.joinpath("all_chains.m8"),
