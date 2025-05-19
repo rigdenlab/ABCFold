@@ -83,7 +83,14 @@ def add_msa_to_json(
                             Path(tmpdir),
                             use_templates=True,
                             num_templates=num_templates,
-                            mmseqs_db=mmseqs_db,
+                            mmseqs_db=Path(mmseqs_db),
+                        )
+                    else:
+                        a3m_lines = run_local_mmseqs(
+                            input_sequence,
+                            Path(tmpdir),
+                            use_templates=False,
+                            mmseqs_db=Path(mmseqs_db),
                         )
                 else:
                     logger.info(f"Running MMseqs2 on sequence: {input_sequence}")
@@ -437,7 +444,7 @@ def run_local_mmseqs(
     base,
     use_env=True,
     use_templates=False,
-    filter=None,
+    filter=0,
     num_templates=20,
     mmseqs_db=None,
     expand_eval: float = math.inf,
@@ -462,7 +469,7 @@ def run_local_mmseqs(
         max_accept = 100000
 
     mmseqs = Path("mmseqs")
-    uniref_db = Path("uniref30_2021_03")
+    uniref_db = Path("uniref30_2302_db")
     metagenomic_db = Path("colabfold_envdb_202108_db")
     template_db = Path("pdb")
 
@@ -744,13 +751,34 @@ gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
         shutil.rmtree(base.joinpath("tmp3"))
 
     if unpack:
-        run_mmseqs(mmseqs, ["rmdb", base.joinpath("qdb")])
-        run_mmseqs(mmseqs, ["rmdb", base.joinpath("qdb_h")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("qdb")])
+        run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("qdb_h")])
 
     query_file.unlink()
 
-    # TODO: add code to get af3 lines and templates
-    a3m_lines_list: List[str] = []
+    # Gather a3m lines in the same way as the API
+    seqs = [x] if isinstance(x, str) else x
+    N = 101
+    seqs_unique = list(set(seqs))
+    Ms = [N + seqs_unique.index(seq) for seq in seqs]
+
+    a3m_lines: dict = {}
+    update_M, M = True, None
+    for line in open(base.joinpath("final.a3m"), "r"):
+        if len(line) > 0:
+            if "\x00" in line:
+                line = line.replace("\x00", "")
+                update_M = True
+            if line.startswith(">") and update_M:
+                M = int(line[1:].rstrip())
+                update_M = False
+                if M not in a3m_lines:
+                    a3m_lines[M] = []
+            a3m_lines[M].append(line)
+
+    a3m_lines_list = ["".join(a3m_lines[n]) for n in Ms]
+
+    # TODO: add templates gathering step - should use templates in db
     templates: List[str] = []
 
     return (a3m_lines_list, templates) if use_templates else a3m_lines_list
@@ -799,6 +827,7 @@ def main():
         args.mmseqs_database,
         args.templates,
         args.num_templates,
+        False,
         args.custom_template,
         args.custom_template_chain,
         args.target_id,
