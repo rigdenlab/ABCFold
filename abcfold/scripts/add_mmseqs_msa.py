@@ -753,6 +753,9 @@ gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
     if unpack:
         run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("qdb")])
         run_mmseqs_command(mmseqs, ["rmdb", base.joinpath("qdb_h")])
+        output_a3m = base.joinpath("0.a3m")
+    else:
+        output_a3m = base.joinpath("final.a3m")
 
     query_file.unlink()
 
@@ -764,7 +767,7 @@ gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
 
     a3m_lines: dict = {}
     update_M, M = True, None
-    for line in open(base.joinpath("final.a3m"), "r"):
+    for line in open(output_a3m, "r"):
         if len(line) > 0:
             if "\x00" in line:
                 line = line.replace("\x00", "")
