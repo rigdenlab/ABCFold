@@ -32,6 +32,7 @@ def test_add_msa_to_json(test_data):
         tmpdir = Path(tmpdir)
         add_msa_to_json(
             input_json=test_data.test_inputA_json,
+            mmseqs_db=None,
             templates=None,
             num_templates=20,
             chai_template_output=None,
@@ -52,6 +53,7 @@ def test_add_msa_to_json(test_data):
         with pytest.raises(ValueError):
             add_msa_to_json(
                 input_json=test_data.test_inputAB_json,
+                mmseqs_db=None,
                 templates=None,
                 num_templates=20,
                 chai_template_output=None,
@@ -64,6 +66,7 @@ def test_add_msa_to_json(test_data):
         with pytest.raises(FileNotFoundError):
             add_msa_to_json(
                 input_json=test_data.test_inputAB_json,
+                mmseqs_db=None,
                 templates=None,
                 num_templates=20,
                 chai_template_output=None,

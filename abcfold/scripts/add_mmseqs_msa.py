@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import gzip
 import json
 import logging
 import math
@@ -226,7 +227,7 @@ custom template chains"
     return input_params
 
 
-# Code from https://github.com/sokrypton/ColabFold
+# Lightly modified code from https://github.com/sokrypton/ColabFold
 def run_mmseqs(
     x,
     prefix,
@@ -363,62 +364,15 @@ def run_mmseqs(
     # gather a3m lines
     a3m_lines: dict = {}
     for a3m_file in a3m_files:
-        update_M, M = True, None
-        for line in open(a3m_file, "r"):
-            if len(line) > 0:
-                if "\x00" in line:
-                    line = line.replace("\x00", "")
-                    update_M = True
-                if line.startswith(">") and update_M:
-                    M = int(line[1:].rstrip())
-                    update_M = False
-                    if M not in a3m_lines:
-                        a3m_lines[M] = []
-                a3m_lines[M].append(line)
-
+        a3m_lines = get_a3m_lines(a3m_file)
     a3m_lines_list = ["".join(a3m_lines[n]) for n in Ms]
 
-    tested_pdbs = []
-    templates = []
     if use_templates:
-        logger.info("Finding and preparing templates")
-        count = 0
-        for line in open(f"{path}/pdb70.m8", "r"):
-            template = {}
-            if count < num_templates:
-                p = line.rstrip().split()
-                pdb, qid, alilen, tstart, tend = (
-                    p[1],
-                    float(p[2]),
-                    float(p[3]),
-                    int(p[8]),
-                    int(p[9]),
-                )
-                coverage = alilen / len(x)
-                pdb_id = pdb.split("_")[0]
-
-                # Use the same template filters as AF3 and only use 1 template per PDB
-                if (
-                    qid == 1.0
-                    and coverage >= 0.95
-                    or coverage < 0.1
-                    or pdb_id in tested_pdbs
-                ):
-                    continue
-
-                pdb_id = pdb.split("_")[0]
-                cif_str = fetch_mmcif(pdb_id, pdb.split("_")[1], tstart, tend, prefix)
-                template["mmcif"] = cif_str
-
-                template_seq = extract_sequence_from_mmcif(StringIO(cif_str))
-                query_indices, template_indices = align_and_map(x, template_seq)
-
-                template["queryIndices"] = query_indices
-                template["templateIndices"] = template_indices
-                templates.append(template)
-                tested_pdbs.append(pdb_id)
-                count += 1
-        logger.info(f"Found the following templates: {tested_pdbs}")
+        templates = get_templates(
+                x,
+                prefix,
+                num_templates,
+            )
 
     return (a3m_lines_list, templates) if use_templates else a3m_lines_list
 
@@ -439,6 +393,7 @@ def run_mmseqs_command(mmseqs: Path, params: List[Union[str, Path]]):
     subprocess.check_call([str(mmseqs)] + [str(i) for i in params])
 
 
+# Lightly modified code from https://github.com/sokrypton/ColabFold
 def run_local_mmseqs(
     x,
     base,
@@ -471,7 +426,7 @@ def run_local_mmseqs(
     mmseqs = Path("mmseqs")
     uniref_db = Path("uniref30_2302_db")
     metagenomic_db = Path("colabfold_envdb_202108_db")
-    template_db = Path("pdb")
+    template_db = Path("pdb100_230517")
 
     base.mkdir(exist_ok=True, parents=True)
     query_file = base.joinpath("query.fas")
@@ -764,7 +719,21 @@ gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
     N = 101
     seqs_unique = list(set(seqs))
     Ms = [N + seqs_unique.index(seq) for seq in seqs]
+    a3m_lines = get_a3m_lines(output_a3m)
+    a3m_lines_list = ["".join(a3m_lines[n]) for n in Ms]
 
+    if use_templates:
+        templates = get_templates(
+            x,
+            base,
+            num_templates,
+            mmseqs_db=mmseqs_db,
+        )
+
+    return (a3m_lines_list, templates) if use_templates else a3m_lines_list
+
+
+def get_a3m_lines(output_a3m):
     a3m_lines: dict = {}
     update_M, M = True, None
     for line in open(output_a3m, "r"):
@@ -779,12 +748,63 @@ gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
                     a3m_lines[M] = []
             a3m_lines[M].append(line)
 
-    a3m_lines_list = ["".join(a3m_lines[n]) for n in Ms]
+    return a3m_lines
 
-    # TODO: add templates gathering step - should use templates in db
-    templates: List[str] = []
 
-    return (a3m_lines_list, templates) if use_templates else a3m_lines_list
+def get_templates(x, base, num_templates, mmseqs_db=None):
+    tested_pdbs = []
+    templates = []
+    logger.info("Finding and preparing templates")
+    count = 0
+    for line in open(base.joinpath("0.m8"), "r"):
+        template = {}
+        if count < num_templates:
+            p = line.rstrip().split()
+            pdb, qid, alilen, tstart, tend = (
+                p[1],
+                float(p[2]),
+                float(p[3]),
+                int(p[8]),
+                int(p[9]),
+            )
+            coverage = alilen / len(x)
+            pdb_id = pdb.split("_")[0]
+
+            # Use the same template filters as AF3 and only use 1 template per PDB
+            if (
+                qid == 1.0
+                and coverage >= 0.95
+                or coverage < 0.1
+                or pdb_id in tested_pdbs
+            ):
+                continue
+
+            pdb_id = pdb.split("_")[0]
+            if mmseqs_db:
+                cif_str = fetch_local_mmcif(pdb_id,
+                                            pdb.split("_")[1],
+                                            tstart,
+                                            tend,
+                                            base,
+                                            mmseqs_db)
+            else:
+                cif_str = fetch_mmcif(pdb_id,
+                                      pdb.split("_")[1],
+                                      tstart,
+                                      tend,
+                                      base)
+            template["mmcif"] = cif_str
+
+            template_seq = extract_sequence_from_mmcif(StringIO(cif_str))
+            query_indices, template_indices = align_and_map(x, template_seq)
+
+            template["queryIndices"] = query_indices
+            template["templateIndices"] = template_indices
+            templates.append(template)
+            tested_pdbs.append(pdb_id)
+            count += 1
+    logger.info(f"Found the following templates: {tested_pdbs}")
+    return templates
 
 
 def fetch_mmcif(
@@ -807,6 +827,34 @@ def fetch_mmcif(
     output = os.path.join(tmpdir, pdb_id + ".cif")
     with open(output, "w") as f:
         f.write(text)
+
+    return get_mmcif(output, pdb_id, chain_id, start, end, tmpdir)
+
+
+def fetch_local_mmcif(
+        pdb_id,
+        chain_id,
+        start,
+        end,
+        tmpdir,
+        mmseqs_db,
+):
+    """
+    Fetch the mmcif file for a given PDB ID
+    and chain ID and prepare it for use in AlphaFold3
+    """
+    pdb_id = pdb_id.lower()
+    assert len(pdb_id) == 4, f"Invalid PDB ID: {pdb_id}"
+    inner_code = pdb_id[1:3]
+    mmcif_location = mmseqs_db.joinpath(f"pdb/divided/{inner_code}/{pdb_id}.cif.gz")
+    if not mmcif_location.exists():
+        raise FileNotFoundError(f"MMseqs2 database {mmcif_location} does not exist")
+    with gzip.open(mmcif_location, "rb") as f:
+        cif_str = f.read().decode("utf-8")
+
+    output = os.path.join(tmpdir, pdb_id + ".cif")
+    with open(output, "w") as f:
+        f.write(cif_str)
 
     return get_mmcif(output, pdb_id, chain_id, start, end, tmpdir)
 
