@@ -13,6 +13,7 @@ def test_add_msa_to_json(test_data):
         input_dict = json.load(f)
     add_msa_to_json(
         input_json=test_data.test_inputA_json,
+        mmseqs_db=None,
         templates=test_data.test_6BJ9_cif,
         num_templates=20,
         chai_template_output=None,
