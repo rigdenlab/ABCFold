@@ -234,6 +234,7 @@ class BoltzYaml:
         Returns:
             str: yaml string
         """
+        value = f'"{value}"'
         return f"{DELIM}{DELIM}{key}: {value}\n"
 
     def add_ligand_information(self, ligand_dict: dict, linked_id=None):
