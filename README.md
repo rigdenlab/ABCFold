@@ -102,6 +102,7 @@ However, there you may wish to use the following flags to add run time options s
 - `<output_dir>`: Path to the output directory.
 - `-a`, `-b`, `-c` (`--alphafold3`, `--boltz1`,`--chai1`): Flags to run Alphafold3, Boltz-1 and Chai-1 respectively. If none of these flags are provided, Alphafold3 will be run by default.
 - `--mmseqs2`: [optional] Flag to use MMseqs2 MSAs and templates (if specified).
+- `--mmseqs_database`: [optional] The path to the database used by a local copy of MMSeqs2, provided mmseqs is installed, the inclusion of this flag allows MMseqs2 to be run locally.
 - `--override`: [optional] Flag to override the existing output directory.
 - `--save_input`: [optional] Flag to save the input JSON file in the output directory.
 
@@ -162,7 +163,6 @@ The output page will be available on `http://localhost:8000/index.html`. If you 
 you will find `open_output.py` in your `<output_dir>`. This needs to be run from your `<output_dir>`.
 
 
-
 ## Extra Features
 
 Below are scripts for adding MMseqs2 MSAs and custom templates to AlphaFold3 input JSON files.
@@ -185,6 +185,16 @@ mmseqs2msa --input_json <input_json> --output_json <output_json> --templates --n
 - `<input_json>`: Path to the input AlphaFold3 JSON file.
 - `<output_json>`: [optional] Path to the output JSON file (default: `<input_json_stem>`_mmseqs.json).
 - `<num_templates>`: [optional] The number of templates to use (default: 20)
+- `<mmseqs_database>`: [optional] The path to the database used by a local copy of MMSeqs2, provided mmseqs is installed, the inclusion of this flag allows MMseqs2 to be run locally.
+
+> [!NOTE]
+> If you need to install the mmseqs databases you can use setup_mmseqs_databases.sh
+> This replicates the MMSeqs2 database setup from ColabFold
+
+```
+bash
+MMSEQS_NO_INDEX=1 ./setup_mmseqs_databases.sh /path/to/db_folder
+```
 
 
 #### Without Templates
