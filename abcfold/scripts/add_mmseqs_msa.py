@@ -370,7 +370,7 @@ def run_mmseqs(
     if use_templates:
         templates = get_templates(
                 x,
-                prefix,
+                Path(prefix),
                 "pdb70.m8",
                 num_templates,
             )
