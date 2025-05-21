@@ -371,6 +371,7 @@ def run_mmseqs(
         templates = get_templates(
                 x,
                 prefix,
+                "pdb70.m8",
                 num_templates,
             )
 
@@ -726,6 +727,7 @@ gapopen,qstart,qend,tstart,tend,evalue,bits,cigar",
         templates = get_templates(
             x,
             base,
+            "0.m8",
             num_templates,
             mmseqs_db=mmseqs_db,
         )
@@ -751,12 +753,12 @@ def get_a3m_lines(output_a3m):
     return a3m_lines
 
 
-def get_templates(x, base, num_templates, mmseqs_db=None):
+def get_templates(x, base, m8, num_templates, mmseqs_db=None):
     tested_pdbs = []
     templates = []
     logger.info("Finding and preparing templates")
     count = 0
-    for line in open(base.joinpath("0.m8"), "r"):
+    for line in open(base.joinpath(m8), "r"):
         template = {}
         if count < num_templates:
             p = line.rstrip().split()
