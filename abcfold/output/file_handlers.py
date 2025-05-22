@@ -57,6 +57,7 @@ class ResidueCountType(Enum):
 
     AVERAGE = "average"
     CARBONALPHA = "carbonalpha"
+    PHOSPHATE = "phosphate"
 
     @classmethod
     def values(cls):
@@ -187,6 +188,7 @@ class CifFile(FileBase):
         """
         The pLDDT scores for each residue in the model
         """
+
         self.__residue_plddts = [
             plddts
             for plddts in self.get_plddt_per_residue().values()
@@ -388,7 +390,7 @@ class CifFile(FileBase):
 
         return plddt
 
-    def get_plddt_per_residue(self, method=ResidueCountType.CARBONALPHA.value) -> dict:
+    def get_plddt_per_residue(self, method=ResidueCountType.AVERAGE.value) -> dict:
         """
         Get the pLDDT scores for each residue in the model
 
@@ -430,6 +432,12 @@ class CifFile(FileBase):
                     elif method == ResidueCountType.CARBONALPHA.value:
                         for atom in residue:
                             if atom.id == "CA":
+                                score = atom.bfactor
+                                break
+
+                    elif method == ResidueCountType.PHOSPHATE.value:
+                        for atom in residue:
+                            if atom.id == "P":
                                 score = atom.bfactor
                                 break
 
