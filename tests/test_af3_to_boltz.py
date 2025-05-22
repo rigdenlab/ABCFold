@@ -23,10 +23,11 @@ def test_af3_to_boltz(test_data):
         assert yaml_string_multi[7] == f"{DELIM}{DELIM}sequence: YANEN"
         assert yaml_string_multi[8] == f"{DELIM}- ligand:"
         assert yaml_string_multi[9] == f"{DELIM}{DELIM}id: [D, E]"
-        assert yaml_string_multi[10] == f"{DELIM}{DELIM}ccd: ATP"
+        assert yaml_string_multi[10] == f'{DELIM}{DELIM}ccd: "ATP"'
         assert yaml_string_multi[11] == f"{DELIM}- ligand:"
         assert yaml_string_multi[12] == f"{DELIM}{DELIM}id: F"
-        assert yaml_string_multi[13] == f"{DELIM}{DELIM}smiles: CC(=O)OC1C[NH+]2CCC1CC2"
+        assert yaml_string_multi[13] == f'{DELIM}{DELIM}smiles: \
+"CC(=O)OC1C[NH+]2CCC1CC2"'
 
         yaml_string_bonds = boltz_yaml.json_to_yaml(test_data.test_inputA_json)
         yaml_string_bonds = yaml_string_bonds.split("\n")
@@ -60,10 +61,11 @@ ELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQ
         assert yaml_string_multi[7] == f"{DELIM}{DELIM}sequence: YANEN"
         assert yaml_string_multi[8] == f"{DELIM}- ligand:"
         assert yaml_string_multi[9] == f"{DELIM}{DELIM}id: [D, E]"
-        assert yaml_string_multi[10] == f"{DELIM}{DELIM}ccd: ATP"
+        assert yaml_string_multi[10] == f'{DELIM}{DELIM}ccd: "ATP"'
         assert yaml_string_multi[11] == f"{DELIM}- ligand:"
         assert yaml_string_multi[12] == f"{DELIM}{DELIM}id: F"
-        assert yaml_string_multi[13] == f"{DELIM}{DELIM}smiles: CC(=O)OC1C[NH+]2CCC1CC2"
+        assert yaml_string_multi[13] == f'{DELIM}{DELIM}smiles: \
+"CC(=O)OC1C[NH+]2CCC1CC2"'
 
 
 def test_boltz_output_yaml(test_data):
@@ -161,16 +163,16 @@ def test_extra_ligand_ids():
         assert yaml_string[15] == f"{DELIM}{DELIM}sequence: DVLMIQTPLSLPVS"
         assert yaml_string[16] == f"{DELIM}- ligand:"
         assert yaml_string[17] == f"{DELIM}{DELIM}id: [F]"
-        assert yaml_string[18] == f"{DELIM}{DELIM}ccd: ATP"
+        assert yaml_string[18] == f'{DELIM}{DELIM}ccd: "ATP"'
         assert yaml_string[19] == f"{DELIM}- ligand:"
         assert yaml_string[20] == f"{DELIM}{DELIM}id: I"
-        assert yaml_string[21] == f"{DELIM}{DELIM}ccd: NAG"
+        assert yaml_string[21] == f'{DELIM}{DELIM}ccd: "NAG"'
         assert yaml_string[22] == f"{DELIM}- ligand:"
         assert yaml_string[23] == f"{DELIM}{DELIM}id: E"
-        assert yaml_string[24] == f"{DELIM}{DELIM}ccd: FUC"
+        assert yaml_string[24] == f'{DELIM}{DELIM}ccd: "FUC"'
         assert yaml_string[25] == f"{DELIM}- ligand:"
         assert yaml_string[26] == f"{DELIM}{DELIM}id: G"
-        assert yaml_string[27] == f"{DELIM}{DELIM}ccd: FUC"
+        assert yaml_string[27] == f'{DELIM}{DELIM}ccd: "FUC"'
         assert yaml_string[28] == f"{DELIM}- dna:"
         assert yaml_string[29] == f"{DELIM}{DELIM}id: [D, K]"
         assert yaml_string[30] == f"{DELIM}{DELIM}sequence: AGCT"
@@ -179,17 +181,17 @@ def test_extra_ligand_ids():
         assert yaml_string[33] == f"{DELIM}{DELIM}sequence: AGCU"
         assert yaml_string[34] == f"{DELIM}- ligand:"
         assert yaml_string[35] == f"{DELIM}{DELIM}id: Z"
-        assert yaml_string[36] == f"{DELIM}{DELIM}smiles: CC(=O)OC1C[NH+]2CCC1CC2"
+        assert yaml_string[36] == f'{DELIM}{DELIM}smiles: "CC(=O)OC1C[NH+]2CCC1CC2"'
         assert yaml_string[37] == "constraints:"
         assert yaml_string[38] == f"{DELIM}- bond:"
-        assert yaml_string[39] == f"{DELIM}{DELIM}atom1: ['A', 1, 'CA']"
-        assert yaml_string[40] == f"{DELIM}{DELIM}atom2: ['B', 1, 'CA']"
+        assert yaml_string[39] == f'{DELIM}{DELIM}atom1: "[\'A\', 1, \'CA\']"'
+        assert yaml_string[40] == f'{DELIM}{DELIM}atom2: "[\'B\', 1, \'CA\']"'
         assert yaml_string[41] == f"{DELIM}- bond:"
-        assert yaml_string[42] == f"{DELIM}{DELIM}atom1: ['C', 7, 'CA']"
-        assert yaml_string[43] == f"{DELIM}{DELIM}atom2: ['A', 10, 'CA']"
+        assert yaml_string[42] == f'{DELIM}{DELIM}atom1: "[\'C\', 7, \'CA\']"'
+        assert yaml_string[43] == f'{DELIM}{DELIM}atom2: "[\'A\', 10, \'CA\']"'
         assert yaml_string[44] == f"{DELIM}- bond:"
-        assert yaml_string[45] == f"{DELIM}{DELIM}atom1: ['I', 1, 'O3']"
-        assert yaml_string[46] == f"{DELIM}{DELIM}atom2: ['E', 1, 'C1']"
+        assert yaml_string[45] == f'{DELIM}{DELIM}atom1: "[\'I\', 1, \'O3\']"'
+        assert yaml_string[46] == f'{DELIM}{DELIM}atom2: "[\'E\', 1, \'C1\']"'
         assert yaml_string[47] == f"{DELIM}- bond:"
-        assert yaml_string[48] == f"{DELIM}{DELIM}atom1: ['E', 1, 'C1']"
-        assert yaml_string[49] == f"{DELIM}{DELIM}atom2: ['G', 1, 'C1']"
+        assert yaml_string[48] == f'{DELIM}{DELIM}atom1: "[\'E\', 1, \'C1\']"'
+        assert yaml_string[49] == f'{DELIM}{DELIM}atom2: "[\'G\', 1, \'C1\']"'
