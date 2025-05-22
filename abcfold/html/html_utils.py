@@ -254,12 +254,12 @@ def parse_scores(score_file: Union[ConfidenceJsonFile, NpzFile]) -> tuple:
 
     if isinstance(score_file, ConfidenceJsonFile):
         data = score_file.load_json_file()
-        if "ptm" in data and "iptm" not in data:
+        if "ptm" in data and "iptm" in data:
             ptm_score = round(float(data["ptm"]), 2)
             iptm_score = round(float(data["iptm"]), 2)
     elif isinstance(score_file, NpzFile):
         data = score_file.load_npz_file()
-        if "ptm" in data and "iptm" not in data:
+        if "ptm" in data and "iptm" in data:
             ptm_score = round(float(data["ptm"]), 2)
             iptm_score = round(float(data["iptm"]), 2)
 
