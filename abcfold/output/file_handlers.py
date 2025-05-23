@@ -800,7 +800,7 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
                 elif 'CA' in ref_res:
                     ref_atoms.append(ref_res['CA'])
                     alt_atoms.append(alt_res['CA'])
-                else: # Ignore anything else
+                else:  # Ignore anything else
                     pass
 
         super_imposer = Superimposer()
@@ -809,4 +809,4 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
 
         io = MMCIFIO()
         io.set_structure(alt_structure)
-        io.save(str(model)) # overwrite the original file
+        io.save(str(model))  # overwrite the original file
