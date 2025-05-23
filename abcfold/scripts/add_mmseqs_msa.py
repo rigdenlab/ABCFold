@@ -104,46 +104,46 @@ def add_msa_to_json(
                             num_templates=num_templates,
                         )
 
-                    for i in input_id:
-                        table = pd.read_csv(
-                            f"{tmpdir}/pdb70.m8",
-                            delimiter="\t",
-                            header=None,
-                            names=[
-                                "query_id",
-                                "subject_id",
-                                "pident",
-                                "length",
-                                "mismatch",
-                                "gapopen",
-                                "query_start",
-                                "query_end",
-                                "subject_start",
-                                "subject_end",
-                                "evalue",
-                                "bitscore",
-                                "comment",
-                            ],
-                        )
+                        for i in input_id:
+                            table = pd.read_csv(
+                                f"{tmpdir}/pdb70.m8",
+                                delimiter="\t",
+                                header=None,
+                                names=[
+                                    "query_id",
+                                    "subject_id",
+                                    "pident",
+                                    "length",
+                                    "mismatch",
+                                    "gapopen",
+                                    "query_start",
+                                    "query_end",
+                                    "subject_start",
+                                    "subject_end",
+                                    "evalue",
+                                    "bitscore",
+                                    "comment",
+                                ],
+                            )
 
-                        table["query_id"] = i
+                            table["query_id"] = i
 
-                        if chai_template_output:
-                            if os.path.exists(chai_template_output):
-                                table.to_csv(
-                                    chai_template_output,
-                                    sep="\t",
-                                    index=False,
-                                    header=False,
-                                    mode="a",
-                                )
-                            else:
-                                table.to_csv(
-                                    chai_template_output,
-                                    sep="\t",
-                                    index=False,
-                                    header=False,
-                                )
+                            if chai_template_output:
+                                if os.path.exists(chai_template_output):
+                                    table.to_csv(
+                                        chai_template_output,
+                                        sep="\t",
+                                        index=False,
+                                        header=False,
+                                        mode="a",
+                                    )
+                                else:
+                                    table.to_csv(
+                                        chai_template_output,
+                                        sep="\t",
+                                        index=False,
+                                        header=False,
+                                    )
 
                     else:
                         a3m_lines = run_mmseqs(

@@ -24,6 +24,7 @@ from abcfold.html.html_utils import (PORT, NoCacheHTTPRequestHandler,
 from abcfold.output.alphafold3 import AlphafoldOutput
 from abcfold.output.boltz import BoltzOutput
 from abcfold.output.chai import ChaiOutput
+from abcfold.output.file_handlers import superpose_models
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
                                   make_dummy_m8_file)
 from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
@@ -296,6 +297,28 @@ def run(args, config, defaults, config_file):
         combined_models = (
             alphafold_models["models"] + boltz_models["models"] + chai_models["models"]
         )
+
+        # Make the output directory for the models
+        os.makedirs(args.output_dir.joinpath("output_models"), exist_ok=True)
+        output_models = []
+        for model in combined_models:
+            cif_file = args.output_dir.joinpath(model["model_path"])
+            if model["model_source"] == "AlphaFold3":
+                output_name = "af3_model_" + model["model_id"][-1] + ".cif"
+            elif model["model_source"] == "Boltz-1":
+                output_name = "boltz_model_" + model["model_id"][-1] + ".cif"
+            elif model["model_source"] == "Chai-1":
+                output_name = "chai_model_" + model["model_id"][-1] + ".cif"
+            shutil.copy(
+                cif_file,
+                args.output_dir.joinpath("output_models").joinpath(output_name),
+            )
+            output_models.append(
+                args.output_dir.joinpath("output_models").joinpath(output_name)
+            )
+        # Superpose the models
+        if len(output_models) > 1:
+            superpose_models(output_models)
 
         sequence_data = get_model_sequence_data(cif_models)
         sequence = ""
