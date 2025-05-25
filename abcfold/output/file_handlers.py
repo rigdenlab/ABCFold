@@ -787,8 +787,8 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
         alt_atoms = []
         for (ref_chain, alt_chain) in zip(ref_model, alt_model):
             for ref_res, alt_res in zip(ref_chain, alt_chain):
-                assert ref_res.resname == alt_res.resname
-                assert ref_res.id == alt_res.id
+                if ref_res.resname != alt_res.resname or ref_res.id != alt_res.id:
+                    pass
 
                 # Handle nucleotides and proteins differently
                 if ref_res.resname in ["DA", "DT", "DG", "DC"]:
@@ -802,11 +802,16 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
                     alt_atoms.append(alt_res['CA'])
                 else:  # Ignore anything else
                     pass
+        
+        if len(ref_atoms) == 0 or len(alt_atoms) == 0:
+            logger.warning(
+                f"No matching atoms found for superposition in {model}. Skipping."
+            )
+        else:
+            super_imposer = Superimposer()
+            super_imposer.set_atoms(ref_atoms, alt_atoms)
+            super_imposer.apply(alt_model.get_atoms())
 
-        super_imposer = Superimposer()
-        super_imposer.set_atoms(ref_atoms, alt_atoms)
-        super_imposer.apply(alt_model.get_atoms())
-
-        io = MMCIFIO()
-        io.set_structure(alt_structure)
-        io.save(str(model))  # overwrite the original file
+            io = MMCIFIO()
+            io.set_structure(alt_structure)
+            io.save(str(model))  # overwrite the original file
