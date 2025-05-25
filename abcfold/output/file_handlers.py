@@ -815,3 +815,7 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
             io = MMCIFIO()
             io.set_structure(alt_structure)
             io.save(str(model))  # overwrite the original file
+
+
+
+
