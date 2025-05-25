@@ -802,7 +802,7 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
                     alt_atoms.append(alt_res['CA'])
                 else:  # Ignore anything else
                     pass
-        
+
         if len(ref_atoms) == 0 or len(alt_atoms) == 0:
             logger.warning(
                 f"No matching atoms found for superposition in {model}. Skipping."
@@ -815,7 +815,3 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
             io = MMCIFIO()
             io.set_structure(alt_structure)
             io.save(str(model))  # overwrite the original file
-
-
-
-
