@@ -295,7 +295,7 @@ If modelling multiple copies of the same sequence in Boltz-1, the input JSON mus
   "version": 1
 }
 
-If the sequences are given as seperate entities (as shown below) you will encounter an error.
+If the identical sequences are given as seperate entities (as shown below) you will encounter an error.
 
 ```json
 {

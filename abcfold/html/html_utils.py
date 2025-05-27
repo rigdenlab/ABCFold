@@ -112,10 +112,11 @@ def get_model_data(model, plot_dict, method, plddt_scores, score_file, output_di
     """
     regions = get_plddt_regions(plddt_scores)
     ptm_score, iptm_score = parse_scores(score_file)
+    model_path = Path(model.pathway).relative_to(output_dir)
     model_data = {
         "model_id": model.name,
         "model_source": method,
-        "model_path": "/".join(Path(model.pathway).parts[1:]),
+        "model_path": model_path.as_posix(),
         "plddt_regions": regions,
         "avg_plddt": model.average_plddt,
         "h_score": model.h_score,

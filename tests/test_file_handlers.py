@@ -1,3 +1,5 @@
+import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -77,3 +79,52 @@ def test_confidence_json_file(test_data):
     assert "atom_plddts" in confidence_file.data
     assert "contact_probs" in confidence_file.data
     assert "pae" in confidence_file.data
+
+
+def test_superpose_models(test_data):
+    """
+    Test the superpose_models function to ensure it correctly superposes two CifFiles.
+    """
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        model_1 = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+            "seed-1_sample-0/model.cif"
+        )
+        model_2 = Path(test_data.test_boltz_1_6BJ9_).joinpath(
+            "predictions/test_mmseqs/test_mmseqs_model_0.cif"
+        )
+
+        shutil.copyfile(model_1, f"{temp_dir}/model_1.cif")
+        shutil.copyfile(model_2, f"{temp_dir}/model_2.cif")
+
+        models = [
+            Path(f"{temp_dir}/model_1.cif"),
+            Path(f"{temp_dir}/model_2.cif")
+        ]
+        file_handlers.superpose_models(models)
+
+        superposed_atoms = []
+        count = 0
+        with open(f"{temp_dir}/model_2.cif", "r") as f:
+            for line in f:
+                if line.startswith("ATOM"):
+                    fields = line.split()
+                    if count <= 10:
+                        superposed_atoms.append([fields[10], fields[11], fields[12]])
+                    count += 1
+
+        ref_superposed_atoms = [
+            ['10.299', '-14.127', '6.666'],
+            ['10.620', '-15.139', '7.638'],
+            ['10.542', '-14.683', '9.078'],
+            ['11.084', '-13.621', '9.438'],
+            ['9.916', '-15.513', '9.869'],
+            ['9.715', '-15.192', '11.280'],
+            ['10.118', '-16.294', '12.262'],
+            ['10.804', '-16.028', '13.251'],
+            ['8.250', '-14.827', '11.552'],
+            ['7.400', '-15.896', '11.121'],
+            ['7.871', '-13.566', '10.742']
+        ]
+
+        assert ref_superposed_atoms == superposed_atoms
