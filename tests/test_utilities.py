@@ -113,3 +113,5 @@ def test_af3_pae_reorder(test_data):
             pae_obj.scores["token_chain_ids"][787 + 50 :]  # noqa: E203
             == pae_to_compare_tci[:51]
         )
+
+    cif.reorder_chains(["A", "B", "C", "D"])
