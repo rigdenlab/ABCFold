@@ -29,6 +29,8 @@ def run_boltz(
         directory
         test (bool): If True, run the test command
         number_of_models (int): Number of models to generate
+        num_recycles (int): Number of trunk recycles
+        seed (int): Seed for the random number generator
 
     Returns:
         Bool: True if the Boltz1 run was successful, False otherwise
@@ -52,43 +54,52 @@ def run_boltz(
 
         boltz_yaml = BoltzYaml(working_dir)
         boltz_yaml.json_to_yaml(input_json)
+        seeds = boltz_yaml.seed
         out_file = working_dir.joinpath(f"{input_json.stem}.yaml")
-
         boltz_yaml.write_yaml(out_file)
-        logger.info("Running Boltz1")
-        cmd = (
-            generate_boltz_command(out_file, output_dir, number_of_models, num_recycles)
-            if not test
-            else generate_boltz_test_command()
-        )
 
-        with subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        ) as proc:
-            stdout = ""
-            if proc.stdout:
-                for line in proc.stdout:
-                    sys.stdout.write(line.decode())
-                    sys.stdout.flush()
-                    stdout += line.decode()
-            _, stderr = proc.communicate()
-            if proc.returncode != 0:
-                if proc.stderr:
-                    logger.error(stderr.decode())
-                    output_err_file = output_dir / "boltz_error.log"
-                    with open(output_err_file, "w") as f:
-                        f.write(stderr.decode())
-                    logger.error(
-                        "Boltz1 run failed. Error log is in %s", output_err_file
-                    )
-                else:
-                    logger.error("Boltz1 run failed")
-                return False
-            elif "WARNING: ran out of memory" in stdout:
-                logger.error("Boltz1 ran out of memory")
-                return False
+        logger.info("Running Boltz")
+        for seed in seeds:
+            logger.info("Using seed: %s", seed)
+            cmd = (
+                generate_boltz_command(
+                    out_file,
+                    output_dir,
+                    number_of_models,
+                    num_recycles,
+                    int(seed)
+                )
+                if not test
+                else generate_boltz_test_command()
+            )
+
+            with subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            ) as proc:
+                stdout = ""
+                if proc.stdout:
+                    for line in proc.stdout:
+                        sys.stdout.write(line.decode())
+                        sys.stdout.flush()
+                        stdout += line.decode()
+                _, stderr = proc.communicate()
+                if proc.returncode != 0:
+                    if proc.stderr:
+                        logger.error(stderr.decode())
+                        output_err_file = output_dir / "boltz_error.log"
+                        with open(output_err_file, "w") as f:
+                            f.write(stderr.decode())
+                        logger.error(
+                            "Boltz1 run failed. Error log is in %s", output_err_file
+                        )
+                    else:
+                        logger.error("Boltz1 run failed")
+                    return False
+                elif "WARNING: ran out of memory" in stdout:
+                    logger.error("Boltz1 ran out of memory")
+                    return False
 
         logger.info("Boltz1 run complete")
         logger.info("Output files are in %s", output_dir)
@@ -100,6 +111,7 @@ def generate_boltz_command(
     output_dir: Union[str, Path],
     number_of_models: int = 5,
     num_recycles: int = 10,
+    seed: int = 42,
 ) -> list:
     """
     Generate the Boltz1 command
@@ -108,6 +120,8 @@ def generate_boltz_command(
         input_yaml (Union[str, Path]): Path to the input YAML file
         output_dir (Union[str, Path]): Path to the output directory
         number_of_models (int): Number of models to generate
+        num_recycles (int): Number of trunk recycles
+        seed (int): Seed for the random number generator
 
     Returns:
         list: The Boltz1 command
@@ -125,6 +139,8 @@ def generate_boltz_command(
         str(number_of_models),
         "--recycling_steps",
         str(num_recycles),
+        "--seed",
+        str(seed),
     ]
 
 

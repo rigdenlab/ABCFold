@@ -40,6 +40,7 @@ class ChaiFasta:
         self.fasta = Path(working_dir) / "chai1.fasta"
         self.constraints = Path(working_dir) / "chai1_constraints.csv"
         self.msa_file: Optional[Union[str, Path]] = None
+        self.seed: list = [42]
         self.__ids: List[Union[str, int]] = []
         self.__create_files = create_files
 
@@ -202,6 +203,12 @@ install chai_lab'"
             if isinstance(json_dict["bondedAtomPairs"], list):
                 bonded_pairs = json_dict["bondedAtomPairs"]
                 self.bonded_pairs_to_file(bonded_pairs, fasta_data)
+
+        if "modelSeeds" in json_dict.keys():
+            if isinstance(json_dict["modelSeeds"], int):
+                self.seed = [json_dict["modelSeeds"]]
+            elif isinstance(json_dict["modelSeeds"], list):
+                self.seed = json_dict["modelSeeds"]
 
         if not self.__create_files:
             self.fasta.unlink()

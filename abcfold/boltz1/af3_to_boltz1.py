@@ -19,6 +19,7 @@ class BoltzYaml:
         self.working_dir = working_dir
         self.yaml_string: str = ""
         self.msa_file: Optional[Union[str, Path]] = "null"
+        self.seed: list = [42]
         self.__ids: List[Union[str, int]] = []
         self.__id_char: str = "A"
         self.__id_links: Dict[Union[str, int], list] = {}
@@ -75,6 +76,11 @@ class BoltzYaml:
 
         self.yaml_string += self.add_version_number("1")
         for key, value in json_dict.items():
+            if key == "modelSeeds":
+                if isinstance(value, list):
+                    self.seed = value
+                elif isinstance(value, int):
+                    self.seed = [value]
             if key == "sequences":
                 if "sequences" not in self.yaml_string:
                     self.yaml_string += self.add_non_indented_string("sequences")

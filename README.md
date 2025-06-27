@@ -25,7 +25,7 @@ conda activate abcfold
 or
 
 ```bash
-micromamba env create -n abcfold python=3.11
+micromamba create -n abcfold python=3.11
 micromamba activate abcfold
 ```
 

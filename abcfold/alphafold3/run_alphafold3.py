@@ -108,6 +108,7 @@ def generate_af3_cmd(
         python /app/alphafold/run_alphafold.py \
         --json_path=/root/af_input/{input_json.name} \
         --model_dir=/root/models \
+        --db_dir=/root/public_databases \
         --output_dir=/root/af_output \
         --num_diffusion_samples {number_of_models}\
         --num_recycles {num_recycles}

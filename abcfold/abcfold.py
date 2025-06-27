@@ -179,9 +179,10 @@ def run(args, config, defaults, config_file):
             )
 
             if boltz_success:
-                bolt_out_dir = list(args.output_dir.glob("boltz_results*"))[0]
-                bo = BoltzOutput(bolt_out_dir, input_params, name)
-                outputs.append(bo)
+                bolt_out_dirs = list(args.output_dir.glob("boltz_results*"))
+                for bolt_out_dir in bolt_out_dirs:
+                    bo = BoltzOutput(bolt_out_dir, input_params, name)
+                    outputs.append(bo)
             successful_runs.append(boltz_success)
 
         if args.chai1:
