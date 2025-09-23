@@ -109,6 +109,7 @@ def generate_af3_cmd(
         --json_path=/root/af_input/{input_json.name} \
         --model_dir=/root/models \
         --output_dir=/root/af_output \
+        --db_dir=/root/public_databases \
         --num_diffusion_samples {number_of_models}\
         --num_recycles {num_recycles}
     """

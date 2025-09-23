@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abcfold"
-version = "1.0.8"
+version = "1.0.9"
 description = "Input processing tools for AlphaFold3, Boltz and Chai-1"
 readme = "README.md"
 license = { text = "BSD License" }
