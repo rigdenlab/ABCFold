@@ -158,9 +158,9 @@ def run(args, config, defaults, config_file):
             if af3_success:
                 af3_out_dir = list(
                     [
-                        dir_ 
-                        for n in (name.lower(), name.upper()) 
-                        for dir_ in args.output_dir.glob(f"{n}*") 
+                        dir_
+                        for n in (name.lower(), name.upper())
+                        for dir_ in args.output_dir.glob(f"{n}*")
                         if dir_.is_dir()
                     ]
                 )[0]
