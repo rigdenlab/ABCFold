@@ -2,8 +2,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
-from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
-                                          FileTypes, NpzFile)
+from abcfold.output.file_handlers import CifFile, ConfidenceJsonFile, FileTypes, NpzFile
 from abcfold.output.utils import Af3Pae
 
 logger = logging.getLogger("logger")
@@ -176,7 +175,7 @@ class ProtenixOutput:
         """
         new_pae_files = {}
         for seed in self.seeds:
-            for (pae_file, cif_file) in zip(self.pae_files[seed], self.cif_files[seed]):
+            for pae_file, cif_file in zip(self.pae_files[seed], self.cif_files[seed]):
                 pae = Af3Pae.from_protenix(
                     pae_file.data,
                     cif_file,

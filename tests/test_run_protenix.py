@@ -5,13 +5,11 @@ from pathlib import Path
 import pytest
 
 from abcfold.protenix.af3_to_protenix import ProtenixJson
-from abcfold.protenix.run_protenix import (generate_protenix_command,
-                                           run_protenix)
+from abcfold.protenix.run_protenix import generate_protenix_command, run_protenix
 
 
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping test in CI environment")
 def test_run_protenix(test_data):
-
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             run_protenix(
@@ -27,7 +25,6 @@ def test_run_protenix(test_data):
 
 def test_generate_protenix_command(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-
         # Need protenix style json file to check whether to use MSA flag
         protenix_json = ProtenixJson(temp_dir)
         protenix_json.json_to_json(test_data.test_inputAmsa_json)
@@ -41,7 +38,7 @@ def test_generate_protenix_command(test_data):
             output_dir=output_dir,
             number_of_models=5,
             num_recycles=3,
-            seed=42
+            seed=42,
         )
 
         assert "runner.inference" in cmd

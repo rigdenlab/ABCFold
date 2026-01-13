@@ -143,7 +143,7 @@ def generate_protenix_command(
         "--use_msa",
         str(use_msa),
         "--need_atom_confidence",
-        "True"
+        "True",
     ]
 
 

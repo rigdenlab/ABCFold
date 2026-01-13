@@ -80,7 +80,6 @@ class Af3Pae:
             reordered_matrix = np.zeros_like(pae_matrix)
             for i in range(len(pae_matrix)):
                 for j in range(len(pae_matrix)):
-
                     reordered_matrix[order_mapping[i], order_mapping[j]] = pae_matrix[
                         i, j
                     ]
@@ -337,7 +336,6 @@ def get_gap_indicies(*cif_objs) -> List[np.ndarray]:
                 indicies.append(alignment[0].indices[1])
         else:
             for _ in cif_objs:
-
                 indicies.append(np.array([1] * chain_lengths[0][chain_id]))
 
     indicies = interleave_repeated(

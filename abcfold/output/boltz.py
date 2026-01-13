@@ -3,8 +3,13 @@ from pathlib import Path
 from typing import Union
 
 from abcfold.boltz.af3_to_boltz import BoltzYaml
-from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
-                                          FileTypes, ModelCount, NpzFile)
+from abcfold.output.file_handlers import (
+    CifFile,
+    ConfidenceJsonFile,
+    FileTypes,
+    ModelCount,
+    NpzFile,
+)
 from abcfold.output.utils import Af3Pae
 
 logger = logging.getLogger("logger")
@@ -210,7 +215,6 @@ class BoltzOutput:
 
             counter = 0
             for chain in cif_file.model[0]:
-
                 # Boltz does ligand plddt per atom so we need to count them separately
                 ligand = cif_file.check_ligand(chain)
 
@@ -234,7 +238,7 @@ class BoltzOutput:
         """
         new_pae_files = {}
         for seed in self.seeds:
-            for (pae_file, cif_file) in zip(self.pae_files[seed], self.cif_files[seed]):
+            for pae_file, cif_file in zip(self.pae_files[seed], self.cif_files[seed]):
                 pae = Af3Pae.from_boltz(
                     pae_file.data,
                     cif_file,

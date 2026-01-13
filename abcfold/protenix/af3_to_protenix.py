@@ -10,13 +10,31 @@ logger = logging.getLogger("logger")
 
 ION_CCD_CODES = [
     # alkali / alkaline earth
-    "LI", "NA", "K", "RB", "CS",
-    "MG", "CA", "SR", "BA",
+    "LI",
+    "NA",
+    "K",
+    "RB",
+    "CS",
+    "MG",
+    "CA",
+    "SR",
+    "BA",
     # transition metals
-    "ZN", "FE", "FE2", "FE3", "CU", "MN", "CO", "NI",
-    "CD", "HG",
+    "ZN",
+    "FE",
+    "FE2",
+    "FE3",
+    "CU",
+    "MN",
+    "CO",
+    "NI",
+    "CD",
+    "HG",
     # halides
-    "F", "CL", "BR", "I",
+    "F",
+    "CL",
+    "BR",
+    "I",
 ]
 
 
@@ -133,33 +151,25 @@ class ProtenixJson:
 
         unpaired_msa = seq_dict.get("unpairedMsa")
         paired_msa = seq_dict.get("pairedMsa")
-        random_string = ''.join(random.choices(string.ascii_letters, k=5))
+        random_string = "".join(random.choices(string.ascii_letters, k=5))
         msa_dir = Path(self.working_dir) / random_string
         if unpaired_msa and self.__create_files:
             if not msa_dir.exists():
                 msa_dir.mkdir(parents=True, exist_ok=True)
-            self.msa_to_file(
-                unpaired_msa,
-                msa_dir / "non_pairing.a3m"
-            )
+            self.msa_to_file(unpaired_msa, msa_dir / "non_pairing.a3m")
 
         if paired_msa and self.__create_files:
             if not msa_dir.exists():
                 msa_dir.mkdir(parents=True, exist_ok=True)
-            self.msa_to_file(
-                paired_msa,
-                msa_dir / "pairing.a3m"
-            )
+            self.msa_to_file(paired_msa, msa_dir / "pairing.a3m")
 
         if unpaired_msa or paired_msa and self.__create_files:
             protein_chain["msa"] = {
                 "precomputed_msa_dir": msa_dir.as_posix(),
-                "pairing_db": "uniref100"
+                "pairing_db": "uniref100",
             }
 
-        return {
-            "proteinChain": protein_chain
-        }
+        return {"proteinChain": protein_chain}
 
     def convert_rna(self, seq_dict) -> Dict[str, Any]:
         sequence = seq_dict["sequence"]
@@ -186,9 +196,7 @@ class ProtenixJson:
                 prefixed.append(m)
             rna_chain["modifications"] = prefixed
 
-        return {
-            "rnaSequence": rna_chain
-        }
+        return {"rnaSequence": rna_chain}
 
     def convert_dna(self, seq_dict) -> Dict[str, Any]:
         sequence = seq_dict["sequence"]
@@ -215,9 +223,7 @@ class ProtenixJson:
                 prefixed.append(m)
             dna_chain["modifications"] = prefixed
 
-        return {
-            "dnaSequence": dna_chain
-        }
+        return {"dnaSequence": dna_chain}
 
     def convert_ligand(self, seq_dict) -> Dict[str, Any]:
         chain_ids = seq_dict.get("id", [])
@@ -238,20 +244,17 @@ class ProtenixJson:
                 "ion": ligand,
                 "count": count,
             }
-            return {
-                "ion": ligand_chain
-            }
+            return {"ion": ligand_chain}
         else:
             ligand_chain = {
                 "ligand": ligand,
                 "count": count,
             }
-            return {
-                "ligand": ligand_chain
-            }
+            return {"ligand": ligand_chain}
 
-    def convert_bonded_atom_pairs(self,
-                                  bonded_atom_pairs: List[List[List[Union[str, int]]]]):
+    def convert_bonded_atom_pairs(
+        self, bonded_atom_pairs: List[List[List[Union[str, int]]]]
+    ):
         contacts = []
         for pair in bonded_atom_pairs:
             entity1, position1, atom1 = pair[0]
@@ -266,7 +269,7 @@ class ProtenixJson:
                 "copy2": 1,
                 "atom2": atom2,
                 "max_distance": 6,
-                "min_distance": 0
+                "min_distance": 0,
             }
             contacts.append(contact)
         return contacts

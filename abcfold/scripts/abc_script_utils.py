@@ -345,7 +345,6 @@ def check_input_json(
                 del sequence[sequence_type]["unpairedMsaPath"]
             if "unpairedMsa" in sequence[sequence_type]:
                 if "templates" not in sequence[sequence_type]:
-
                     sequence[sequence_type]["templates"] = (
                         None if use_af3_templates else []
                     )
@@ -371,8 +370,8 @@ def make_dummy_af3_db(output_dir):
         "nt_rna_2023_02_23_clust_seq_id_90_cov_80_rep_seq.fasta",
         "pdb_seqres_2022_09_28.fasta",
         "rnacentral_active_seq_id_90_cov_80_linclust.fasta",
-        "uniref90_2022_05.fa"
-        ]
+        "uniref90_2022_05.fa",
+    ]
     dummy_dirs = ["mmcif_files"]
 
     dummy_af3_db.mkdir(parents=True, exist_ok=True)

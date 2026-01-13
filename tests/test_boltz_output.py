@@ -13,36 +13,36 @@ def test_process_boltz_output(test_data, output_objs):
 
     assert boltz_output.name == "6BJ9"
 
-    assert 0 in boltz_output.output['seed-1']
-    assert 1 in boltz_output.output['seed-1']
+    assert 0 in boltz_output.output["seed-1"]
+    assert 1 in boltz_output.output["seed-1"]
 
-    assert "af3_pae" in boltz_output.output['seed-1'][0]
-    assert "cif" in boltz_output.output['seed-1'][0]
-    assert "json" in boltz_output.output['seed-1'][0]
+    assert "af3_pae" in boltz_output.output["seed-1"][0]
+    assert "cif" in boltz_output.output["seed-1"][0]
+    assert "json" in boltz_output.output["seed-1"][0]
 
-    assert "af3_pae" in boltz_output.output['seed-1'][1]
-    assert "cif" in boltz_output.output['seed-1'][1]
-    assert "json" in boltz_output.output['seed-1'][1]
+    assert "af3_pae" in boltz_output.output["seed-1"][1]
+    assert "cif" in boltz_output.output["seed-1"][1]
+    assert "json" in boltz_output.output["seed-1"][1]
 
     assert all(
-        isinstance(pae_file, NpzFile) for pae_file in boltz_output.pae_files['seed-1']
+        isinstance(pae_file, NpzFile) for pae_file in boltz_output.pae_files["seed-1"]
     )
     assert all(
         isinstance(plddt_file, NpzFile)
-        for plddt_file in boltz_output.plddt_files['seed-1']
+        for plddt_file in boltz_output.plddt_files["seed-1"]
     )
     assert all(
-        isinstance(pde_file, NpzFile) for pde_file in boltz_output.pde_files['seed-1']
+        isinstance(pde_file, NpzFile) for pde_file in boltz_output.pde_files["seed-1"]
     )
     assert all(
-        isinstance(cif_file, CifFile) for cif_file in boltz_output.cif_files['seed-1']
-        )
+        isinstance(cif_file, CifFile) for cif_file in boltz_output.cif_files["seed-1"]
+    )
     assert all(
         isinstance(scores_file, ConfidenceJsonFile)
-        for scores_file in boltz_output.scores_files['seed-1']
+        for scores_file in boltz_output.scores_files["seed-1"]
     )
 
-    assert boltz_output.cif_files['seed-1'][0].chain_lengths() == {
+    assert boltz_output.cif_files["seed-1"][0].chain_lengths() == {
         "A": 393,
         "B": 393,
         "C": 1,
@@ -51,7 +51,7 @@ def test_process_boltz_output(test_data, output_objs):
 
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
-        for i, cif_file in enumerate(boltz_output.cif_files['seed-1']):
+        for i, cif_file in enumerate(boltz_output.cif_files["seed-1"]):
             cif_file.to_file(temp_dir / f"{i}.cif")
             assert (temp_dir / f"{i}.cif").exists()
 
@@ -59,8 +59,8 @@ def test_process_boltz_output(test_data, output_objs):
 def test_boltz_pae_to_af3_pae(test_data, output_objs):
     comparison_af3_output = output_objs.af3_output.af3_pae_files["seed-1"][0].data
     for pae_file, cif_file in zip(
-        output_objs.boltz_output.pae_files['seed-1'],
-        output_objs.boltz_output.cif_files['seed-1']
+        output_objs.boltz_output.pae_files["seed-1"],
+        output_objs.boltz_output.cif_files["seed-1"],
     ):
         pae = Af3Pae.from_boltz(
             pae_file.data,

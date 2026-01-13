@@ -8,7 +8,6 @@ from abcfold.boltz.run_boltz import generate_boltz_command, run_boltz
 
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping test in CI environment")
 def test_run_boltz(test_data):
-
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             run_boltz(

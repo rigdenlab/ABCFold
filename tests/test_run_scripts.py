@@ -12,9 +12,9 @@ def test_alphafold3_script():
         print(stdout)
         print(stderr)
         assert p.returncode == 0, f"Return code: {p.returncode}\n{stderr.decode()}"
-        assert (
-            b"usage: abcfold" in stdout
-        ), f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        assert b"usage: abcfold" in stdout, (
+            f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        )
 
 
 def test_add_custom_template_script():
@@ -26,9 +26,9 @@ def test_add_custom_template_script():
     ) as p:
         stdout, stderr = p.communicate()
         assert p.returncode == 0, f"Return code: {p.returncode}\n{stderr.decode()}"
-        assert (
-            b"usage: add_custom_template" in stdout
-        ), f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        assert b"usage: add_custom_template" in stdout, (
+            f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        )
 
 
 def test_add_mmseqs_msa_script():
@@ -40,9 +40,9 @@ def test_add_mmseqs_msa_script():
     ) as p:
         stdout, stderr = p.communicate()
         assert p.returncode == 0, f"Return code: {p.returncode}\n{stderr.decode()}"
-        assert (
-            b"usage: add_mmseqs_msa" in stdout
-        ), f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        assert b"usage: add_mmseqs_msa" in stdout, (
+            f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        )
 
 
 def test_ipsae_script():
@@ -54,6 +54,6 @@ def test_ipsae_script():
     ) as p:
         stdout, stderr = p.communicate()
         assert p.returncode == 0, f"Return code: {p.returncode}\n{stderr.decode()}"
-        assert (
-            b"usage: ipsae" in stdout
-        ), f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        assert b"usage: ipsae" in stdout, (
+            f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+        )

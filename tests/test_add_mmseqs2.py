@@ -4,8 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from abcfold.scripts.add_mmseqs_msa import (MMseqs2Exception, add_msa_to_json,
-                                            fetch_mmcif, run_mmseqs)
+from abcfold.scripts.add_mmseqs_msa import (
+    MMseqs2Exception,
+    add_msa_to_json,
+    fetch_mmcif,
+    run_mmseqs,
+)
 
 
 def test_add_msa_to_json(test_data):

@@ -84,7 +84,6 @@ class FileBase(ABC):
 
 
 class NpzFile(FileBase):
-
     def __init__(self, npz_file: Union[str, Path]):
         """
         Object to handle npz files
@@ -148,7 +147,6 @@ class PklFile(FileBase):
 
 
 class CifFile(FileBase):
-
     def __init__(self, cif_file: Union[str, Path], input_params: Optional[dict] = None):
         """
         Object to handle cif files
@@ -274,7 +272,6 @@ class CifFile(FileBase):
         """
         chains = self.get_chains()
         if mode == ModelCount.ALL or mode == ModelCount.ALL.value:
-
             # return {
             #     chain.id: len([atom for resiude in chain for atom in resiude])
             #     for chain in chains
@@ -404,7 +401,6 @@ class CifFile(FileBase):
         """
         plddt: Dict[str, list] = {}
         for chain in self.model[0]:
-
             for residue in chain:
                 for atom in residue:
                     if chain.id in plddt:
@@ -483,9 +479,9 @@ class CifFile(FileBase):
         plddt_lengths = {k: len(v) for (k, v) in plddts.items()}
         chain_lengths = self.chain_lengths(mode="residues", ligand_atoms=True)
         for chain_id in plddt_lengths:
-            assert (
-                chain_lengths[chain_id] == plddt_lengths[chain_id]
-            ), f"{chain_id}, {chain_lengths[chain_id]} != {plddt_lengths[chain_id]}"
+            assert chain_lengths[chain_id] == plddt_lengths[chain_id], (
+                f"{chain_id}, {chain_lengths[chain_id]} != {plddt_lengths[chain_id]}"
+            )
         return plddts
 
     def get_plddt_per_ligand(self) -> dict:
@@ -580,7 +576,6 @@ class CifFile(FileBase):
                 for _ in link_ids[chain]:
                     old_new_chain_id[chain_names[old_chain_label_counter]] = chain
                     for residue in structure[chain_names[old_chain_label_counter]]:
-
                         residue.id = (residue.id[0], ligand_no_added, residue.id[2])
                         ligand_no_added += 1
                     old_chain_label_counter += 1
@@ -590,9 +585,9 @@ class CifFile(FileBase):
         for chain_to_rename in structure:
             chain_to_rename.id = old_new_chain_id[chain_to_rename.id]
 
-        assert old_chain_label_counter == len(
-            self.get_chains()
-        ), "Number of chain ids must match the number of chains"
+        assert old_chain_label_counter == len(self.get_chains()), (
+            "Number of chain ids must match the number of chains"
+        )
         self.update()
 
     def update(self):
@@ -600,11 +595,12 @@ class CifFile(FileBase):
         self = CifFile(self.pathway, self.input_params)
 
     def reorder_chains(self, new_chain_ids: List[str]):
-
         assert sorted([chain.id for chain in self.get_chains()]) == sorted(
             new_chain_ids
-        ), "The chain ids need to be identical to what is in the model already \
+        ), (
+            "The chain ids need to be identical to what is in the model already \
 for reordering"
+        )
 
         new_model = Model.Model(0)
 
@@ -727,7 +723,6 @@ for reordering"
             lines = [line.rstrip() for line in f]
 
         for line in lines:
-
             single_quotes = re.compile(r"[']\w+[']{2}")
             new_lines.append(
                 single_quotes.sub(lambda x: f'"{x.group()[1:-1]}"', line, count=1)
@@ -743,8 +738,10 @@ for reordering"
 
         assert len(out_dict["_atom_site.label_asym_id"]) == len(
             atom_site_labels_asym_ids
-        ), f"Lengths must be the same, current lengths are \
+        ), (
+            f"Lengths must be the same, current lengths are \
 {len(out_dict['_atom_site.label_asym_id'])} and {len(atom_site_labels_asym_ids)}"
+        )
 
         out_dict["_atom_site.label_asym_id"] = atom_site_labels_asym_ids
 
@@ -759,7 +756,8 @@ for reordering"
             else:
                 atom_site_group_pdb.extend(
                     out_dict["_atom_site.group_PDB"][
-                        counter : counter + chain_length  # noqa: E203
+                        counter : counter
+                        + chain_length  # noqa: E203
                     ]
                 )
 
@@ -817,7 +815,7 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
 
         ref_atoms = []
         alt_atoms = []
-        for (ref_chain, alt_chain) in zip(ref_model, alt_model):
+        for ref_chain, alt_chain in zip(ref_model, alt_model):
             for ref_res, alt_res in zip(ref_chain, alt_chain):
                 if ref_res.resname != alt_res.resname or ref_res.id != alt_res.id:
                     pass
@@ -829,9 +827,9 @@ def superpose_models(models_list: List[Union[str, Path]]) -> None:
                 elif ref_res.resname in ["A", "U", "G", "C", "T"]:
                     ref_atoms.append(ref_res["C1'"])
                     alt_atoms.append(alt_res["C1'"])
-                elif 'CA' in ref_res:
-                    ref_atoms.append(ref_res['CA'])
-                    alt_atoms.append(alt_res['CA'])
+                elif "CA" in ref_res:
+                    ref_atoms.append(ref_res["CA"])
+                    alt_atoms.append(alt_res["CA"])
                 else:  # Ignore anything else
                     pass
 

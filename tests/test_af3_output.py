@@ -3,9 +3,9 @@ from pathlib import Path
 
 def test_process_af3_output(test_data, output_objs):
     af3_output = output_objs.af3_output
-    assert af3_output.output_dir.relative_to(
-        af3_output.output_dir.parent
-    ) == Path(test_data.test_alphafold3_6BJ9_).relative_to("tests/test_data")
+    assert af3_output.output_dir.relative_to(af3_output.output_dir.parent) == Path(
+        test_data.test_alphafold3_6BJ9_
+    ).relative_to("tests/test_data")
 
     assert "seed-1" in af3_output.output
 

@@ -18,7 +18,7 @@ def run_alphafold3(
     interactive: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
-    save_distogram: bool = False
+    save_distogram: bool = False,
 ) -> bool:
     """
     Run Alphafold3 using the input JSON file
@@ -54,7 +54,7 @@ def run_alphafold3(
         interactive=interactive,
         number_of_models=number_of_models,
         num_recycles=num_recycles,
-        save_distogram=save_distogram
+        save_distogram=save_distogram,
     )
 
     logger.info("Running Alphafold3")
@@ -125,7 +125,7 @@ def generate_af3_cmd(
 
     else:
         return f"""
-        docker run {'-it' if interactive else ''} \
+        docker run {"-it" if interactive else ""} \
         --volume {input_json.parent.resolve()}:/root/af_input \
         --volume {output_dir.resolve()}:/root/af_output \
         --volume {model_params}:/root/models \

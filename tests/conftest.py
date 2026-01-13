@@ -38,7 +38,6 @@ tests from the root of the repository or the tests directory"
     d = {}
 
     for test_file in data_dir.glob("*"):
-
         stem, suffix = test_file.stem, test_file.suffix[1:]
         d[f"test_{stem.replace('-', '_')}_{suffix}"] = str(test_file)
 

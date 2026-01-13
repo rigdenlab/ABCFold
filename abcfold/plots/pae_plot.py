@@ -213,7 +213,6 @@ def create_pae_plots(
 def prepare_scripts(
     cif_files, pae_files, plots_dir, pathway_plot, template_file, is_af3=False
 ):
-
     scripts = []
     for cif_file, pae_file in zip(cif_files, pae_files):
         name_stem = f"{pae_file.pathway.stem}\

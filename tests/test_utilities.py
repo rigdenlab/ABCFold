@@ -4,9 +4,13 @@ from pathlib import Path
 
 from abcfold.output.file_handlers import CifFile, ConfidenceJsonFile
 from abcfold.output.utils import Af3Pae
-from abcfold.scripts.abc_script_utils import (align_and_map, check_input_json,
-                                              extract_sequence_from_mmcif,
-                                              get_chains, get_mmcif)
+from abcfold.scripts.abc_script_utils import (
+    align_and_map,
+    check_input_json,
+    extract_sequence_from_mmcif,
+    get_chains,
+    get_mmcif,
+)
 
 
 def test_get_chains(test_data):

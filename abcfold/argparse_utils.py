@@ -34,9 +34,11 @@ def main_argpase_util(parser):
     )
     parser.add_argument(
         "--output_json",
-        help=dedent("[optional] Specify the path of the output ABCFold json file, this \
+        help=dedent(
+            "[optional] Specify the path of the output ABCFold json file, this \
         can be used to run subsequent runs of ABCFold with the same input features \
-        (e.g. MSA)"),
+        (e.g. MSA)"
+        ),
     )
 
     return parser
@@ -46,13 +48,17 @@ def mmseqs2_argparse_util(parser):
     parser.add_argument(
         "--mmseqs2",
         action="store_true",
-        help=dedent("[optional] Use MMseqs2 for MSA generation and template \
-        searching (if used with --templates flag)"),
+        help=dedent(
+            "[optional] Use MMseqs2 for MSA generation and template \
+        searching (if used with --templates flag)"
+        ),
     )
     parser.add_argument(
         "--mmseqs_database",
-        help=dedent("[optional] The database directory for the generation of the MSA. \
-        This is only required if using a local installation of MMseqs2"),
+        help=dedent(
+            "[optional] The database directory for the generation of the MSA. \
+        This is only required if using a local installation of MMseqs2"
+        ),
     )
     parser.add_argument(
         "--templates", action="store_true", help="[optional] Enable template search"
@@ -71,25 +77,31 @@ def custom_template_argpase_util(parser):
     parser.add_argument(
         "--target_id",
         nargs="+",
-        help=dedent("[conditionally required] The ID of the sequence that the \
+        help=dedent(
+            "[conditionally required] The ID of the sequence that the \
         custom template relates to. This is only required if modelling a complex. \
         If providing a list of custom templates, the target_id must be a list of \
-        the same length as the custom template list"),
+        the same length as the custom template list"
+        ),
     )
     parser.add_argument(
         "--custom_template",
         nargs="+",
-        help=dedent("[optional] Path to a custom template file in mmCif format or a \
+        help=dedent(
+            "[optional] Path to a custom template file in mmCif format or a \
         list of paths to custom template files in mmCif format. If providing a list of \
-        custom templates, you must also provide a list of custom template chains."),
+        custom templates, you must also provide a list of custom template chains."
+        ),
     )
     parser.add_argument(
         "--custom_template_chain",
         nargs="+",
-        help=dedent("[conditionally required] The chain ID of the chain to use in your \
+        help=dedent(
+            "[conditionally required] The chain ID of the chain to use in your \
         custom template. This is only required if using a multi-chain template. If \
         providing a list of custom templates, you must also provide a list of custom \
-        template chains of the same length as the custom template list"),
+        template chains of the same length as the custom template list"
+        ),
     )
 
     return parser
@@ -100,8 +112,10 @@ def prediction_argparse_util(parser):
         "--number_of_models",
         type=int,
         default=5,
-        help=dedent("[optional] The number of models to generate with each method \
-        (default: 5)"),
+        help=dedent(
+            "[optional] The number of models to generate with each method \
+        (default: 5)"
+        ),
     )
     parser.add_argument(
         "--num_recycles",
@@ -153,8 +167,10 @@ def protenix_argparse_util(parser):
 def alphafold_argparse_util(parser):
     parser.add_argument(
         "--database",
-        help=dedent("[optional] The database directory for the generation of the MSA. \
-        This is only required if using the built in AlphaFold3 MSA generation"),
+        help=dedent(
+            "[optional] The database directory for the generation of the MSA. \
+        This is only required if using the built in AlphaFold3 MSA generation"
+        ),
         dest="database_dir",
         default=None,
     )
@@ -167,8 +183,10 @@ def alphafold_argparse_util(parser):
 
     parser.add_argument(
         "--af3_sif_path",
-        help=dedent("[conditionally required] The path to the sif image of AlphaFold3 \
-        if using Singularity"),
+        help=dedent(
+            "[conditionally required] The path to the sif image of AlphaFold3 \
+        if using Singularity"
+        ),
         default=None,
     )
 
@@ -182,8 +200,10 @@ def alphafold_argparse_util(parser):
     parser.add_argument(
         "--use_af3_template_search",
         action="store_true",
-        help=dedent("If providing your own custom MSA or if you've run `--mmseqs2`, \
-        allow Alphafold3 to search for templates"),
+        help=dedent(
+            "If providing your own custom MSA or if you've run `--mmseqs2`, \
+        allow Alphafold3 to search for templates"
+        ),
     )
 
     parser.add_argument(
@@ -199,15 +219,19 @@ def visuals_argparse_util(parser):
     parser.add_argument(
         "--no_visuals",
         action="store_true",
-        help=dedent("[optional] Do not generate the output pages, best for running on \
-        a cluster without a display"),
+        help=dedent(
+            "[optional] Do not generate the output pages, best for running on \
+        a cluster without a display"
+        ),
     )
 
     parser.add_argument(
         "--no_server",
         action="store_true",
-        help=dedent("[optional] Do not start a local server to view the results, the \
-        output page is still generated and is accessible in the output directory"),
+        help=dedent(
+            "[optional] Do not start a local server to view the results, the \
+        output page is still generated and is accessible in the output directory"
+        ),
     )
     return parser
 
@@ -215,8 +239,10 @@ def visuals_argparse_util(parser):
 def raise_argument_errors(args):
     if not args.alphafold3 and not args.boltz and not args.chai1 and not args.protenix:
         logger.info(
-            dedent("Neither AlphaFold3, Boltz, Chai-1, or Protenix selected. \
-            Running AlphaFold3 by default")
+            dedent(
+                "Neither AlphaFold3, Boltz, Chai-1, or Protenix selected. \
+            Running AlphaFold3 by default"
+            )
         )
         args.alphafold3 = True
 

@@ -12,7 +12,7 @@ def test_af3_ipsae(output_objs):
         af3_pae_file,
         pae_cutoff=10.0,
         pae_format="alphafold3",
-        distance_cutoff=5.0
+        distance_cutoff=5.0,
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
 
@@ -28,12 +28,8 @@ def test_af3_ipsae(output_objs):
     )
 
     iptm = scores["iptm_ipsae_scores"]
-    assert iptm["iptm_d0chn_asym"]["A"]["B"] == pytest.approx(
-        0.8444376339, rel=1e-6
-    )
-    assert iptm["ipsae_d0res_asym"]["A"]["B"] == pytest.approx(
-        0.7545828078, rel=1e-6
-    )
+    assert iptm["iptm_d0chn_asym"]["A"]["B"] == pytest.approx(0.8444376339, rel=1e-6)
+    assert iptm["ipsae_d0res_asym"]["A"]["B"] == pytest.approx(0.7545828078, rel=1e-6)
 
     assert iptm["unique_residues_chain1"]["A"]["B"] == 391
     assert iptm["unique_residues_chain2"]["A"]["B"] == 393
@@ -48,7 +44,7 @@ def test_boltz_ipsae(output_objs):
         boltz_pae_file,
         pae_cutoff=10.0,
         pae_format="alphafold3",
-        distance_cutoff=5.0
+        distance_cutoff=5.0,
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
 
@@ -84,7 +80,7 @@ def test_chai_ipsae(output_objs):
         chai_pae_file,
         pae_cutoff=10.0,
         pae_format="alphafold3",
-        distance_cutoff=5.0
+        distance_cutoff=5.0,
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
 
@@ -120,7 +116,7 @@ def test_protenix_ipsae(output_objs):
         protenix_pae_file,
         pae_cutoff=10.0,
         pae_format="alphafold3",
-        distance_cutoff=5.0
+        distance_cutoff=5.0,
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
 

@@ -72,7 +72,7 @@ target ids must match the number of custom templates and custom template chains"
                 raise ValueError(msg)
             custom_templates = zip(target_id, checked_templates, custom_template_chain)
         else:
-            if (len(checked_templates) != len(custom_template_chain)):
+            if len(checked_templates) != len(custom_template_chain):
                 msg = "Number of custom templates must match the number of \
 custom template chains"
                 raise ValueError(msg)

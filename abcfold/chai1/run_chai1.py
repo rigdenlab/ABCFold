@@ -144,9 +144,9 @@ def generate_chai_command(
     cmd += ["--num-trunk-recycles", str(num_recycles)]
     cmd += ["--seed", str(seed)]
 
-    assert not (
-        use_templates_server and template_hits_path
-    ), "Cannot specify both templates server and path"
+    assert not (use_templates_server and template_hits_path), (
+        "Cannot specify both templates server and path"
+    )
 
     if shutil.which("kalign") is None and (use_templates_server or template_hits_path):
         logger.warning(

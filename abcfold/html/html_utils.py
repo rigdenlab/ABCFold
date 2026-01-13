@@ -32,7 +32,7 @@ def get_plddt_regions(plddts: Union[np.ndarray, list]) -> dict:
 
     regions = {}
     # replace none values with -1
-    plddts = np.where(plddts == None, -1, plddts) # noqa F401
+    plddts = np.where(plddts == None, -1, plddts)  # noqa F401
 
     v_low = np.where((0 <= plddts) & (plddts <= 50))[0]
     regions["v_low"] = get_regions_helper(v_low)
@@ -88,7 +88,6 @@ def get_model_sequence_data(cif_objs) -> dict:
                     [residue.get_resname() for residue in chain]
                 )
             else:
-
                 sequence_data_[chain.id] = "".join(
                     [seq1(residue.get_resname()) for residue in chain]
                 )
@@ -103,13 +102,9 @@ def get_model_sequence_data(cif_objs) -> dict:
     return sequence_data
 
 
-def get_model_data(model,
-                   plot_dict,
-                   method,
-                   plddt_scores,
-                   pae_obj,
-                   score_file,
-                   output_dir):
+def get_model_data(
+    model, plot_dict, method, plddt_scores, pae_obj, score_file, output_dir
+):
     """
     Get the model data for the output page
 
@@ -139,12 +134,14 @@ def get_model_data(model,
 
         # Output full ipsae scores for each model as we are only outputting d0res_asym
         ipsae_out = full_model_path.parent / f"{Path(model_path).stem}_ipsae.csv"
-        ipsae.output_results(pdockq_scores=None,
-                             pdockq2_scores=None,
-                             lis_scores=None,
-                             ipsae_scores=ipsae_scores,
-                             verbose=False,
-                             output_csv=ipsae_out)
+        ipsae.output_results(
+            pdockq_scores=None,
+            pdockq2_scores=None,
+            lis_scores=None,
+            ipsae_scores=ipsae_scores,
+            verbose=False,
+            output_csv=ipsae_out,
+        )
     except ValueError:
         logger.error("ValueError when calculating ipSAE score, bypassing ipSAE")
         pass

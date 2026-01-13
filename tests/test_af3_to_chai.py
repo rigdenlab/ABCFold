@@ -118,12 +118,7 @@ def test_af3_to_chai_ptm(test_data):
 
         chai_fasta.json_to_fasta(test_data.test_inputPTM_json)
 
-        reference = (
-            ">protein|A\n"
-            "(HY3)VLS(P1L)GEWQL\n"
-            ">rna|B\n"
-            "(2MG)GC(5MC)\n"
-        )
+        reference = ">protein|A\n(HY3)VLS(P1L)GEWQL\n>rna|B\n(2MG)GC(5MC)\n"
 
         filename = Path(temp_dir) / "chai1.fasta"
 

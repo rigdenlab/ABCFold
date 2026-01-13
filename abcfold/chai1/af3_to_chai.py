@@ -21,7 +21,6 @@ ATOMS_NAMES = sorted(list(VANDERWALLS.keys()), key=len, reverse=True)
 
 
 class ChaiFasta:
-
     def __init__(self, working_dir: Union[str, Path], create_files: bool = True):
         """
         Object to convert an AlphaFold3 json to a fasta file compatible with CHAI-1
@@ -98,7 +97,6 @@ check back for updates"
                 continue
 
             for pair in bonded_pair:
-
                 chain_id = pair[0]
                 seq_idx = pair[1]
                 pair_data.append(chain_id)
@@ -125,6 +123,7 @@ check back for updates"
 
     def msa_to_file(self, msa: str, file_path: Union[str, Path]):
         from abcfold.chai1.check_install import ensure_chai_env
+
         chai_env = ensure_chai_env()
         file_path = Path(file_path).absolute()
 
@@ -147,7 +146,7 @@ check back for updates"
 
     if not df.empty:
         df.to_parquet(output_file)
-    """) # noqa E501
+    """)  # noqa E501
 
         with NamedTemporaryFile("w", suffix=".py", delete=False) as f:
             script_path = Path(f.name)
@@ -269,15 +268,12 @@ check back for updates"
         fasta_data[nucl_id] = sequence
 
         if "modifications" in seq[seq_type]:
-            sequence = self.add_modifications(
-                sequence, seq[seq_type]["modifications"]
-            )
+            sequence = self.add_modifications(sequence, seq[seq_type]["modifications"])
 
         nucleotide_str = f">{seq_type}|{nucl_id}\n{sequence}\n"
         return nucleotide_str, fasta_data
 
     def ccd_to_smiles(self, ccd_id: str):
-
         assert isinstance(ccd_id, str), "CCD ID must be a string"
         logger.info(f"CCD code found in input: {ccd_id}")
         logger.info("Chai-1 currently only supports SMILES strings for ligands")
@@ -355,15 +351,15 @@ check back for updates"
         sequence_list = list(sequence)
         for mod in modifications:
             if "ptmType" in mod and "ptmPosition" in mod:
-                ptm_type = mod['ptmType']
-                position = int(mod['ptmPosition']) - 1
+                ptm_type = mod["ptmType"]
+                position = int(mod["ptmPosition"]) - 1
                 sequence_list[position] = f"({ptm_type})"
             elif "modificationType" in mod and "basePosition" in mod:
-                mod_type = mod['modificationType']
-                position = int(mod['basePosition']) - 1
+                mod_type = mod["modificationType"]
+                position = int(mod["basePosition"]) - 1
                 sequence_list[position] = f"({mod_type})"
 
-        return ''.join(sequence_list)
+        return "".join(sequence_list)
 
     def get_atom_name(self, atom: str) -> str:
         for name in ATOMS_NAMES:

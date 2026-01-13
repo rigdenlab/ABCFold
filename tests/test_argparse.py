@@ -1,12 +1,14 @@
 import argparse
 
-from abcfold.argparse_utils import (alphafold_argparse_util,
-                                    custom_template_argpase_util,
-                                    main_argpase_util, mmseqs2_argparse_util)
+from abcfold.argparse_utils import (
+    alphafold_argparse_util,
+    custom_template_argpase_util,
+    main_argpase_util,
+    mmseqs2_argparse_util,
+)
 
 
 def test_mmseqs2_argparse_util():
-
     parser = argparse.ArgumentParser()
     parser = mmseqs2_argparse_util(parser)
     args = parser.parse_args(["--templates", "--num_templates", "20"])
@@ -49,8 +51,10 @@ def test_custom_template_argpase_util_2():
         ]
     )
     assert args.target_id == ["A", "B"]
-    assert args.custom_template == ["test_data/test_6BJ9_cif",
-                                    "test_data/test_6BJ9_cif"]
+    assert args.custom_template == [
+        "test_data/test_6BJ9_cif",
+        "test_data/test_6BJ9_cif",
+    ]
     assert args.custom_template_chain == ["A", "B"]
 
 

@@ -10,25 +10,30 @@ import pandas as pd
 from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
 
-from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
-                                          FileTypes, NpyFile, NpzFile, PklFile,
-                                          ResidueCountType)
+from abcfold.output.file_handlers import (
+    CifFile,
+    ConfidenceJsonFile,
+    FileTypes,
+    NpyFile,
+    NpzFile,
+    PklFile,
+    ResidueCountType,
+)
 from abcfold.output.utils import Af3Pae
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("logger")
 
 
-class Ipsae():
-    def __init__(self,
-                 input_model,
-                 pae_file,
-                 pae_cutoff=5,
-                 pae_format="alphafold3",
-                 distance_cutoff=10):
+class Ipsae:
+    def __init__(
+        self,
+        input_model,
+        pae_file,
+        pae_cutoff=5,
+        pae_format="alphafold3",
+        distance_cutoff=10,
+    ):
         self.input_model = input_model
         self.pae_file = pae_file
         self.pae_cutoff = pae_cutoff
@@ -49,7 +54,7 @@ class Ipsae():
         return 1.0 / (1.0 + np.square(x / d0))
 
     @staticmethod
-    def calc_d0(L, pair_type='protein'):
+    def calc_d0(L, pair_type="protein"):
         """
         Vectorized d0 calculator.
 
@@ -65,7 +70,7 @@ class Ipsae():
         L = np.asarray(L, dtype=float)
         L = np.maximum(L, 27.0)
 
-        min_value = 2.0 if pair_type.lower() == 'nucleic_acid' else 1.0
+        min_value = 2.0 if pair_type.lower() == "nucleic_acid" else 1.0
         d0 = 1.24 * np.power(L - 15.0, 1.0 / 3.0) - 1.8
         return np.maximum(min_value, d0)
 
@@ -76,32 +81,36 @@ class Ipsae():
     @staticmethod
     def pdockq(plddt_mean, n_pairs):
         x = plddt_mean * np.log10(n_pairs)
-        return 0.724 / (1 + np.exp(-0.052*(x - 152.611))) + 0.018
+        return 0.724 / (1 + np.exp(-0.052 * (x - 152.611))) + 0.018
 
     @staticmethod
     def pdockq2(plddt_mean, mean_ptm):
         x2 = plddt_mean * mean_ptm
-        return 1.31 / (1 + np.exp(-0.075*(x2 - 84.733))) + 0.005
+        return 1.31 / (1 + np.exp(-0.075 * (x2 - 84.733))) + 0.005
 
     @property
     def chain_res_map(self):
-        if not hasattr(self, '_chain_res_map'):
-            self._chain_res_map = np.asarray([
-                chain.id
-                for chain in self.struct.get_chains()
-                for res in chain if is_aa(res.resname, standard=False)
-            ], dtype=object)
+        if not hasattr(self, "_chain_res_map"):
+            self._chain_res_map = np.asarray(
+                [
+                    chain.id
+                    for chain in self.struct.get_chains()
+                    for res in chain
+                    if is_aa(res.resname, standard=False)
+                ],
+                dtype=object,
+            )
         return self._chain_res_map
 
     @property
     def nres(self):
-        if not hasattr(self, '_nres'):
+        if not hasattr(self, "_nres"):
             self._nres = len(self.chain_res_map)
         return self._nres
 
     @property
     def chain_ids(self):
-        if not hasattr(self, '_chain_ids'):
+        if not hasattr(self, "_chain_ids"):
             self._chain_ids = sorted(set(self.chain_res_map))
         return self._chain_ids
 
@@ -134,8 +143,8 @@ class Ipsae():
             if all([is_aa(res.resname) for res in chain.get_residues()]):
                 seq_data["protein"]["ID"] = [chain.id]
                 seq_data["protein"]["sequence"] = "".join(
-                        [seq1(residue.get_resname()) for residue in chain]
-                    )
+                    [seq1(residue.get_resname()) for residue in chain]
+                )
                 self.struct.input_params["sequences"].append(seq_data)
 
         # Get PAE data for different formats
@@ -180,16 +189,21 @@ class Ipsae():
                 method=ResidueCountType.IPSAE.value
             )
             self.plddt = np.array(
-                sum([plddt[chain] for chain in plddt.keys()
-                     if not self.struct.check_ligand(chain)
-                     ], [])
+                sum(
+                    [
+                        plddt[chain]
+                        for chain in plddt.keys()
+                        if not self.struct.check_ligand(chain)
+                    ],
+                    [],
+                )
             )
 
         # Generate PAE matrix
-        if 'pae' in self.pae_data:
-            self.pae_matrix = np.array(self.pae_data['pae'])
-        elif 'predicted_aligned_error' in self.pae_data:
-            self.pae_matrix = np.array(self.pae_data['predicted_aligned_error'])
+        if "pae" in self.pae_data:
+            self.pae_matrix = np.array(self.pae_data["pae"])
+        elif "predicted_aligned_error" in self.pae_data:
+            self.pae_matrix = np.array(self.pae_data["predicted_aligned_error"])
         else:
             self.pae_matrix = None
         if self.pae_format in ["alphafold3", "boltz", "chai"]:
@@ -243,7 +257,7 @@ class Ipsae():
 
         cb_coords = np.array([x for x in cb_coords])
         distances = np.sqrt(
-            ((cb_coords[:, None, :] - cb_coords[None, :, :])**2).sum(axis=2)
+            ((cb_coords[:, None, :] - cb_coords[None, :, :]) ** 2).sum(axis=2)
         )
         return distances
 
@@ -321,9 +335,11 @@ class Ipsae():
                     continue
 
                 uniq_res_list = sorted(unique_residues[c1][c2])
-                mean_plddt = float(
-                    np.mean(self.plddt[uniq_res_list])
-                    ) if len(uniq_res_list) > 0 else 0.0
+                mean_plddt = (
+                    float(np.mean(self.plddt[uniq_res_list]))
+                    if len(uniq_res_list) > 0
+                    else 0.0
+                )
 
                 pdq = self.pdockq(mean_plddt, n_pairs)
                 pdockq_scores[c1][c2] = float(np.round(pdq, 4))
@@ -347,8 +363,9 @@ class Ipsae():
                     continue
 
                 # Mask residues from chain1 vs chain2
-                mask = (self.chain_res_map[:, None] == chain1) & \
-                    (self.chain_res_map[None, :] == chain2)
+                mask = (self.chain_res_map[:, None] == chain1) & (
+                    self.chain_res_map[None, :] == chain2
+                )
                 selected_pae = self.pae_matrix[mask]
 
                 if selected_pae.size == 0:
@@ -387,13 +404,17 @@ class Ipsae():
 
         # Initialize dictionaries
         iptm_d0chn_byres = self.nested_chain_map(
-            lambda: np.zeros(self.nres), self.chain_ids)
+            lambda: np.zeros(self.nres), self.chain_ids
+        )
         ipsae_d0chn_byres = self.nested_chain_map(
-            lambda: np.zeros(self.nres), self.chain_ids)
+            lambda: np.zeros(self.nres), self.chain_ids
+        )
         ipsae_d0dom_byres = self.nested_chain_map(
-            lambda: np.zeros(self.nres), self.chain_ids)
+            lambda: np.zeros(self.nres), self.chain_ids
+        )
         ipsae_d0res_byres = self.nested_chain_map(
-            lambda: np.zeros(self.nres), self.chain_ids)
+            lambda: np.zeros(self.nres), self.chain_ids
+        )
 
         iptm_d0chn_asym = self.nested_chain_map(lambda: 0.0, self.chain_ids)
         ipsae_d0chn_asym = self.nested_chain_map(lambda: 0.0, self.chain_ids)
@@ -412,15 +433,17 @@ class Ipsae():
                 if chain1 == chain2:
                     continue
 
-                n0chn = np.sum(self.chain_res_map == chain1) + \
-                    np.sum(self.chain_res_map == chain2)
+                n0chn = np.sum(self.chain_res_map == chain1) + np.sum(
+                    self.chain_res_map == chain2
+                )
                 d0chn = self.calc_d0(n0chn)
 
                 ptm_matrix_d0chn = self.ptm_func(self.pae_matrix, d0chn)
 
-                valid_pairs_iptm = (self.chain_res_map == chain2)
-                valid_pairs_matrix = (self.chain_res_map == chain2) & \
-                    (self.pae_matrix < self.pae_cutoff)
+                valid_pairs_iptm = self.chain_res_map == chain2
+                valid_pairs_matrix = (self.chain_res_map == chain2) & (
+                    self.pae_matrix < self.pae_cutoff
+                )
 
                 for i in range(self.nres):
                     if self.chain_res_map[i] != chain1:
@@ -429,14 +452,14 @@ class Ipsae():
                     # IPSAE / iPTM per residue
                     valid_pairs_ipsae = valid_pairs_matrix[i]
                     iptm_d0chn_byres[chain1][chain2][i] = (
-                        ptm_matrix_d0chn[
-                            i, valid_pairs_iptm
-                        ].mean() if valid_pairs_iptm.any() else 0.0
+                        ptm_matrix_d0chn[i, valid_pairs_iptm].mean()
+                        if valid_pairs_iptm.any()
+                        else 0.0
                     )
                     ipsae_d0chn_byres[chain1][chain2][i] = (
-                        ptm_matrix_d0chn[
-                            i, valid_pairs_ipsae
-                        ].mean() if valid_pairs_ipsae.any() else 0.0
+                        ptm_matrix_d0chn[i, valid_pairs_ipsae].mean()
+                        if valid_pairs_ipsae.any()
+                        else 0.0
                     )
 
                     # Track unique residues contributing
@@ -445,9 +468,11 @@ class Ipsae():
                         for j in np.where(valid_pairs_ipsae)[0]:
                             unique_residues_chain2[chain1][chain2].add(j)
 
-                    valid_pairs = (self.chain_res_map == chain2) & \
-                        (self.pae_matrix[i] < self.pae_cutoff) & \
-                        (distances[i] < self.distance_cutoff)
+                    valid_pairs = (
+                        (self.chain_res_map == chain2)
+                        & (self.pae_matrix[i] < self.pae_cutoff)
+                        & (distances[i] < self.distance_cutoff)
+                    )
                     if valid_pairs.any():
                         dist_unique_residues_chain1[chain1][chain2].add(i)
                         for j in np.where(valid_pairs)[0]:
@@ -468,8 +493,8 @@ class Ipsae():
                 ptm_matrix_d0dom = self.ptm_func(self.pae_matrix, d0dom)
 
                 # Valid pairs matrix
-                mask_chain2 = (self.chain_res_map == chain2)
-                mask_pae = (self.pae_matrix < self.pae_cutoff)
+                mask_chain2 = self.chain_res_map == chain2
+                mask_pae = self.pae_matrix < self.pae_cutoff
                 valid_pairs_matrix = mask_pae & mask_chain2[None, :]
 
                 # Per-residue d0 for IPSAE
@@ -482,16 +507,18 @@ class Ipsae():
 
                     valid_pairs = valid_pairs_matrix[i]
 
-                    ipsae_d0dom_byres[chain1][chain2][i] = ptm_matrix_d0dom[
-                        i, valid_pairs
-                    ].mean() if valid_pairs.any() else 0.0
+                    ipsae_d0dom_byres[chain1][chain2][i] = (
+                        ptm_matrix_d0dom[i, valid_pairs].mean()
+                        if valid_pairs.any()
+                        else 0.0
+                    )
 
                     ptm_row_d0res = self.ptm_func(
                         self.pae_matrix[i], d0res_byres_all[i]
                     )
-                    ipsae_d0res_byres[chain1][chain2][i] = ptm_row_d0res[
-                        valid_pairs
-                    ].mean() if valid_pairs.any() else 0.0
+                    ipsae_d0res_byres[chain1][chain2][i] = (
+                        ptm_row_d0res[valid_pairs].mean() if valid_pairs.any() else 0.0
+                    )
 
         # Compute per-chain-pair iPTM / IPSAE as maximum over residues
         for c1 in self.chain_ids:
@@ -524,7 +551,7 @@ class Ipsae():
             "dist_unique_residues_chain2": {
                 c1: {c2: len(res_set) for c2, res_set in inner.items()}
                 for c1, inner in dist_unique_residues_chain2.items()
-            }
+            },
         }
 
     def main(self, output_csv=None, verbose=True):
@@ -537,37 +564,40 @@ class Ipsae():
         ligand_interface_scores = self.compute_ligand_interface_scores()
         iptm_ipsae_scores = self.compute_iptm_ipsae(distances)
 
-        self.output_results(pdockq_scores,
-                            pdockq2_scores,
-                            ligand_interface_scores,
-                            iptm_ipsae_scores,
-                            verbose,
-                            output_csv)
+        self.output_results(
+            pdockq_scores,
+            pdockq2_scores,
+            ligand_interface_scores,
+            iptm_ipsae_scores,
+            verbose,
+            output_csv,
+        )
 
         return {
             "pdockq": pdockq_scores,
             "pdockq2": pdockq2_scores,
             "ligand_interface_scores": ligand_interface_scores,
-            "iptm_ipsae_scores": iptm_ipsae_scores
+            "iptm_ipsae_scores": iptm_ipsae_scores,
         }
 
-    def output_results(self,
-                       pdockq_scores,
-                       pdockq2_scores,
-                       lis_scores,
-                       ipsae_scores,
-                       verbose=True,
-                       output_csv=None):
-
+    def output_results(
+        self,
+        pdockq_scores,
+        pdockq2_scores,
+        lis_scores,
+        ipsae_scores,
+        verbose=True,
+        output_csv=None,
+    ):
         if not verbose and output_csv is None:
             return
 
         metric_dicts = {}
         if ipsae_scores:
-            metric_dicts["ipSAE"] = ipsae_scores['ipsae_d0res_asym']
-            metric_dicts["ipSAE_d0chn"] = ipsae_scores['ipsae_d0chn_asym']
-            metric_dicts["ipSAE_d0dom"] = ipsae_scores['ipsae_d0dom_asym']
-            metric_dicts["iPTM_d0chn"] = ipsae_scores['iptm_d0chn_asym']
+            metric_dicts["ipSAE"] = ipsae_scores["ipsae_d0res_asym"]
+            metric_dicts["ipSAE_d0chn"] = ipsae_scores["ipsae_d0chn_asym"]
+            metric_dicts["ipSAE_d0dom"] = ipsae_scores["ipsae_d0dom_asym"]
+            metric_dicts["iPTM_d0chn"] = ipsae_scores["iptm_d0chn_asym"]
         if pdockq_scores:
             metric_dicts["pDockQ"] = pdockq_scores
         if pdockq2_scores:
@@ -575,10 +605,10 @@ class Ipsae():
         if lis_scores:
             metric_dicts["LIS"] = lis_scores
         if ipsae_scores:
-            metric_dicts['nres1'] = ipsae_scores['unique_residues_chain1']
-            metric_dicts['nres2'] = ipsae_scores['unique_residues_chain2']
-            metric_dicts['dist1'] = ipsae_scores['dist_unique_residues_chain1']
-            metric_dicts['dist2'] = ipsae_scores['dist_unique_residues_chain2']
+            metric_dicts["nres1"] = ipsae_scores["unique_residues_chain1"]
+            metric_dicts["nres2"] = ipsae_scores["unique_residues_chain2"]
+            metric_dicts["dist1"] = ipsae_scores["dist_unique_residues_chain1"]
+            metric_dicts["dist2"] = ipsae_scores["dist_unique_residues_chain2"]
 
         rows = []
         chain_pairs = set()
@@ -622,27 +652,35 @@ def main():
     from Bio.PDB import MMCIFIO, PDBParser
 
     parser = argparse.ArgumentParser(
-        prog="ipsae",
-        description="Compute IPSAE metrics from structure and PAE file"
+        prog="ipsae", description="Compute IPSAE metrics from structure and PAE file"
     )
 
     parser.add_argument("input_model", help="Path to input structure (PDB/mmCIF)")
     parser.add_argument("pae_file", help="Path to PAE file (npz/npy/json)")
-    parser.add_argument("--pae_cutoff", type=float, default=10.0,
-                        help="PAE cutoff used in some scores (default: 10.0)")
-    parser.add_argument("--pae_format",
-                        choices=[
-                            "alphafold2", "alphafold3", "boltz",
-                            "chai", "colabfold", "protenix"
-                        ],
-                        default="alphafold3",
-                        help="Format of the PAE file (default: alphafold3)")
-    parser.add_argument("--distance_cutoff", type=float, default=10.0,
-                        help="Cβ distance cutoff in Ångström (default: 10.0)")
-    parser.add_argument("--quiet", "-q", action="store_true",
-                        help="Enable verbose logging/output")
-    parser.add_argument("--output", "-o", type=Path,
-                        help="Optional output CSV path for results")
+    parser.add_argument(
+        "--pae_cutoff",
+        type=float,
+        default=10.0,
+        help="PAE cutoff used in some scores (default: 10.0)",
+    )
+    parser.add_argument(
+        "--pae_format",
+        choices=["alphafold2", "alphafold3", "boltz", "chai", "colabfold", "protenix"],
+        default="alphafold3",
+        help="Format of the PAE file (default: alphafold3)",
+    )
+    parser.add_argument(
+        "--distance_cutoff",
+        type=float,
+        default=10.0,
+        help="Cβ distance cutoff in Ångström (default: 10.0)",
+    )
+    parser.add_argument(
+        "--quiet", "-q", action="store_true", help="Enable verbose logging/output"
+    )
+    parser.add_argument(
+        "--output", "-o", type=Path, help="Optional output CSV path for results"
+    )
 
     args = parser.parse_args()
 
@@ -662,7 +700,7 @@ def main():
         args.pae_file,
         args.pae_cutoff,
         args.pae_format,
-        args.distance_cutoff
+        args.distance_cutoff,
     )
 
     if args.quiet:

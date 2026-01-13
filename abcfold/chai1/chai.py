@@ -60,7 +60,6 @@ def run_inference_wrapper(
     device: str | None = None,
     low_memory: bool = True,
 ):
-
     result = run_inference(
         fasta_file=fasta_file,
         output_dir=output_dir,

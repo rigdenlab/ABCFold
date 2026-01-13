@@ -66,7 +66,6 @@ def plot_plddt(
     indicies_index = 0
 
     for method, cif_models in cif_models_dict.items():
-
         for cif_model in cif_models:
             model_index = int(cif_model.name.split("_")[-1])
             color_list = method_colours.get(method, colours)

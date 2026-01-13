@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 AF3_VERSION = "3.0.0"
 
 
-def check_af3_install(interactive: bool = True,
-                      sif_path: Union[str, Path, None] = None) -> None:
+def check_af3_install(
+    interactive: bool = True, sif_path: Union[str, Path, None] = None
+) -> None:
     """
     Check if Alphafold3 is installed by running the help command
 
@@ -52,8 +53,9 @@ https://github.com/google-deepmind/alphafold3 and follow install instructions"
             )
 
 
-def generate_test_command(interactive: bool = True,
-                          sif_path: Union[str, Path, None] = None) -> str:
+def generate_test_command(
+    interactive: bool = True, sif_path: Union[str, Path, None] = None
+) -> str:
     """
     Generate the Alphafold3 help command
 
@@ -72,7 +74,7 @@ def generate_test_command(interactive: bool = True,
 """
     else:
         return f"""
-    docker run {'-it' if interactive else ''} \
+    docker run {"-it" if interactive else ""} \
     alphafold3 \
     python run_alphafold.py \
     --help

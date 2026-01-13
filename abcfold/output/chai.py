@@ -4,8 +4,13 @@ from pathlib import Path
 from typing import Union
 
 from abcfold.chai1.af3_to_chai import ChaiFasta
-from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
-                                          FileTypes, NpyFile, NpzFile)
+from abcfold.output.file_handlers import (
+    CifFile,
+    ConfidenceJsonFile,
+    FileTypes,
+    NpyFile,
+    NpzFile,
+)
 from abcfold.output.utils import Af3Pae
 
 logger = logging.getLogger("logger")
@@ -93,8 +98,10 @@ class ChaiOutput:
         self.seeds = list(self.output.keys())
 
         self.pae_files = {
-            seed: [value["pae"] for value in self.output[seed].values()
-                   if "pae" in value] for seed in self.seeds
+            seed: [
+                value["pae"] for value in self.output[seed].values() if "pae" in value
+            ]
+            for seed in self.seeds
         }
         self.cif_files = {
             seed: [value["cif"] for value in self.output[seed].values()]

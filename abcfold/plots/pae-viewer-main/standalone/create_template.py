@@ -67,7 +67,6 @@ TEMPLATE = """
 
 
 def render_html(args, output_file):
-
     template = Template(TEMPLATE)
     # create a relative link between the current directory and the template
 

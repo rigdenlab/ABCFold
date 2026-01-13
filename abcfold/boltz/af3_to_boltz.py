@@ -92,7 +92,6 @@ class BoltzYaml:
                             sequence_dict["ligand"]
                         )
             if key == "bondedAtomPairs" and isinstance(value, list):
-
                 bonded_atom_string += self.bonded_atom_pairs_to_yaml(value)
                 if "constraints" not in self.yaml_string and bonded_atom_string:
                     self.yaml_string += self.add_non_indented_string("constraints")
@@ -104,9 +103,7 @@ class BoltzYaml:
         yaml_string = ""
         # counter = 0
         for pair in bonded_atom_pairs:
-
             if (pair[0][0] == pair[1][0]) and pair[0][1] not in self.__non_ligands:
-
                 if pair[0][0] not in self.__id_links:
                     continue
 
@@ -274,7 +271,6 @@ class BoltzYaml:
                 yaml_string += self.add_key_and_value("ccd", ligand_dict["ccdCodes"])
             elif isinstance(ligand_dict["ccdCodes"], list):
                 if linked_id is not None:
-
                     self.__add_linked_ids(linked_id, ligand_dict["id"])
 
                 yaml_string += self.add_key_and_value("ccd", ligand_dict["ccdCodes"][0])
@@ -288,7 +284,6 @@ class BoltzYaml:
                 )
 
         else:
-
             msg = "Ligand must have either a smiles or ccdCCodes"
             logger.critical(msg)
             raise ValueError()
@@ -388,7 +383,6 @@ class BoltzYaml:
             f.write(self.yaml_string)
 
     def find_next_id(self):
-
         if self.__id_char not in self.__ids:
             return self.__id_char
         while self.__id_char in self.__ids:

@@ -20,8 +20,7 @@ class MicromambaEnv:
             if candidate and os.path.exists(candidate):
                 return candidate
         raise RuntimeError(
-            "micromamba binary not found. "
-            "Ensure micromamba is installed and on PATH."
+            "micromamba binary not found. Ensure micromamba is installed and on PATH."
         )
 
     def get_installed_version(self, package: str) -> Optional[str]:
@@ -44,9 +43,11 @@ class MicromambaEnv:
                 [
                     self.micromamba,
                     "run",
-                    "-n", self.env_name,
+                    "-n",
+                    self.env_name,
                     "python",
-                    "-c", code,
+                    "-c",
+                    code,
                 ],
                 text=True,
             )
@@ -88,24 +89,31 @@ class MicromambaEnv:
     def create(self, *, python_version: str):
         if self.env_exists():
             return
-        self._run([
-            "create",
-            "-y",
-            "-n", self.env_name,
-            f"python={python_version}",
-        ])
+        self._run(
+            [
+                "create",
+                "-y",
+                "-n",
+                self.env_name,
+                f"python={python_version}",
+            ]
+        )
 
     def pip_install(self, packages: list[str]):
-        self._run([
-            "run",
-            "-n", self.env_name,
-            "pip", "install", *packages,
-        ])
+        self._run(
+            [
+                "run",
+                "-n",
+                self.env_name,
+                "pip",
+                "install",
+                *packages,
+            ]
+        )
 
-    def run(self,
-            command: list[str],
-            capture_output: bool = False,
-            quiet: bool = False) -> Optional[str]:
+    def run(
+        self, command: list[str], capture_output: bool = False, quiet: bool = False
+    ) -> Optional[str]:
         cmd = [self.micromamba, "run", "-n", self.env_name, *command]
 
         if capture_output or quiet:
@@ -135,7 +143,7 @@ class MicromambaEnv:
                         proc.returncode,
                         cmd,
                         output="".join(stdout_lines),
-                        stderr=stderr
+                        stderr=stderr,
                     )
 
             return "".join(stdout_lines) if capture_output else None
@@ -146,9 +154,12 @@ class MicromambaEnv:
             return None
 
     def remove(self):
-        self._run([
-            "remove",
-            "-n", self.env_name,
-            "--all",
-            "-y",
-        ])
+        self._run(
+            [
+                "remove",
+                "-n",
+                self.env_name,
+                "--all",
+                "-y",
+            ]
+        )

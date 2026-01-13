@@ -10,28 +10,44 @@ import webbrowser
 from pathlib import Path
 
 from abcfold.alphafold3.run_alphafold3 import run_alphafold3
-from abcfold.argparse_utils import (alphafold_argparse_util,
-                                    boltz_argparse_util, chai_argparse_util,
-                                    custom_template_argpase_util,
-                                    main_argpase_util, mmseqs2_argparse_util,
-                                    prediction_argparse_util,
-                                    protenix_argparse_util,
-                                    raise_argument_errors,
-                                    visuals_argparse_util)
-from abcfold.html.html_utils import (PORT, NoCacheHTTPRequestHandler,
-                                     get_all_cif_files, get_model_data,
-                                     get_model_sequence_data,
-                                     output_open_html_script, plots,
-                                     render_template)
+from abcfold.argparse_utils import (
+    alphafold_argparse_util,
+    boltz_argparse_util,
+    chai_argparse_util,
+    custom_template_argpase_util,
+    main_argpase_util,
+    mmseqs2_argparse_util,
+    prediction_argparse_util,
+    protenix_argparse_util,
+    raise_argument_errors,
+    visuals_argparse_util,
+)
+from abcfold.html.html_utils import (
+    PORT,
+    NoCacheHTTPRequestHandler,
+    get_all_cif_files,
+    get_model_data,
+    get_model_sequence_data,
+    output_open_html_script,
+    plots,
+    render_template,
+)
 from abcfold.output.alphafold3 import AlphafoldOutput
 from abcfold.output.boltz import BoltzOutput
 from abcfold.output.chai import ChaiOutput
 from abcfold.output.file_handlers import superpose_models
 from abcfold.output.protenix import ProtenixOutput
-from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
-                                  make_dummy_m8_file)
-from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
-                                              make_dummy_af3_db, setup_logger)
+from abcfold.output.utils import (
+    get_gap_indicies,
+    insert_none_by_minus_one,
+    make_dummy_m8_file,
+)
+from abcfold.scripts.abc_script_utils import (
+    check_input_json,
+    make_dir,
+    make_dummy_af3_db,
+    setup_logger,
+)
 from abcfold.scripts.add_custom_template import add_custom_template
 from abcfold.scripts.add_mmseqs_msa import add_msa_to_json
 
@@ -130,7 +146,7 @@ def run(args, config, defaults, config_file):
                 args.custom_template,
                 args.custom_template_chain,
                 output_json=run_json,
-                to_file=True
+                to_file=True,
             )
 
         successful_runs = []
@@ -153,7 +169,7 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 sif_path=af3_sif,
-                save_distogram=args.save_distogram
+                save_distogram=args.save_distogram,
             )
 
             if af3_success:
@@ -301,7 +317,7 @@ def run(args, config, defaults, config_file):
                             plddt,
                             pae,
                             score_file,
-                            args.output_dir
+                            args.output_dir,
                         )
                         boltz_models["models"].append(model_data)
 
@@ -362,10 +378,10 @@ def run(args, config, defaults, config_file):
                             protenix_models["models"].append(model_data)
 
         combined_models = (
-            alphafold_models["models"] +
-            boltz_models["models"] +
-            chai_models["models"] +
-            protenix_models["models"]
+            alphafold_models["models"]
+            + boltz_models["models"]
+            + chai_models["models"]
+            + protenix_models["models"]
         )
 
         # Make the output directory for the models
