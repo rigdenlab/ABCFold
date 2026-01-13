@@ -1,8 +1,11 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 
+# Build artifacts
 *.egg-info/
 build/
 
+# Distribution / packaging
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
@@ -10,10 +13,14 @@ build/
 .coverage
 .nox/
 
+# IDEs and editors
 .vscode/
-
 .history/
 
 # pip packages
 dist/
 *.egg-info/
+
+
+# uv env
+uv.lock
