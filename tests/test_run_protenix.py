@@ -17,6 +17,7 @@ def test_run_protenix(test_data):
             run_protenix(
                 test_data.test_inputA_json,
                 temp_dir,
+                config=test_data.config_dict,
                 save_input=True,
                 test=True,
             )
@@ -39,6 +40,7 @@ def test_generate_protenix_command(test_data):
         cmd = generate_protenix_command(
             input_json=protenix_json_path,
             output_dir=output_dir,
+            config=test_data.config_dict,
             number_of_models=5,
             num_recycles=3,
             seed=42

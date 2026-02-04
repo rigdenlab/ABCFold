@@ -70,8 +70,14 @@ def run(args, config, defaults, config_file):
     make_dir(args.output_dir.joinpath(PLOTS_DIR))
 
     updated_config = False
-    if args.model_params is not None and args.model_params != defaults["model_params"]:
-        config.set("Databases", "model_params", args.model_params)
+    if args.model_params is not None and args.model_params != defaults["af3_weights"]:
+        config.set("Weights", "af3_weights", args.model_params)
+        updated_config = True
+    if (
+        args.inference_ckpt_path is not None and
+        args.inference_ckpt_path != defaults["openfold_input_ckpt"]
+    ):
+        config.set("Weights", "openfold_input_ckpt", args.inference_ckpt_path)
         updated_config = True
     if args.database_dir is not None and args.database_dir != defaults["database_dir"]:
         config.set("Databases", "database_dir", args.database_dir)
@@ -83,6 +89,10 @@ def run(args, config, defaults, config_file):
     if updated_config:
         with open(config_file, "w") as f:
             config.write(f)
+
+    rt_config = {}
+    for section in config.sections():
+        rt_config[section] = dict(config.items(section))
 
     args = raise_argument_errors(args)
     # Ensure that the input json file is valid
@@ -155,7 +165,8 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 sif_path=af3_sif,
-                save_distogram=args.save_distogram
+                save_distogram=args.save_distogram,
+                config=rt_config
             )
 
             if af3_success:
@@ -181,6 +192,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                config=rt_config
             )
 
             if boltz_success:
@@ -205,11 +217,14 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 template_hits_path=template_hits_path,
+                config=rt_config
             )
 
             if chai_success:
                 chai_output_dirs = list(args.output_dir.glob("chai_output*"))
-                co = ChaiOutput(chai_output_dirs, input_params, name, args.save_input)
+                co = ChaiOutput(
+                    chai_output_dirs, input_params, name, rt_config, args.save_input
+                    )
                 outputs.append(co)
             successful_runs.append(chai_success)
 
@@ -222,6 +237,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                config=rt_config
             )
 
             if protenix_success:
@@ -245,7 +261,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 template_hits_path=template_hits_path,
-                input_ckpt=args.inference_ckpt_path
+                config=rt_config
             )
 
             if openfold_success:
@@ -542,8 +558,8 @@ def main():
 
     if config_file.exists():
         config.read(str(config_file))
-        defaults.update(dict(config.items("Databases")))
-        defaults.update(dict(config.items("Sif_paths")))
+        for section in config.sections():
+            defaults.update(dict(config.items(section)))
 
     parser = main_argpase_util(parser)
     parser = alphafold_argparse_util(parser)

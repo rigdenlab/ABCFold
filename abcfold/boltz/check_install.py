@@ -4,11 +4,11 @@ from abcfold.backend_envs import MicromambaEnv
 
 logger = logging.getLogger("logger")
 
-BOLTZ_VERSION = "2.2.1"
-BOLTZ_ENV = "abcfold-boltz-py311"
 
+def ensure_boltz_env(config: dict) -> MicromambaEnv:
+    BOLTZ_ENV = config['boltz_env']
+    BOLTZ_VERSION = config['boltz_version']
 
-def ensure_boltz_env():
     env = MicromambaEnv(BOLTZ_ENV)
 
     # 1. Ensure env exists

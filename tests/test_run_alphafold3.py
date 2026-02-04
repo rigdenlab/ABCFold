@@ -11,12 +11,14 @@ from abcfold.scripts.abc_script_utils import make_dummy_af3_db
 def test_generate_af3_command(test_data):
     input_json = Path(test_data.test_inputA_json)
     output_dir = Path("/road/to/nowhere")
+    config_dict = test_data.config_dict
     model_params = Path("/road/to/nowhere")
     database_dir = Path("/road/to/nowhere")
 
     cmd = generate_af3_cmd(
         input_json=input_json,
         output_dir=output_dir,
+        config=config_dict,
         model_params=model_params,
         database_dir=database_dir,
         sif_path=None,

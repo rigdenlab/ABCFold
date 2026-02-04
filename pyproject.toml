@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abcfold"
-version = "1.1.1"
+version = "1.1.2"
 description = "Tool to run & compare AlphaFold3, Boltz, Chai-1, OpenFold3 and Protenix"
 readme = "README.md"
 license = { text = "BSD License" }
@@ -73,6 +73,7 @@ abcfold = "abcfold.abcfold:main"
 mmseqs2msa = "abcfold.scripts.add_mmseqs_msa:main"
 custom_templates = "abcfold.scripts.add_custom_template:main"
 ipsae = "abcfold.scripts.ipsae:main"
+abc_config = "abcfold.scripts.abc_config:main"
 
 [tool.flake8]
 max-line-length = 88

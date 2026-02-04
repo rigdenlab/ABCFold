@@ -13,6 +13,7 @@ logger = logging.getLogger("logger")
 def run_boltz(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
@@ -24,10 +25,12 @@ def run_boltz(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         save_input (bool): If True, save the input yaml file and MSA to the output
         directory
         test (bool): If True, run the test command
         number_of_models (int): Number of models to generate
+        num_recycles (int): Number of recycles to use
 
     Returns:
         Bool: True if the Boltz run was successful, False otherwise
@@ -41,7 +44,7 @@ def run_boltz(
     output_dir = Path(output_dir)
 
     logger.debug("Checking if boltz is installed")
-    env = ensure_boltz_env()
+    env = ensure_boltz_env(config=config)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
@@ -61,6 +64,7 @@ def run_boltz(
                 generate_boltz_command(
                     out_file,
                     output_dir,
+                    config,
                     number_of_models,
                     num_recycles,
                     seed=seed,
@@ -73,7 +77,7 @@ def run_boltz(
                 stdout = env.run(cmd, capture_output=True)
 
                 # Check for out-of-memory warnings
-                if "WARNING: ran out of memory" in stdout:
+                if stdout and "WARNING: ran out of memory" in stdout:
                     logger.error("Boltz ran out of memory")
                     return False
 
@@ -98,6 +102,7 @@ def run_boltz(
 def generate_boltz_command(
     input_yaml: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     number_of_models: int = 5,
     num_recycles: int = 10,
     seed: int = 42,
@@ -108,12 +113,20 @@ def generate_boltz_command(
     Args:
         input_yaml (Union[str, Path]): Path to the input YAML file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         number_of_models (int): Number of models to generate
         seed (int): Seed for the random number generator
 
     Returns:
         list: The Boltz command
     """
+
+    boltz_weight_dir = config['boltz_weights']
+    if boltz_weight_dir is not None and boltz_weight_dir != "None":
+        cache_path = boltz_weight_dir
+    else:
+        cache_path = str(Path.home().joinpath(".boltz"))
+
     return [
         "boltz",
         "predict",
@@ -129,6 +142,8 @@ def generate_boltz_command(
         str(num_recycles),
         "--seed",
         str(seed),
+        "--cache_path",
+        str(cache_path),
     ]
 
 

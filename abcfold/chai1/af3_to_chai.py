@@ -22,12 +22,17 @@ ATOMS_NAMES = sorted(list(VANDERWALLS.keys()), key=len, reverse=True)
 
 class ChaiFasta:
 
-    def __init__(self, working_dir: Union[str, Path], create_files: bool = True):
+    def __init__(self,
+                 working_dir: Union[str, Path],
+                 config: dict,
+                 create_files: bool = True):
         """
         Object to convert an AlphaFold3 json to a fasta file compatible with CHAI-1
 
         Args:
             working_dir (Union[str, Path]): working directory to store the fasta file
+            config (dict): Configuration dictionary
+            create_files (bool): If True, create the fasta and constraints files
 
         Attributes:
             working_dir (Path): working directory to store the fasta file
@@ -40,6 +45,7 @@ class ChaiFasta:
         self.working_dir = Path(working_dir)
         self.fasta = Path(working_dir) / "chai1.fasta"
         self.constraints = Path(working_dir) / "chai1_constraints.csv"
+        self.config = config
         self.msa_file: Optional[Union[str, Path]] = None
         self.seeds: list = [42]
         self.__ids: List[Union[str, int]] = []
@@ -125,7 +131,7 @@ check back for updates"
 
     def msa_to_file(self, msa: str, file_path: Union[str, Path]):
         from abcfold.chai1.check_install import ensure_chai_env
-        chai_env = ensure_chai_env()
+        chai_env = ensure_chai_env(self.config)
         file_path = Path(file_path).absolute()
 
         code = textwrap.dedent(f"""

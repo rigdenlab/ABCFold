@@ -2,7 +2,7 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 from abcfold.openfold3.af3_to_openfold3 import OpenfoldJson
 from abcfold.openfold3.check_install import (ensure_openfold_checkpoint,
@@ -14,11 +14,11 @@ logger = logging.getLogger("logger")
 def run_openfold(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
     template_hits_path: Path | None = None,
-    input_ckpt: Optional[Union[str, Path]] = None,
 ) -> bool:
     """
     Run OpenFold 3 using the input JSON file
@@ -26,12 +26,12 @@ def run_openfold(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         save_input (bool): If True, save the input JSON file and MSA to the output
         directory
         test (bool): If True, run the test command
         number_of_models (int): Number of models to generate
         template_hits_path (Path): Path to the template hits m8 file
-        input_ckpt (Union[str, Path]): Path to user input checkpoint file
 
     Returns:
         Bool: True if the OpenFold 3 run was successful, False otherwise
@@ -45,10 +45,17 @@ def run_openfold(
     output_dir = Path(output_dir)
 
     logger.debug("Checking if openfold is installed")
-    env = ensure_openfold_env()
+    env = ensure_openfold_env(config=config)
 
-    default_ckpt = Path.home() / ".openfold3" / "of3_ft3_v1.pt"
-    if input_ckpt is None:
+    openfold_weight_dir = config['openfold_weights']
+    if openfold_weight_dir is not None and openfold_weight_dir != "None":
+        cache_path = openfold_weight_dir
+    else:
+        cache_path = Path.home().joinpath(".openfold3")
+
+    default_ckpt = cache_path.joinpath("of3_ft3_v1.pt")
+    input_ckpt = config["openfold_input_ckpt"]
+    if input_ckpt is not None and input_ckpt != "None":
         if not default_ckpt.exists():
             logger.info(
                 "No Checkpoint file found. "
@@ -60,6 +67,11 @@ def run_openfold(
     elif Path(input_ckpt).exists():
         logger.info(f"Using user provided OpenFold3 checkpoint: {input_ckpt}")
         openfold_ckpt = Path(input_ckpt)
+    else:
+        logger.error(
+            "No valid OpenFold3 checkpoint path provided."
+        )
+        return False
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)

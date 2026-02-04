@@ -15,10 +15,11 @@ def run_alphafold3(
     model_params: Union[str, Path],
     database_dir: Union[str, Path],
     sif_path: Union[str, Path, None],
+    config: dict,
     interactive: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
-    save_distogram: bool = False
+    save_distogram: bool = False,
 ) -> bool:
     """
     Run Alphafold3 using the input JSON file
@@ -29,8 +30,11 @@ def run_alphafold3(
         model_params (Union[str, Path]): Path to the model parameters
         database_dir (Union[str, Path]): Path to the database directory
         sif_path (Union[str, Path, None]): Path to a Singularity image file
+        config (dict): Configuration dictionary
         interactive (bool): If True, run the docker container in interactive mode
         number_of_models (int): Number of models to generate
+        num_recycles (int): Number of recycles to use
+        save_distogram (bool): If True, save the distogram output
 
     Returns:
         Bool: True if the Alphafold3 run was successful, False otherwise
@@ -43,7 +47,7 @@ def run_alphafold3(
     input_json = Path(input_json)
     output_dir = Path(output_dir)
 
-    check_af3_install(interactive=False, sif_path=sif_path)
+    check_af3_install(config=config, interactive=False, sif_path=sif_path)
 
     cmd = generate_af3_cmd(
         input_json=input_json,
@@ -51,10 +55,11 @@ def run_alphafold3(
         model_params=model_params,
         database_dir=database_dir,
         sif_path=sif_path,
+        config=config,
         interactive=interactive,
         number_of_models=number_of_models,
         num_recycles=num_recycles,
-        save_distogram=save_distogram
+        save_distogram=save_distogram,
     )
 
     logger.info("Running Alphafold3")
@@ -81,6 +86,7 @@ def generate_af3_cmd(
     model_params: Union[str, Path],
     database_dir: Union[str, Path],
     sif_path: Union[str, Path, None],
+    config: dict,
     number_of_models: int = 10,
     num_recycles: int = 5,
     interactive: bool = False,
@@ -95,8 +101,11 @@ def generate_af3_cmd(
         model_params (Union[str, Path]): Path to the model parameters
         database_dir (Union[str, Path]): Path to the database directory
         sif_path (Union[str, Path, None]): Path to a Singularity image file
+        config (dict): Configuration dictionary
         number_of_models (int): Number of models to generate
         interactive (bool): If True, run the docker container in interactive mode
+        num_recycles (int): Number of recycles to use
+        save_distogram (bool): If True, save the distogram output
 
     Returns:
         str: The Alphafold3 command
@@ -131,7 +140,7 @@ def generate_af3_cmd(
         --volume {model_params}:/root/models \
         --volume {database_dir}:/root/public_databases \
         --gpus all \
-        alphafold3 \
+        {config["af3_docker_env"]} \
         python run_alphafold.py \
         --json_path=/root/af_input/{input_json.name} \
         --model_dir=/root/models \

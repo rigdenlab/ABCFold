@@ -14,6 +14,7 @@ logger = logging.getLogger("logger")
 def run_protenix(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
@@ -25,10 +26,12 @@ def run_protenix(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         save_input (bool): If True, save the input yaml file and MSA to the output
         directory
         test (bool): If True, run the test command
         number_of_models (int): Number of models to generate
+        num_recycles (int): Number of recycles
 
     Returns:
         Bool: True if the Protenix run was successful, False otherwise
@@ -42,7 +45,7 @@ def run_protenix(
     output_dir = Path(output_dir)
 
     logger.debug("Checking if protenix is installed")
-    env = ensure_protenix_env()
+    env = ensure_protenix_env(config=config)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
@@ -109,6 +112,7 @@ def generate_protenix_command(
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of recycles
         seed (int): Random seed
+        config (dict): Configuration dictionary
 
     Returns:
         list: The Protenix command

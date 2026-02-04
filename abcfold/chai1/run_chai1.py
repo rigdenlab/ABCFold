@@ -16,6 +16,7 @@ os.environ["DISABLE_PANDERA_IMPORT_WARNING"] = "True"
 def run_chai(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
@@ -29,6 +30,7 @@ def run_chai(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         save_input (bool): If True, save the input fasta file and MSA to the output
         directory
         test (bool): If True, run the test command
@@ -45,7 +47,7 @@ def run_chai(
     output_dir = Path(output_dir)
 
     logger.debug("Checking if Chai-1 is installed")
-    env = ensure_chai_env()
+    env = ensure_chai_env(config=config)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
@@ -54,7 +56,7 @@ def run_chai(
             working_dir = output_dir
             working_dir.mkdir(parents=True, exist_ok=True)
 
-        chai_fasta = ChaiFasta(working_dir)
+        chai_fasta = ChaiFasta(working_dir, config=config)
         chai_fasta.json_to_fasta(input_json)
 
         out_fasta = chai_fasta.fasta
@@ -71,6 +73,7 @@ def run_chai(
                     msa_dir,
                     out_constraints,
                     chai_output_dir,
+                    config,
                     number_of_models,
                     num_recycles=num_recycles,
                     seed=seed,
@@ -107,6 +110,7 @@ def generate_chai_command(
     msa_dir: Union[str, Path],
     input_constraints: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     number_of_models: int = 5,
     num_recycles: int = 10,
     seed: int = 42,
@@ -121,6 +125,7 @@ def generate_chai_command(
         msa_dir (Union[str, Path]): Path to the MSA directory
         input_constraints (Union[str, Path]): Path to the input constraints file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of trunk recycles
         seed (int): Seed for the random number generator
@@ -132,8 +137,20 @@ def generate_chai_command(
 
     """
 
+    chai_weight_dir = config['chai_weights']
+    if chai_weight_dir is not None and chai_weight_dir != "None":
+        cache_path = chai_weight_dir
+    else:
+        cache_path = str(Path.home().joinpath(".chai"))
+
     chai_exe = Path(__file__).parent / "chai.py"
-    cmd = ["python", str(chai_exe), "fold", str(input_fasta)]
+    cmd = [
+        f"CHAI_DOWNLOADS_DIR={cache_path}",
+        "python",
+        str(chai_exe),
+        "fold",
+        str(input_fasta)
+    ]
 
     if Path(msa_dir).exists():
         cmd += ["--msa-directory", str(msa_dir)]
@@ -174,10 +191,8 @@ def generate_chai_test_command() -> list:
     Returns:
         list: The Chai-1 test command
     """
-    chai_exe = Path(__file__).parent / "chai.py"
     return [
-        "python",
-        chai_exe,
+        "chai-lab",
         "fold",
         "--help",
     ]

@@ -17,6 +17,7 @@ class ChaiOutput:
         chai_output_dirs: list[Union[str, Path]],
         input_params: dict,
         name: str,
+        config: dict,
         save_input: bool = False,
     ):
         """
@@ -28,6 +29,7 @@ class ChaiOutput:
             input_params (dict): Dictionary containing the input parameters used for the
             Chai-1 run
             name (str): Name given to the Chai-1 run
+            config (dict): Configuration dictionary
             save_input (bool): If True, Chai-1 was run with the save_input flag
 
         Attributes:
@@ -61,6 +63,7 @@ class ChaiOutput:
         self.input_params = input_params
         self.output_dirs = [Path(x) for x in chai_output_dirs]
         self.name = name
+        self.config = config
         self.save_input = save_input
 
         parent_dir = self.output_dirs[0].parent
@@ -230,7 +233,7 @@ class ChaiOutput:
 
         """
 
-        ch = ChaiFasta(self.output_dirs[0], create_files=False)
+        ch = ChaiFasta(self.output_dirs[0], self.config, create_files=False)
         ch.json_to_fasta(self.input_params)
 
         return ch
