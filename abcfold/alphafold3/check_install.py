@@ -24,7 +24,7 @@ def check_af3_install(config: dict,
 
     """
     logger.debug("Checking if Alphafold3 is installed")
-    AF3_VERSION = config["af3_version"]
+    AF3_VERSION = config['Versions']["af3_version"]
     cmd = generate_test_command(config, interactive, sif_path)
     with subprocess.Popen(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -79,7 +79,7 @@ def generate_test_command(config: dict,
     else:
         return f"""
     docker run {'-it' if interactive else ''} \
-    {config["af3_docker_env"]} \
+    {config['Environments']["af3_docker_env"]} \
     python run_alphafold.py \
     --help
 """
@@ -101,7 +101,7 @@ def generate_version_command(
     else:
         return f"""
     docker run \
-    {config["af3_docker_env"]} \
+    {config['Environments']["af3_docker_env"]} \
     python -c \
     'from alphafold3.version import __version__ ; print(__version__)'
 """

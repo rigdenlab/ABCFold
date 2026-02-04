@@ -121,7 +121,7 @@ def generate_boltz_command(
         list: The Boltz command
     """
 
-    boltz_weight_dir = config['boltz_weights']
+    boltz_weight_dir = config['Weights']['boltz_weights']
     if boltz_weight_dir is not None and boltz_weight_dir != "None":
         cache_path = boltz_weight_dir
     else:

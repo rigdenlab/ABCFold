@@ -140,7 +140,7 @@ def generate_af3_cmd(
         --volume {model_params}:/root/models \
         --volume {database_dir}:/root/public_databases \
         --gpus all \
-        {config["af3_docker_env"]} \
+        {config['Environments']["af3_docker_env"]} \
         python run_alphafold.py \
         --json_path=/root/af_input/{input_json.name} \
         --model_dir=/root/models \

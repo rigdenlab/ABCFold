@@ -44,8 +44,8 @@ def ensure_openfold_checkpoint(target_path: Path) -> Path:
 
 
 def ensure_openfold_env(config: dict) -> MicromambaEnv:
-    OPENFOLD_ENV = config['openfold_env']
-    OPENFOLD_VERSION = config['openfold_version']
+    OPENFOLD_ENV = config['Environments']['openfold_env']
+    OPENFOLD_VERSION = config['Versions']['openfold_version']
 
     env = MicromambaEnv(OPENFOLD_ENV)
 

@@ -6,8 +6,8 @@ logger = logging.getLogger("logger")
 
 
 def ensure_boltz_env(config: dict) -> MicromambaEnv:
-    BOLTZ_ENV = config['boltz_env']
-    BOLTZ_VERSION = config['boltz_version']
+    BOLTZ_ENV = config['Environments']['boltz_env']
+    BOLTZ_VERSION = config['Versions']['boltz_version']
 
     env = MicromambaEnv(BOLTZ_ENV)
 

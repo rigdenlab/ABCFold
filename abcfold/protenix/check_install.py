@@ -6,8 +6,8 @@ logger = logging.getLogger("logger")
 
 
 def ensure_protenix_env(config: dict) -> MicromambaEnv:
-    PROTENIX_ENV = config['protenix_env']
-    PROTENIX_VERSION = config['protenix_version']
+    PROTENIX_ENV = config['Environments']['protenix_env']
+    PROTENIX_VERSION = config['Versions']['protenix_version']
 
     env = MicromambaEnv(PROTENIX_ENV)
 
