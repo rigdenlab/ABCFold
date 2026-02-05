@@ -66,6 +66,7 @@ def run_protenix(
                 generate_protenix_command(
                     out_file,
                     protenix_out_dir,
+                    config,
                     number_of_models,
                     num_recycles,
                     seed=seed,
@@ -99,6 +100,7 @@ def run_protenix(
 def generate_protenix_command(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     number_of_models: int,
     num_recycles: int,
     seed: int,
@@ -109,6 +111,7 @@ def generate_protenix_command(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of recycles
         seed (int): Random seed
@@ -134,6 +137,8 @@ def generate_protenix_command(
         "python",
         "-m",
         "runner.inference",
+        "--model_name",
+        str(config["protenix_model"]),
         "--input_json_path",
         str(input_json),
         "--dump_dir",

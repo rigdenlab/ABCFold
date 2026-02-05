@@ -40,12 +40,15 @@ def test_generate_protenix_command(test_data):
         cmd = generate_protenix_command(
             input_json=protenix_json_path,
             output_dir=output_dir,
+            config=test_data.config_dict,
             number_of_models=5,
             num_recycles=3,
             seed=42
         )
 
         assert "runner.inference" in cmd
+        assert "--model_name" in cmd
+        assert str(test_data.config_dict["protenix_model"]) in cmd
         assert "--input_json_path" in cmd
         assert protenix_json_path.as_posix() in cmd
         assert "--dump_dir" in cmd

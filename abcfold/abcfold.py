@@ -558,11 +558,8 @@ def main():
 
     if config_file.exists():
         config.read(str(config_file))
-        defaults.update(dict(config.items("Databases")))
-        defaults.update(dict(config.items("Sif_paths")))
-        defaults.update(dict(config.items("Weights")))
-        defaults.update(dict(config.items("Environments")))
-        defaults.update(dict(config.items("Versions")))
+        for section in config.sections():
+            defaults.update(dict(config.items(section)))
 
     parser = main_argpase_util(parser)
     parser = alphafold_argparse_util(parser)
