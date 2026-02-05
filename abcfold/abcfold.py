@@ -92,7 +92,7 @@ def run(args, config, defaults, config_file):
 
     rt_config = {}
     for section in config.sections():
-        rt_config[section] = dict(config.items(section))
+        rt_config.update(dict(config.items(section)))
 
     args = raise_argument_errors(args)
     # Ensure that the input json file is valid

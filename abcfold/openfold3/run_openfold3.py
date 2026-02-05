@@ -47,14 +47,14 @@ def run_openfold(
     logger.debug("Checking if openfold is installed")
     env = ensure_openfold_env(config=config)
 
-    openfold_weight_dir = config['Weights']['openfold_weights']
+    openfold_weight_dir = config['openfold_weights']
     if openfold_weight_dir is not None and openfold_weight_dir != "None":
         cache_path = openfold_weight_dir
     else:
         cache_path = Path.home().joinpath(".openfold3")
 
     default_ckpt = cache_path.joinpath("of3_ft3_v1.pt")
-    input_ckpt = config['Weights']['openfold_input_ckpt']
+    input_ckpt = config['openfold_input_ckpt']
     if input_ckpt is not None and input_ckpt != "None":
         if not default_ckpt.exists():
             logger.info(

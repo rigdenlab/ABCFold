@@ -137,7 +137,7 @@ def generate_chai_command(
 
     """
 
-    chai_weight_dir = config['Weights']['chai_weights']
+    chai_weight_dir = config['chai_weights']
     if chai_weight_dir is not None and chai_weight_dir != "None":
         cache_path = chai_weight_dir
     else:

@@ -10,8 +10,8 @@ PANDERA_VERSION = "0.24.0"
 
 
 def ensure_chai_env(config: dict) -> MicromambaEnv:
-    CHAI_ENV = config['Environments']['chai_env']
-    CHAI_VERSION = config['Versions']['chai_version']
+    CHAI_ENV = config['chai_env']
+    CHAI_VERSION = config['chai_version']
 
     env = MicromambaEnv(CHAI_ENV)
 
