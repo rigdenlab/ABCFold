@@ -73,8 +73,6 @@ def ensure_openfold_env(config: dict) -> MicromambaEnv:
             "cuequivariance_ops_torch-cu12",
             "--no-cache-dir",
         ])
-        # Setup databases
-        env.run(["setup_openfold"])
     else:
         logger.info("openfold3 is already up-to-date (%s)", OPENFOLD_ENV)
 

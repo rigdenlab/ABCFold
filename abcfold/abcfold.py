@@ -73,12 +73,6 @@ def run(args, config, defaults, config_file):
     if args.model_params is not None and args.model_params != defaults["af3_weights"]:
         config.set("Weights", "af3_weights", args.model_params)
         updated_config = True
-    if (
-        args.inference_ckpt_path is not None and
-        args.inference_ckpt_path != defaults["openfold_input_ckpt"]
-    ):
-        config.set("Weights", "openfold_input_ckpt", args.inference_ckpt_path)
-        updated_config = True
     if args.database_dir is not None and args.database_dir != defaults["database_dir"]:
         config.set("Databases", "database_dir", args.database_dir)
         updated_config = True
@@ -261,6 +255,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 template_hits_path=template_hits_path,
+                input_ckpt=args.inference_ckpt_path,
                 config=rt_config
             )
 
