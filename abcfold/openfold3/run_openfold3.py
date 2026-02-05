@@ -51,7 +51,7 @@ def run_openfold(
 
     openfold_weight_dir = config['openfold_weights']
     if openfold_weight_dir is not None and openfold_weight_dir != "None":
-        cache_path = openfold_weight_dir
+        cache_path = Path(openfold_weight_dir)
     else:
         cache_path = Path.home().joinpath(".openfold3")
 

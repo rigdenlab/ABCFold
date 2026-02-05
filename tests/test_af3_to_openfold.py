@@ -269,7 +269,7 @@ def test_openfold_write_yaml(test_data):
         assert yaml_string[7] == "      memory:"
         assert yaml_string[8] == "        eval:"
         assert yaml_string[9] == "          use_cueq_triangle_kernels: true"
-        assert yaml_string[10] == "          use_deepspeed_evo_attention: true"
+        assert yaml_string[10] == "          use_deepspeed_evo_attention: false"
         assert yaml_string[11] == "experiment_settings:"
         assert yaml_string[12] == "  mode: predict"
         assert yaml_string[13] == "  seeds: [1]"

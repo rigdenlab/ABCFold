@@ -70,8 +70,8 @@ def run(args, config, defaults, config_file):
     make_dir(args.output_dir.joinpath(PLOTS_DIR))
 
     updated_config = False
-    if args.model_params is not None and args.model_params != defaults["af3_weights"]:
-        config.set("Weights", "af3_weights", args.model_params)
+    if args.model_params is not None and args.model_params != defaults["model_params"]:
+        config.set("Weights", "model_params", args.model_params)
         updated_config = True
     if args.database_dir is not None and args.database_dir != defaults["database_dir"]:
         config.set("Databases", "database_dir", args.database_dir)
