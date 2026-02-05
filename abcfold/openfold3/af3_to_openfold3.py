@@ -242,7 +242,7 @@ class OpenfoldJson:
             "      memory:",
             "        eval:",
             "          use_cueq_triangle_kernels: true",
-            "          use_deepspeed_evo_attention: true",
+            "          use_deepspeed_evo_attention: false",
             "experiment_settings:",
             "  mode: predict",
             f"  seeds: {seeds_str}",
