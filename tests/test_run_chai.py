@@ -27,7 +27,6 @@ def test_generate_chai_command(test_data):
             msa_dir=msa_dir,
             input_constraints=constraints,
             output_dir=output_dir,
-            config=test_data.config_dict,
         )
 
     assert cmd[1].endswith("chai.py")

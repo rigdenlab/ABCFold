@@ -73,7 +73,6 @@ def run_chai(
                     msa_dir,
                     out_constraints,
                     chai_output_dir,
-                    config,
                     number_of_models,
                     num_recycles=num_recycles,
                     seed=seed,
@@ -110,7 +109,6 @@ def generate_chai_command(
     msa_dir: Union[str, Path],
     input_constraints: Union[str, Path],
     output_dir: Union[str, Path],
-    config: dict,
     number_of_models: int = 5,
     num_recycles: int = 10,
     seed: int = 42,
@@ -125,7 +123,6 @@ def generate_chai_command(
         msa_dir (Union[str, Path]): Path to the MSA directory
         input_constraints (Union[str, Path]): Path to the input constraints file
         output_dir (Union[str, Path]): Path to the output directory
-        config (dict): Configuration dictionary
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of trunk recycles
         seed (int): Seed for the random number generator
@@ -137,15 +134,8 @@ def generate_chai_command(
 
     """
 
-    chai_weight_dir = config['chai_weights']
-    if chai_weight_dir is not None and chai_weight_dir != "None":
-        cache_path = chai_weight_dir
-    else:
-        cache_path = str(Path.home().joinpath(".chai"))
-
     chai_exe = Path(__file__).parent / "chai.py"
     cmd = [
-        f"CHAI_DOWNLOADS_DIR={cache_path}",
         "python",
         str(chai_exe),
         "fold",
