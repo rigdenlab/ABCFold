@@ -104,35 +104,34 @@ class BoltzYaml:
         yaml_string = ""
         # counter = 0
         for pair in bonded_atom_pairs:
-
-            if (pair[0][0] == pair[1][0]) and pair[0][1] not in self.__non_ligands:
-
-                if pair[0][0] not in self.__id_links:
+            atom1, atom2 = pair  # each atom is [chain_id, residue_number, atom_name]
+            if (atom1[0] == atom2[0]) and atom1[1] not in self.__non_ligands:
+                if atom1[0] not in self.__id_links:
                     continue
 
                 # I'm sorry
-                if pair[0][0] not in self.__id_buffer:
-                    self.__id_buffer[pair[0][0]] = 0
+                if atom1[0] not in self.__id_buffer:
+                    self.__id_buffer[atom1[0]] = 0
                 else:
-                    self.__id_buffer[pair[0][0]] += 1
+                    self.__id_buffer[atom1[0]] += 1
 
-                if self.__id_buffer[pair[0][0]] == 0:
-                    first = pair[0][0]
-                    second = self.__id_links[pair[0][0]][0]
+                if self.__id_buffer[atom1[0]] == 0:
+                    first = atom1[0]
+                    second = self.__id_links[atom1[0]][0]
                 else:
                     first, second = (
-                        self.__id_links[pair[0][0]][self.__id_buffer[pair[0][0]] - 1],
-                        self.__id_links[pair[0][0]][self.__id_buffer[pair[0][0]]],
+                        self.__id_links[atom1[0]][self.__id_buffer[atom1[0]] - 1],
+                        self.__id_links[atom1[0]][self.__id_buffer[atom1[0]]],
                     )
-                if pair[0][1] < pair[1][1]:
-                    pair[0] = [first, 1, pair[0][2]]
-                    pair[1] = [second, 1, pair[1][2]]
+                if atom1[1] < atom2[1]:
+                    atom1 = [first, 1, atom1[2]]
+                    atom2 = [second, 1, atom2[2]]
                 else:
-                    pair[0] = [first, 1, pair[0][2]]
-                    pair[1] = [second, 2, pair[1][2]]
+                    atom1 = [first, 1, atom1[2]]
+                    atom2 = [second, 2, atom2[2]]
             yaml_string += self.add_title("bond")
-            yaml_string += self.add_key_and_value("atom1", pair[0])
-            yaml_string += self.add_key_and_value("atom2", pair[1])
+            yaml_string += self.add_key_and_value("atom1", atom1)
+            yaml_string += self.add_key_and_value("atom2", atom2)
 
         return yaml_string
 
@@ -237,9 +236,8 @@ class BoltzYaml:
 
         return yaml_string
 
-    def add_key_and_value(self, key: str, value: str):
-        """
-        Adds the key and value to the yaml string, double tabbed
+    def add_key_and_value(self, key: str, value: str | list):
+        """Adds the key and value to the yaml string, double tabbed
 
         Args:
             key (str): The key on the left of ':'
@@ -247,7 +245,7 @@ class BoltzYaml:
         Returns:
             str: yaml string
         """
-        value = f'"{value}"'
+        value = f'"{value}"' if isinstance(value, str) else value
         return f"{DELIM}{DELIM}{key}: {value}\n"
 
     def add_ligand_information(self, ligand_dict: dict, linked_id=None):
@@ -368,6 +366,10 @@ class BoltzYaml:
             )
 
             yaml_string += self.add_sequence_information(sequence_info_dict)
+
+            # Special treatment for single-sequence mode (no MSA)
+            if self.msa_file is None and "protein" == sequence_type:
+                yaml_string += f"{DELIM}{DELIM}msa: empty\n"
 
         return yaml_string
 
