@@ -1,3 +1,4 @@
+import configparser
 import json
 from itertools import zip_longest
 from pathlib import Path
@@ -441,3 +442,36 @@ def make_dummy_m8_file(run_json, output_dir):
     pd.DataFrame(table).to_csv(m8_file, sep="\t", header=False, index=False)
 
     return m8_file
+
+
+def verify_config_file(abc_config, default_config_file):
+    """
+    Verify that the config file has the correct keys and values
+
+    Args:
+        abc_config (Union[str, Path]): The config file to verify
+        default_config_file (Union[str, Path]): The path to the default config file
+
+    Returns:
+        None
+    """
+
+    config_a = configparser.SafeConfigParser()
+    config_a.read(str(abc_config))
+
+    config_b = configparser.SafeConfigParser()
+    config_b.read(str(default_config_file))
+
+    for section in config_b.sections():
+        if section == "Versions":
+            # Update the versions to match the default config file so we know we're
+            # using compatible versions of the programs
+            config_a[section] = config_b[section]
+        if not config_a.has_section(section):
+            config_a.add_section(section)
+        for key in config_b[section]:
+            if not config_a.has_option(section, key):
+                config_a[section][key] = config_b[section][key]
+
+    with open(abc_config, "w") as f:
+        config_a.write(f)

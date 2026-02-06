@@ -31,7 +31,7 @@ from abcfold.output.file_handlers import superpose_models
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
-                                  make_dummy_m8_file)
+                                  make_dummy_m8_file, verify_config_file)
 from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
                                               make_dummy_af3_db, setup_logger)
 from abcfold.scripts.add_custom_template import add_custom_template
@@ -543,18 +543,35 @@ def main():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix"
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument(
+        '--config-file',
+        type=str,
+        default=str(Path.home() / ".abcfold_config.ini"),
+        help='Path to the config file. '
+        'If not provided, a config file will be created '
+        'at ~/.abcfold_config.ini with default values. '
+        'If a config file already exists at that location, it will be used.'
     )
+    config_args, remaining = config_parser.parse_known_args()
 
     defaults = {}
-    config_file = Path(__file__).parent.joinpath("data", "config.ini")
-    config = configparser.SafeConfigParser()
+    config_file = Path(config_args.config_file)
+    default_config_file = Path(__file__).parent.joinpath("data", "config.ini")
+    if not config_file.exists():
+        shutil.copy(default_config_file, config_file)
+    else:
+        verify_config_file(config_file, default_config_file)
 
-    if config_file.exists():
-        config.read(str(config_file))
-        for section in config.sections():
-            defaults.update(dict(config.items(section)))
+    config = configparser.SafeConfigParser()
+    config.read(str(config_file))
+    for section in config.sections():
+        defaults.update(dict(config.items(section)))
+
+    parser = argparse.ArgumentParser(
+        description="Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix",
+        parents=[config_parser],
+    )
 
     parser = main_argpase_util(parser)
     parser = alphafold_argparse_util(parser)
@@ -568,7 +585,7 @@ def main():
     parser = visuals_argparse_util(parser)
 
     parser.set_defaults(**defaults)
-    args = parser.parse_args()
+    args = parser.parse_args(remaining)
 
     run(
         args,

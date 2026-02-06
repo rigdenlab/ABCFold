@@ -73,7 +73,6 @@ abcfold = "abcfold.abcfold:main"
 mmseqs2msa = "abcfold.scripts.add_mmseqs_msa:main"
 custom_templates = "abcfold.scripts.add_custom_template:main"
 ipsae = "abcfold.scripts.ipsae:main"
-abc_config = "abcfold.scripts.abc_config:main"
 
 [tool.flake8]
 max-line-length = 88
