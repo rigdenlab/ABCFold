@@ -164,6 +164,11 @@ class Ipsae():
                 file_.data,
                 self.struct,
             ).scores
+        elif self.pae_format == "openfold3":
+            self.pae_data = Af3Pae.from_openfold3(
+                file_.data,
+                self.struct,
+            ).scores
         elif self.pae_format == "protenix":
             self.pae_data = Af3Pae.from_protenix(
                 file_.data,
@@ -633,7 +638,7 @@ def main():
     parser.add_argument("--pae_format",
                         choices=[
                             "alphafold2", "alphafold3", "boltz",
-                            "chai", "colabfold", "protenix"
+                            "chai", "colabfold", "opefold3", "protenix"
                         ],
                         default="alphafold3",
                         help="Format of the PAE file (default: alphafold3)")
