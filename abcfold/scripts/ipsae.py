@@ -638,7 +638,7 @@ def main():
     parser.add_argument("--pae_format",
                         choices=[
                             "alphafold2", "alphafold3", "boltz",
-                            "chai", "colabfold", "opefold3", "protenix"
+                            "chai", "colabfold", "openfold3", "protenix"
                         ],
                         default="alphafold3",
                         help="Format of the PAE file (default: alphafold3)")
