@@ -5,6 +5,7 @@ from typing import Union
 from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
                                           FileTypes, NpzFile)
 from abcfold.output.utils import Af3Pae
+from abcfold.protenix.af3_to_protenix import ProtenixJson
 
 logger = logging.getLogger("logger")
 
@@ -88,6 +89,8 @@ class ProtenixOutput:
                 new_output_dirs.append(output_dir)
         self.output_dirs = new_output_dirs
 
+        self.json_input_obj = self.get_input_json()
+
         self.output = self.process_protenix_output()
 
         self.seeds = list(self.output.keys())
@@ -152,6 +155,7 @@ class ProtenixOutput:
                         intermediate_dict["score"] = file_
                     elif file_.pathway.suffix == ".cif":
                         file_.name = f"protenix_{seed}_{model_number}"
+                        file_ = self.update_chain_labels(file_)
                         intermediate_dict["cif"] = file_
                     else:
                         intermediate_dict[file_.suffix] = file_
@@ -200,3 +204,30 @@ class ProtenixOutput:
             }
             for seed in self.seeds
         }
+
+    def update_chain_labels(self, cif_file) -> CifFile:
+        """
+        Function to update the chain labels in the CIF file
+
+        Args:
+            cif_file (CifFile): CifFile object to update the chain labels for
+
+        """
+
+        cif_file.relabel_chains(
+            list(self.json_input_obj.chain_ids.keys())
+        )
+        return cif_file
+
+    def get_input_json(self) -> ProtenixJson:
+        """
+        Get the input json file used for the Protenix run
+
+        Returns:
+            ProtenixJson: Object containing the input json file
+        """
+
+        pj = ProtenixJson(self.output_dirs[0], create_files=False)
+        pj.json_to_json(self.input_params)
+
+        return pj
