@@ -197,6 +197,7 @@ class Ipsae():
             self.pae_matrix = np.array(self.pae_data['predicted_aligned_error'])
         else:
             self.pae_matrix = None
+
         if self.pae_format in ["alphafold3", "boltz", "chai"]:
             token_mask = self.get_token_mask()
             self.pae_matrix = self.pae_matrix[np.ix_(token_mask, token_mask)]
@@ -212,11 +213,10 @@ class Ipsae():
                     if any((atom.id == "CA") or ("C1" in atom.id) for atom in residue):
                         token_mask.append(1)
                 elif is_aa(residue.resname, standard=False):
-                    for atom in residue:
-                        if (atom.id == "CA") or ("C1" in atom.id):
-                            token_mask.append(1)
-                        else:
-                            token_mask.append(0)
+                    if any((atom.id == "CA") or ("C1" in atom.id) for atom in residue):
+                        token_mask.append(1)
+                    else:
+                        token_mask.append(0)
                 elif self.struct.check_ligand(chain):
                     for atom in residue:
                         token_mask.append(0)

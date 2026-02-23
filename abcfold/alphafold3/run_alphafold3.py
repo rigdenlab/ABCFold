@@ -1,3 +1,4 @@
+import json
 import logging
 import subprocess
 import sys
@@ -5,6 +6,7 @@ from pathlib import Path
 from typing import Union
 
 from abcfold.alphafold3.check_install import check_af3_install
+from abcfold.output.utils import CCD_NAME_TO_ONE_LETTER
 
 logger = logging.getLogger("logger")
 
@@ -44,7 +46,7 @@ def run_alphafold3(
 
     """
 
-    input_json = Path(input_json)
+    input_json = process_input_json(Path(input_json))
     output_dir = Path(output_dir)
 
     check_af3_install(config=config, interactive=False, sif_path=sif_path)
@@ -78,6 +80,46 @@ def run_alphafold3(
     logger.info("Alphafold3 run complete")
     logger.info("Output files are in %s", output_dir)
     return True
+
+
+def process_input_json(input_json: Union[str, Path]) -> Union[str, Path]:
+    """
+    Process the input JSON file to post translational modifications (PTMs) are included
+    in the MSA sequence
+
+    Args:
+        input_json (Union[str, Path]): Path to the input JSON file
+
+    Returns:
+        Union[str, Path]: Path to the processed input JSON file
+    """
+
+    with open(input_json, "r") as f:
+        json_dict = json.load(f)
+
+    for sequence in json_dict['sequences']:
+        protein = sequence.get("protein")
+        if protein is not None:
+            for modification in protein['modifications']:
+                if 'ptmType' in modification.keys():
+                    ptm_type = modification['ptmType']
+                    if ptm_type in CCD_NAME_TO_ONE_LETTER:
+                        one_letter_code = CCD_NAME_TO_ONE_LETTER[ptm_type]
+                        position = modification['ptmPosition']
+                        msa = protein.get("unpairedMsa")
+                if all(v is not None for v in [one_letter_code, position, msa]):
+                    msa_lines = msa.splitlines()
+                    input_seq = msa_lines[1]
+                    idx = int(position) - 1
+                    input_seq = input_seq[:idx] + one_letter_code + input_seq[idx+1:]
+                    msa_lines[1] = input_seq
+                    protein['unpairedMsa'] = "\n".join(msa_lines)
+
+    # Write the updated JSON dict back to the file
+    with open(input_json, "w") as f:
+        json.dump(json_dict, f, indent=4)
+
+    return input_json
 
 
 def generate_af3_cmd(
