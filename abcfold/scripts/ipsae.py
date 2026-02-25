@@ -149,6 +149,11 @@ class Ipsae():
                 file_.data,
                 self.struct,
             ).scores
+        elif self.pae_format == "alphapulldown":
+            self.pae_data = Af3Pae.from_alphapulldown(
+                file_.data,
+                self.struct,
+            ).scores
         elif self.pae_format == "boltz":
             self.pae_data = Af3Pae.from_boltz(
                 file_.data,
@@ -637,7 +642,7 @@ def main():
                         help="PAE cutoff used in some scores (default: 10.0)")
     parser.add_argument("--pae_format",
                         choices=[
-                            "alphafold2", "alphafold3", "boltz",
+                            "alphafold2", "alphafold3", "alphapulldown", "boltz",
                             "chai", "colabfold", "openfold3", "protenix"
                         ],
                         default="alphafold3",

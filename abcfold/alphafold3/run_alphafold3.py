@@ -97,6 +97,9 @@ def process_input_json(input_json: Union[str, Path]) -> Union[str, Path]:
     with open(input_json, "r") as f:
         json_dict = json.load(f)
 
+    one_letter_code = None
+    position = None
+    msa = None
     for sequence in json_dict['sequences']:
         protein = sequence.get("protein")
         if protein is not None:
@@ -107,7 +110,11 @@ def process_input_json(input_json: Union[str, Path]) -> Union[str, Path]:
                         one_letter_code = CCD_NAME_TO_ONE_LETTER[ptm_type]
                         position = modification['ptmPosition']
                         msa = protein.get("unpairedMsa")
-                if all(v is not None for v in [one_letter_code, position, msa]):
+                if (
+                    one_letter_code is not None
+                    and position is not None
+                    and msa is not None
+                ):
                     msa_lines = msa.splitlines()
                     input_seq = msa_lines[1]
                     idx = int(position) - 1
