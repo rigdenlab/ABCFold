@@ -128,27 +128,28 @@ def get_model_data(model,
     model_path = full_model_path.relative_to(output_dir).as_posix()
 
     ipsae_score = []
-    try:
-        ipsae = Ipsae(model, pae_obj)
-        distances = ipsae.get_cb_distance()
-        ipsae_scores = ipsae.compute_iptm_ipsae(distances)
+    ipsae = Ipsae(model, pae_obj)
+    distances = ipsae.get_cb_distance()
+    ipsae_scores = ipsae.compute_iptm_ipsae(distances)
 
-        # Currently displaying all chain variations, might alter to max in future
-        for k, v in ipsae_scores["ipsae_d0res_asym"].items():
-            for k2, v2 in v.items():
-                ipsae_score.append(f"{k}{k2}:{np.round(v2, 4)}")
+    best_scores = {}
+    for k, v in ipsae_scores["ipsae_d0res_asym"].items():
+        for k2, v2 in v.items():
+            pair = frozenset((k, k2))
+            if pair not in best_scores or v2 > best_scores[pair][1]:
+                best_scores[pair] = ((k, k2), v2)
 
-        # Output full ipsae scores for each model as we are only outputting d0res_asym
-        ipsae_out = full_model_path.parent / f"{Path(model_path).stem}_ipsae.csv"
-        ipsae.output_results(pdockq_scores=None,
-                             pdockq2_scores=None,
-                             lis_scores=None,
-                             ipsae_scores=ipsae_scores,
-                             verbose=False,
-                             output_csv=ipsae_out)
-    except ValueError:
-        logger.error("ValueError when calculating ipSAE score, bypassing ipSAE")
-        pass
+    for (k, k2), v2 in best_scores.values():
+        ipsae_score.append(f"{k}{k2}:{np.round(v2, 4)}")
+
+    # Output full ipsae scores for each model as we are only outputting d0res_asym
+    ipsae_out = full_model_path.parent / f"{Path(model_path).stem}_ipsae.csv"
+    ipsae.output_results(pdockq_scores=None,
+                         pdockq2_scores=None,
+                         lis_scores=None,
+                         ipsae_scores=ipsae_scores,
+                         verbose=False,
+                         output_csv=ipsae_out)
 
     model_data = {
         "model_id": model.name,

@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 from typing import Union
 
+from abcfold.alphafold3.ccd_one_letter import CCD_NAME_TO_ONE_LETTER
 from abcfold.alphafold3.check_install import check_af3_install
-from abcfold.output.utils import CCD_NAME_TO_ONE_LETTER
 
 logger = logging.getLogger("logger")
 
