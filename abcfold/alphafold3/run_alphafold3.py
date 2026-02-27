@@ -46,13 +46,13 @@ def run_alphafold3(
 
     """
 
-    input_json = process_input_json(Path(input_json))
+    input_json_mod = process_input_json(Path(input_json))
     output_dir = Path(output_dir)
 
     check_af3_install(config=config, interactive=False, sif_path=sif_path)
 
     cmd = generate_af3_cmd(
-        input_json=input_json,
+        input_json=input_json_mod,
         output_dir=output_dir,
         model_params=model_params,
         database_dir=database_dir,
@@ -76,6 +76,8 @@ def run_alphafold3(
                 f.write(stderr.decode())
             logger.error("Alphafold3 run failed. Error log is in %s", output_err_file)
             return False
+
+    process_output_json(input_json=input_json, output_dir=output_dir)
 
     logger.info("Alphafold3 run complete")
     logger.info("Output files are in %s", output_dir)
@@ -127,6 +129,47 @@ def process_input_json(input_json: Union[str, Path]) -> Union[str, Path]:
         json.dump(json_dict, f, indent=4)
 
     return input_json
+
+
+def process_output_json(input_json: Union[str, Path], output_dir: Union[str, Path]):
+    """
+    Process the output JSON file reset MSA if modified by PTMs in the input JSON file
+
+    Args:
+        input_json (Union[str, Path]): Path to the input JSON file
+        output_dir (Union[str, Path]): Path to the output directory
+    """
+    with open(input_json, "r") as f:
+        input_dict = json.load(f)
+
+    ptm = False
+    msas = {}
+    for sequence in input_dict['sequences']:
+        protein = sequence.get("protein")
+        if protein is not None:
+            modifications = protein.get('modifications')
+            if modifications is not None:
+                for mod in modifications:
+                    if 'ptmType' in mod.keys():
+                        # Only reset if there are PTMs in the input JSON file
+                        ptm = True
+            if protein.get("unpairedMsa") is not None:
+                msas[protein.get("chainId")] = protein.get("unpairedMsa")
+
+    if ptm and msas:
+        output_json = Path(output_dir) / f"{input_dict['name']}_data.json"
+        with open(output_json, "r") as f:
+            output_dict = json.load(f)
+
+        for sequence in output_dict['sequences']:
+            protein = sequence.get("protein")
+            if protein is not None:
+                if protein.get("unpairedMsa") is not None:
+                    protein['unpairedMsa'] = msas[protein.get("chainId")]
+
+        with open(output_json, "w") as f:
+            json.dump(output_dict, f, indent=4)
+    return
 
 
 def generate_af3_cmd(
