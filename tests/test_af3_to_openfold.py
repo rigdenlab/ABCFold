@@ -189,7 +189,7 @@ def test_openfold_output_msa(test_data):
                 "2PV7": {
                     "use_msas": True,
                     "use_main_msas": True,
-                    "use_paired_msas": True,
+                    "use_paired_msas": False,
                     "chains": [
                         {
                             "molecule_type": "protein",
