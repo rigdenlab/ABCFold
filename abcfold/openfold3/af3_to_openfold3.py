@@ -96,7 +96,7 @@ class OpenfoldJson:
                                 q = self.openfold_dict["queries"][self.name]
                                 q["use_msas"] = True
                                 q["use_main_msas"] = True
-                                q["use_paired_msas"] = True
+                                q["use_paired_msas"] = False
                                 query_flags_set = True
 
         self.openfold_dict["queries"][self.name]["chains"] = openfold_sequences

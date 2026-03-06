@@ -235,9 +235,18 @@ check back for updates"
     def _add_protein(self, seq: dict, prot_id: str, fasta_data: dict):
         sequence = seq["protein"]["sequence"]
         if "unpairedMsa" in seq["protein"].keys():
+            modifications = seq["protein"].get("modifications", [])
+            msa = seq["protein"]["unpairedMsa"]
+            for mod in modifications:
+                if "ptmType" in mod and "ptmPosition" in mod:
+                    msa_lines = msa.splitlines()
+                    idx = int(mod['ptmPosition']) - 1
+                    sequence = sequence[:idx] + 'X' + sequence[idx+1:]
+                    msa_lines[1] = sequence
+                    seq["protein"]['unpairedMsa'] = "\n".join(msa_lines)
+
             seq_hash = hashlib.sha256(sequence.upper().encode()).hexdigest()
             pqt_path = Path(self.working_dir) / f"{seq_hash}.aligned.pqt"
-            msa = seq["protein"]["unpairedMsa"]
 
             (
                 self.msa_to_file(msa=msa, file_path=pqt_path)
