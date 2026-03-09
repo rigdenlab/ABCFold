@@ -102,26 +102,27 @@ def process_input_json(input_json: Union[str, Path]) -> Union[str, Path]:
     msa = None
     for sequence in json_dict['sequences']:
         protein = sequence.get("protein")
-        if protein is not None:
-            modifications = protein.get("modifications", [])
-            for modification in modifications:
-                if 'ptmType' in modification.keys():
-                    ptm_type = modification['ptmType']
-                    if ptm_type in CCD_NAME_TO_ONE_LETTER:
-                        one_letter_code = CCD_NAME_TO_ONE_LETTER[ptm_type]
-                        position = modification['ptmPosition']
-                        msa = protein.get("unpairedMsa")
-                if (
-                    one_letter_code is not None
-                    and position is not None
-                    and msa is not None
-                ):
-                    msa_lines = msa.splitlines()
-                    input_seq = msa_lines[1]
-                    idx = int(position) - 1
-                    input_seq = input_seq[:idx] + one_letter_code + input_seq[idx+1:]
-                    msa_lines[1] = input_seq
-                    protein['unpairedMsa'] = "\n".join(msa_lines)
+        if protein is None:
+            continue
+        modifications = protein.get("modifications", [])
+        for modification in modifications:
+            if 'ptmType' in modification.keys():
+                ptm_type = modification['ptmType']
+                if ptm_type in CCD_NAME_TO_ONE_LETTER:
+                    one_letter_code = CCD_NAME_TO_ONE_LETTER[ptm_type]
+                    position = modification['ptmPosition']
+                    msa = protein.get("unpairedMsa")
+            if (
+                one_letter_code is not None
+                and position is not None
+                and msa is not None
+            ):
+                msa_lines = msa.splitlines()
+                input_seq = msa_lines[1]
+                idx = int(position) - 1
+                input_seq = input_seq[:idx] + one_letter_code + input_seq[idx+1:]
+                msa_lines[1] = input_seq
+                protein['unpairedMsa'] = "\n".join(msa_lines)
 
     # Write the updated JSON dict back to the file
     with open(input_json, "w") as f:

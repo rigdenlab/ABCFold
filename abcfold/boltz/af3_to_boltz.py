@@ -3,7 +3,7 @@ import logging
 import random
 import string
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 DELIM = "      "
 
@@ -237,13 +237,13 @@ class BoltzYaml:
 
         return yaml_string
 
-    def add_key_and_value(self, key: str, value):
+    def add_key_and_value(self, key: str, value: Any):
         """
         Adds the key and value to the yaml string, double tabbed
 
         Args:
             key (str): The key on the left of ':'
-            value: The value on the right of ':'
+            value (Any): The value on the right of ':'
         Returns:
             str: yaml string
         """
