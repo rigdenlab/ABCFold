@@ -152,15 +152,20 @@ class ProtenixOutput:
             for model_number, files in models.items():
                 intermediate_dict: FileDict = {}
                 for file_ in sorted(files, key=lambda x: x.suffix):
-                    if isinstance(file_, (CifFile, ConfidenceJsonFile)):
+                    if isinstance(file_, CifFile):
+                        if file_.pathway.suffix == ".cif":
+                            file_.name = f"protenix_{seed}_{model_number}"
+                            file_ = self.update_chain_labels(file_)
+                            intermediate_dict["cif"] = file_
+                        elif "full_data" in file_.pathway.stem:
+                            intermediate_dict["pae"] = file_
+                        elif "summary_confidence" in file_.pathway.stem:
+                            intermediate_dict["score"] = file_
+                    elif isinstance(file_, ConfidenceJsonFile):
                         if "full_data" in file_.pathway.stem:
                             intermediate_dict["pae"] = file_
                         elif "summary_confidence" in file_.pathway.stem:
                             intermediate_dict["score"] = file_
-                    elif isinstance(file_, CifFile) and file_.pathway.suffix == ".cif":
-                        file_.name = f"protenix_{seed}_{model_number}"
-                        file_ = self.update_chain_labels(file_)
-                        intermediate_dict["cif"] = file_
 
                 model_number_file_type_file[model_number] = intermediate_dict
 
