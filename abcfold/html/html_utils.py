@@ -4,7 +4,7 @@ import textwrap
 from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, FrozenSet, List, Tuple, Union
 
 import numpy as np
 from Bio.SeqUtils import seq1
@@ -47,15 +47,15 @@ def get_plddt_regions(plddts: Union[np.ndarray, list]) -> dict:
     return regions
 
 
-def get_regions_helper(indices):
+def get_regions_helper(indices: List[int]) -> List[Tuple[int, int]]:
     """
     Get the regions from the indices
     """
     regions = []
     for _, g in groupby(enumerate(indices), lambda x: x[0] - x[1]):
-        group = map(itemgetter(1), g)
-        group = list(map(int, group))
+        group: List[int] = [int(item) for item in map(itemgetter(1), g)]
         regions.append((group[0], group[-1]))
+
     return regions
 
 
@@ -132,7 +132,7 @@ def get_model_data(model,
     distances = ipsae.get_cb_distance()
     ipsae_scores = ipsae.compute_iptm_ipsae(distances)
 
-    best_scores = {}
+    best_scores: Dict[FrozenSet[str], Tuple[Tuple[str, str], float]] = {}
     for k, v in ipsae_scores["ipsae_d0res_asym"].items():
         for k2, v2 in v.items():
             pair = frozenset((k, k2))
@@ -230,6 +230,9 @@ def output_open_html_script(file_out: str, port: int = 8000):
     import socketserver
     import webbrowser
     import sys
+    import os
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     PORT = {port}
 

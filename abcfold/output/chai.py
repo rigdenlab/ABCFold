@@ -114,7 +114,7 @@ class ChaiOutput:
         }
 
     def process_chai_output(self):
-        file_groups = {}
+        file_groups: dict[str, dict[int, list]] = {}
 
         for pathway in self.output_dirs:
             seed = pathway.name.split("_")[-1]
@@ -122,12 +122,13 @@ class ChaiOutput:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
-                number = output.stem.split("model_idx_")[-1]
-                if number.isdigit():
-                    number = int(number)
+                number_str = output.stem.split("model_idx_")[-1]
+                if number_str.isdigit():
+                    number = int(number_str)
 
                 file_type = output.suffix[1:]
 
+                file_: Union[NpzFile, CifFile, NpyFile]
                 if file_type == FileTypes.NPZ.value:
                     file_ = NpzFile(str(output))
 
@@ -165,11 +166,12 @@ class ChaiOutput:
                 for file_ in sorted(files, key=lambda x: x.suffix):
                     if file_.pathway.stem.startswith("scores.model"):
                         intermediate_dict["scores"] = file_
-                    elif file_.pathway.stem.startswith("pred.model"):
-                        file_.name = f"Chai-1_{seed}_{model_number}"
-                        # Chai cif not recognised by pae-viewer, so we load and save
-                        file_.to_file(file_.pathway)
-                        intermediate_dict["cif"] = file_
+                    elif isinstance(file_, CifFile):
+                        if file_.pathway.suffix == ".cif":
+                            file_.name = f"Chai-1_{seed}_{model_number}"
+                            # Chai cif not recognised by pae-viewer, so we load and save
+                            file_.to_file(file_.pathway)
+                            intermediate_dict["cif"] = file_
                 if model_number != -1 and pae_file is not None:
                     new_pae_path = (
                         file_.pathway.parent / f"pae_scores_model_{model_number}.npy"
@@ -194,7 +196,7 @@ class ChaiOutput:
         Returns:
             None
         """
-        new_pae_files = {}
+        new_pae_files: dict[str, list[ConfidenceJsonFile]] = {}
         for seed in self.seeds:
             for i, (pae_file, cif_file) in enumerate(
                 zip(self.pae_files[seed], self.cif_files[seed])

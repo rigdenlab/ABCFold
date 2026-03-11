@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+
 import configparser
 import json
 import logging
@@ -47,12 +49,11 @@ tests from the root of the repository or the tests directory"
     config_file = Path("../abcfold/data/config.ini")
     if not config_file.exists():
         config_file = Path("./abcfold/data/config.ini")
-    config = configparser.SafeConfigParser()
+    config = configparser.ConfigParser()
     config_dict = {}
     config.read(str(config_file))
     for section in config.sections():
         config_dict.update(dict(config.items(section)))
-    print(config_dict)
     d["config_dict"] = config_dict
 
     nt = namedtuple("TestData", d)
@@ -76,7 +77,7 @@ def output_objs():
     config_file = Path("../abcfold/data/config.ini")
     if not config_file.exists():
         config_file = Path("./abcfold/data/config.ini")
-    config = configparser.SafeConfigParser()
+    config = configparser.ConfigParser()
     config_dict = {}
     config.read(str(config_file))
     for section in config.sections():

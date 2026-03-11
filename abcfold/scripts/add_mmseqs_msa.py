@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# mypy: ignore-errors
 
 import gzip
 import json

@@ -8,6 +8,7 @@ import sys
 import tempfile
 import webbrowser
 from pathlib import Path
+from typing import Any, Dict, List, Union
 
 from abcfold.alphafold3.run_alphafold3 import run_alphafold3
 from abcfold.argparse_utils import (alphafold_argparse_util,
@@ -43,13 +44,17 @@ HTML_DIR = Path(__file__).parent / "html"
 HTML_TEMPLATE = HTML_DIR.joinpath("abcfold.html.jinja2")
 PLOTS_DIR = ".plots"
 
+ModelOutput = Union[
+    AlphafoldOutput, BoltzOutput, ChaiOutput, ProtenixOutput, OpenfoldOutput
+]
+
 
 def run(args, config, defaults, config_file):
     """Run ABCFold
 
     Args:
         args (argparse.Namespace): Arguments from the command line
-        config (configparser.SafeConfigParser): Config parser object
+        config (configparser.ConfigParser): Config parser object
         defaults (dict): Default values from the config file
         config_file (Path): Path to the config file
 
@@ -59,7 +64,7 @@ def run(args, config, defaults, config_file):
 
 
     """
-    outputs = []
+    outputs: List[ModelOutput] = []
 
     args.output_dir = Path(args.output_dir)
 
@@ -287,7 +292,7 @@ def run(args, config, defaults, config_file):
         indicies = get_gap_indicies(*cif_models)
         index_counter = 0
 
-        alphafold_models = {"models": []}
+        alphafold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
 
         if args.alphafold3:
             if af3_success:
@@ -315,7 +320,7 @@ def run(args, config, defaults, config_file):
                         )
                         alphafold_models["models"].append(model_data)
 
-        boltz_models = {"models": []}
+        boltz_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.boltz:
             if boltz_success:
                 programs_run.append("Boltz")
@@ -342,7 +347,7 @@ def run(args, config, defaults, config_file):
                         )
                         boltz_models["models"].append(model_data)
 
-        chai_models = {"models": []}
+        chai_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.chai1:
             if chai_success:
                 programs_run.append("Chai-1")
@@ -370,7 +375,7 @@ def run(args, config, defaults, config_file):
                             )
                             chai_models["models"].append(model_data)
 
-        openfold_models = {"models": []}
+        openfold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.openfold3:
             if openfold_success:
                 programs_run.append("OpenFold3")
@@ -398,7 +403,7 @@ def run(args, config, defaults, config_file):
                             )
                             openfold_models["models"].append(model_data)
 
-        protenix_models = {"models": []}
+        protenix_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.protenix:
             if protenix_success:
                 programs_run.append("Protenix")
@@ -563,7 +568,7 @@ def main():
     else:
         verify_config_file(config_file, default_config_file)
 
-    config = configparser.SafeConfigParser()
+    config = configparser.ConfigParser()
     config.read(str(config_file))
     for section in config.sections():
         defaults.update(dict(config.items(section)))

@@ -74,17 +74,22 @@ def test_run_af3(test_data):
     input_json = Path(test_data.test_inputA_json)
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
-        output_dir = temp_dir / "af3_output"
-        model_params = temp_dir / "af3_output"
+        output_dir = temp_dir
+        model_params = temp_dir
         database_dir = make_dummy_af3_db(temp_dir)
+        config_dict = test_data.config_dict
+
+        # Edit this is running in a test env with a sif file
+        sif_path = None
 
         run_alphafold3(
             input_json,
             output_dir,
             model_params,
             database_dir,
-            sif_path=None,
+            sif_path=sif_path,
             interactive=False,
+            config=config_dict,
         )
         assert output_dir.exists()
         assert (output_dir / "af3_error.log").exists()

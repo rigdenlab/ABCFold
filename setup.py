@@ -2,6 +2,8 @@ from distutils.command.build import build  # type: ignore
 
 from setuptools import setup
 
+script_python_path: str | None = None
+
 
 class BuildCommand(build):
     user_options = build.user_options + [

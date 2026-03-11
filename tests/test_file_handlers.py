@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 from pathlib import Path
+from typing import List, Union
 
 import pytest
 
@@ -159,7 +160,10 @@ def test_superpose_models(test_data):
         shutil.copyfile(model_1, f"{temp_dir}/model_1.cif")
         shutil.copyfile(model_2, f"{temp_dir}/model_2.cif")
 
-        models = [Path(f"{temp_dir}/model_1.cif"), Path(f"{temp_dir}/model_2.cif")]
+        models: List[Union[str, Path]] = [
+            Path(f"{temp_dir}/model_1.cif"),
+            Path(f"{temp_dir}/model_2.cif")
+        ]
         file_handlers.superpose_models(models)
 
         superposed_atoms = []
@@ -185,7 +189,5 @@ def test_superpose_models(test_data):
             ["0.309", "-7.153", "19.645"],
             ["-1.015", "-8.051", "17.846"],
         ]
-
-        print(f"Superposed atoms: {superposed_atoms}")
 
         assert ref_superposed_atoms == superposed_atoms

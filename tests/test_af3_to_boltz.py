@@ -98,6 +98,7 @@ def test_boltz_output_msa(test_data):
         boltz_yaml.json_to_yaml(test_data.test_inputAmsa_json)
 
         assert boltz_yaml.msa_file != "null"
+        assert isinstance(boltz_yaml.msa_file, Path)
         assert boltz_yaml.msa_file.exists()
         assert boltz_yaml.msa_file.is_file()
 
