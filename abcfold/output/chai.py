@@ -1,7 +1,7 @@
 import logging
 import shutil
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from abcfold.chai1.af3_to_chai import ChaiFasta
 from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
@@ -122,6 +122,7 @@ class ChaiOutput:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
+                number = -1
                 number_str = output.stem.split("model_idx_")[-1]
                 if number_str.isdigit():
                     number = int(number_str)
@@ -131,18 +132,13 @@ class ChaiOutput:
                 file_: Union[NpzFile, CifFile, NpyFile]
                 if file_type == FileTypes.NPZ.value:
                     file_ = NpzFile(str(output))
-
                 elif file_type == FileTypes.CIF.value:
-                    file_ = CifFile(str(output), self.input_params)
-                    file_ = self.update_chain_labels(file_)
-
+                    cif_obj = CifFile(str(output), self.input_params)
+                    file_ = self.update_chain_labels(cif_obj)
                 elif file_type == FileTypes.NPY.value:
                     file_ = NpyFile(str(output))
                 else:
                     continue
-
-                if isinstance(number, str):
-                    number = -1
 
                 if number not in file_groups[seed]:
                     file_groups[seed][number] = [file_]
@@ -152,32 +148,40 @@ class ChaiOutput:
         seed_dict = {}
         for seed, models in file_groups.items():
             model_number_file_type_file = {}
-            pae_file = None
+            pae_file: NpyFile | None = None
             if -1 in models:
                 for file_ in models[-1]:
                     if file_.pathway.stem.startswith("pae_scores"):
-                        pae_file = file_
-                        break
+                        if isinstance(file_, NpyFile):
+                            pae_file = file_
+                            break
+
+            if pae_file is None:
+                logger.warning(
+                    f"No PAE file found for seed {seed}. Skipping this seed."
+                )
+                continue
 
             for model_number, files in models.items():
                 if model_number == -1:
                     continue
-                intermediate_dict = {}
+                intermediate_dict: dict[str, Any] = {}
                 for file_ in sorted(files, key=lambda x: x.suffix):
-                    if file_.pathway.stem.startswith("scores.model"):
-                        intermediate_dict["scores"] = file_
+                    if isinstance(file_, NpzFile):
+                        if file_.pathway.stem.startswith("scores.model"):
+                            intermediate_dict["scores"] = file_
                     elif isinstance(file_, CifFile):
-                        if file_.pathway.suffix == ".cif":
+                        if file_.pathway.stem.startswith("pred.model"):
                             file_.name = f"Chai-1_{seed}_{model_number}"
                             # Chai cif not recognised by pae-viewer, so we load and save
                             file_.to_file(file_.pathway)
                             intermediate_dict["cif"] = file_
-                if model_number != -1 and pae_file is not None:
-                    new_pae_path = (
-                        file_.pathway.parent / f"pae_scores_model_{model_number}.npy"
-                    )
-                    shutil.copy(pae_file.pathway, new_pae_path)
-                    intermediate_dict["pae"] = NpyFile(str(new_pae_path))
+                            new_pae_name = f"pae_scores_model_{model_number}.npy"
+                            new_pae_path = (
+                                file_.pathway.parent / new_pae_name
+                            )
+                            shutil.copy(pae_file.pathway, new_pae_path)
+                            intermediate_dict["pae"] = NpyFile(str(new_pae_path))
 
                 model_number_file_type_file[model_number] = intermediate_dict
 

@@ -125,10 +125,11 @@ class ProtenixOutput:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
+                number = None
                 number_str = output.stem.split("_sample_")[-1]
                 if not number_str.isdigit():
                     continue
-                number_int = int(number_str)
+                number = int(number_str)
 
                 file_type = output.suffix[1:]
 
@@ -141,10 +142,10 @@ class ProtenixOutput:
                     file_ = ConfidenceJsonFile(str(output))
                 else:
                     continue
-                if number_int not in file_groups[seed]:
-                    file_groups[seed][number_int] = [file_]
+                if number not in file_groups[seed]:
+                    file_groups[seed][number] = [file_]
                 else:
-                    file_groups[seed][number_int].append(file_)
+                    file_groups[seed][number].append(file_)
 
         seed_dict: Dict[str, Dict[int, FileDict]] = {}
         for seed, models in file_groups.items():

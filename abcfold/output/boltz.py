@@ -135,10 +135,14 @@ class BoltzOutput:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
+                number = None
                 number_str = output.stem.split("_model_")[-1]
                 if not number_str.isdigit():
                     continue
                 number = int(number_str)
+
+                if number is None:
+                    continue
 
                 file_type = output.suffix[1:]
 
@@ -174,7 +178,7 @@ class BoltzOutput:
                             file_ = self.update_chain_labels(file_)
                             intermediate_dict["cif"] = file_
                     else:
-                        continue
+                        intermediate_dict[file_.suffix] = file_
 
                 model_number_file_type_file[model_number] = intermediate_dict
 

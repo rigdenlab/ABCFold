@@ -121,6 +121,7 @@ class OpenfoldOutput:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
+                number = None
                 number_str = output.stem.split("_sample_")[-1].split("_")[0]
                 if not number_str.isdigit():
                     continue

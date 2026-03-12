@@ -82,6 +82,7 @@ class AlphafoldOutput:
                 seed = pathway.name.split("_")[0]
                 if seed not in file_groups:
                     file_groups[seed] = {}
+                sample = None
                 sample_str = pathway.name.split("-")[-1]
                 if not sample_str.isdigit():
                     continue
