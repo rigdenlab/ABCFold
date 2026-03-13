@@ -128,20 +128,25 @@ class BoltzOutput:
         """
         Function to process the output of a Boltz run
         """
-        file_groups = {}
+        file_groups: dict[str, dict[int, list]] = {}
         for pathway in self.output_dirs:
             seed = pathway.name.split("_")[-1]
             if seed not in file_groups:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
-                number = output.stem.split("_model_")[-1]
-                if not number.isdigit():
+                number = None
+                number_str = output.stem.split("_model_")[-1]
+                if not number_str.isdigit():
                     continue
-                number = int(number)
+                number = int(number_str)
+
+                if number is None:
+                    continue
 
                 file_type = output.suffix[1:]
 
+                file_: Union[NpzFile, CifFile, ConfidenceJsonFile]
                 if file_type == FileTypes.NPZ.value:
                     file_ = NpzFile(str(output))
                 elif file_type == FileTypes.CIF.value:
@@ -167,10 +172,11 @@ class BoltzOutput:
                         intermediate_dict["plddt"] = file_
                     elif file_.pathway.stem.startswith("pde"):
                         intermediate_dict["pde"] = file_
-                    elif file_.pathway.suffix == ".cif":
-                        file_.name = f"Boltz_{seed}_{model_number}"
-                        file_ = self.update_chain_labels(file_)
-                        intermediate_dict["cif"] = file_
+                    elif isinstance(file_, CifFile):
+                        if file_.pathway.suffix == ".cif":
+                            file_.name = f"Boltz_{seed}_{model_number}"
+                            file_ = self.update_chain_labels(file_)
+                            intermediate_dict["cif"] = file_
                     else:
                         intermediate_dict[file_.suffix] = file_
 
@@ -232,7 +238,7 @@ class BoltzOutput:
         Returns:
             None
         """
-        new_pae_files = {}
+        new_pae_files: dict[str, list[ConfidenceJsonFile]] = {}
         for seed in self.seeds:
             for (pae_file, cif_file) in zip(self.pae_files[seed], self.cif_files[seed]):
                 pae = Af3Pae.from_boltz(

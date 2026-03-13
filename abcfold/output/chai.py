@@ -1,7 +1,7 @@
 import logging
 import shutil
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from abcfold.chai1.af3_to_chai import ChaiFasta
 from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
@@ -17,6 +17,7 @@ class ChaiOutput:
         chai_output_dirs: list[Union[str, Path]],
         input_params: dict,
         name: str,
+        config: dict,
         save_input: bool = False,
     ):
         """
@@ -28,6 +29,7 @@ class ChaiOutput:
             input_params (dict): Dictionary containing the input parameters used for the
             Chai-1 run
             name (str): Name given to the Chai-1 run
+            config (dict): Configuration dictionary
             save_input (bool): If True, Chai-1 was run with the save_input flag
 
         Attributes:
@@ -61,6 +63,7 @@ class ChaiOutput:
         self.input_params = input_params
         self.output_dirs = [Path(x) for x in chai_output_dirs]
         self.name = name
+        self.config = config
         self.save_input = save_input
 
         parent_dir = self.output_dirs[0].parent
@@ -111,7 +114,7 @@ class ChaiOutput:
         }
 
     def process_chai_output(self):
-        file_groups = {}
+        file_groups: dict[str, dict[int, list]] = {}
 
         for pathway in self.output_dirs:
             seed = pathway.name.split("_")[-1]
@@ -119,26 +122,23 @@ class ChaiOutput:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
-                number = output.stem.split("model_idx_")[-1]
-                if number.isdigit():
-                    number = int(number)
+                number = -1
+                number_str = output.stem.split("model_idx_")[-1]
+                if number_str.isdigit():
+                    number = int(number_str)
 
                 file_type = output.suffix[1:]
 
+                file_: Union[NpzFile, CifFile, NpyFile]
                 if file_type == FileTypes.NPZ.value:
                     file_ = NpzFile(str(output))
-
                 elif file_type == FileTypes.CIF.value:
-                    file_ = CifFile(str(output), self.input_params)
-                    file_ = self.update_chain_labels(file_)
-
+                    cif_obj = CifFile(str(output), self.input_params)
+                    file_ = self.update_chain_labels(cif_obj)
                 elif file_type == FileTypes.NPY.value:
                     file_ = NpyFile(str(output))
                 else:
                     continue
-
-                if isinstance(number, str):
-                    number = -1
 
                 if number not in file_groups[seed]:
                     file_groups[seed][number] = [file_]
@@ -148,31 +148,40 @@ class ChaiOutput:
         seed_dict = {}
         for seed, models in file_groups.items():
             model_number_file_type_file = {}
-            pae_file = None
+            pae_file: NpyFile | None = None
             if -1 in models:
                 for file_ in models[-1]:
                     if file_.pathway.stem.startswith("pae_scores"):
-                        pae_file = file_
-                        break
+                        if isinstance(file_, NpyFile):
+                            pae_file = file_
+                            break
+
+            if pae_file is None:
+                logger.warning(
+                    f"No PAE file found for seed {seed}. Skipping this seed."
+                )
+                continue
 
             for model_number, files in models.items():
                 if model_number == -1:
                     continue
-                intermediate_dict = {}
+                intermediate_dict: dict[str, Any] = {}
                 for file_ in sorted(files, key=lambda x: x.suffix):
-                    if file_.pathway.stem.startswith("scores.model"):
-                        intermediate_dict["scores"] = file_
-                    elif file_.pathway.stem.startswith("pred.model"):
-                        file_.name = f"Chai-1_{seed}_{model_number}"
-                        # Chai cif not recognised by pae-viewer, so we load and save
-                        file_.to_file(file_.pathway)
-                        intermediate_dict["cif"] = file_
-                if model_number != -1 and pae_file is not None:
-                    new_pae_path = (
-                        file_.pathway.parent / f"pae_scores_model_{model_number}.npy"
-                    )
-                    shutil.copy(pae_file.pathway, new_pae_path)
-                    intermediate_dict["pae"] = NpyFile(str(new_pae_path))
+                    if isinstance(file_, NpzFile):
+                        if file_.pathway.stem.startswith("scores.model"):
+                            intermediate_dict["scores"] = file_
+                    elif isinstance(file_, CifFile):
+                        if file_.pathway.stem.startswith("pred.model"):
+                            file_.name = f"Chai-1_{seed}_{model_number}"
+                            # Chai cif not recognised by pae-viewer, so we load and save
+                            file_.to_file(file_.pathway)
+                            intermediate_dict["cif"] = file_
+                            new_pae_name = f"pae_scores_model_{model_number}.npy"
+                            new_pae_path = (
+                                file_.pathway.parent / new_pae_name
+                            )
+                            shutil.copy(pae_file.pathway, new_pae_path)
+                            intermediate_dict["pae"] = NpyFile(str(new_pae_path))
 
                 model_number_file_type_file[model_number] = intermediate_dict
 
@@ -191,7 +200,7 @@ class ChaiOutput:
         Returns:
             None
         """
-        new_pae_files = {}
+        new_pae_files: dict[str, list[ConfidenceJsonFile]] = {}
         for seed in self.seeds:
             for i, (pae_file, cif_file) in enumerate(
                 zip(self.pae_files[seed], self.cif_files[seed])
@@ -230,7 +239,7 @@ class ChaiOutput:
 
         """
 
-        ch = ChaiFasta(self.output_dirs[0], create_files=False)
+        ch = ChaiFasta(self.output_dirs[0], self.config, create_files=False)
         ch.json_to_fasta(self.input_params)
 
         return ch

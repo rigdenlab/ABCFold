@@ -4,11 +4,11 @@ from abcfold.backend_envs import MicromambaEnv
 
 logger = logging.getLogger("logger")
 
-PROTENIX_VERSION = "0.7.3"
-PROTENIX_ENV = "abcfold-protenix-py311"
 
+def ensure_protenix_env(config: dict) -> MicromambaEnv:
+    PROTENIX_ENV = config['protenix_env']
+    PROTENIX_VERSION = config['protenix_version']
 
-def ensure_protenix_env():
     env = MicromambaEnv(PROTENIX_ENV)
 
     # 1. Ensure env exists

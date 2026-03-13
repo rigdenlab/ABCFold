@@ -4,7 +4,7 @@ import textwrap
 from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, FrozenSet, List, Tuple, Union
 
 import numpy as np
 from Bio.SeqUtils import seq1
@@ -47,15 +47,15 @@ def get_plddt_regions(plddts: Union[np.ndarray, list]) -> dict:
     return regions
 
 
-def get_regions_helper(indices):
+def get_regions_helper(indices: List[int]) -> List[Tuple[int, int]]:
     """
     Get the regions from the indices
     """
     regions = []
     for _, g in groupby(enumerate(indices), lambda x: x[0] - x[1]):
-        group = map(itemgetter(1), g)
-        group = list(map(int, group))
+        group: List[int] = [int(item) for item in map(itemgetter(1), g)]
         regions.append((group[0], group[-1]))
+
     return regions
 
 
@@ -128,27 +128,28 @@ def get_model_data(model,
     model_path = full_model_path.relative_to(output_dir).as_posix()
 
     ipsae_score = []
-    try:
-        ipsae = Ipsae(model, pae_obj)
-        distances = ipsae.get_cb_distance()
-        ipsae_scores = ipsae.compute_iptm_ipsae(distances)
+    ipsae = Ipsae(model, pae_obj)
+    distances = ipsae.get_cb_distance()
+    ipsae_scores = ipsae.compute_iptm_ipsae(distances)
 
-        # Currently displaying all chain variations, might alter to max in future
-        for k, v in ipsae_scores["ipsae_d0res_asym"].items():
-            for k2, v2 in v.items():
-                ipsae_score.append(f"{k}{k2}:{np.round(v2, 4)}")
+    best_scores: Dict[FrozenSet[str], Tuple[Tuple[str, str], float]] = {}
+    for k, v in ipsae_scores["ipsae_d0res_asym"].items():
+        for k2, v2 in v.items():
+            pair = frozenset((k, k2))
+            if pair not in best_scores or v2 > best_scores[pair][1]:
+                best_scores[pair] = ((k, k2), v2)
 
-        # Output full ipsae scores for each model as we are only outputting d0res_asym
-        ipsae_out = full_model_path.parent / f"{Path(model_path).stem}_ipsae.csv"
-        ipsae.output_results(pdockq_scores=None,
-                             pdockq2_scores=None,
-                             lis_scores=None,
-                             ipsae_scores=ipsae_scores,
-                             verbose=False,
-                             output_csv=ipsae_out)
-    except ValueError:
-        logger.error("ValueError when calculating ipSAE score, bypassing ipSAE")
-        pass
+    for (k, k2), v2 in best_scores.values():
+        ipsae_score.append(f"{k}{k2}:{np.round(v2, 4)}")
+
+    # Output full ipsae scores for each model as we are only outputting d0res_asym
+    ipsae_out = full_model_path.parent / f"{Path(model_path).stem}_ipsae.csv"
+    ipsae.output_results(pdockq_scores=None,
+                         pdockq2_scores=None,
+                         lis_scores=None,
+                         ipsae_scores=ipsae_scores,
+                         verbose=False,
+                         output_csv=ipsae_out)
 
     model_data = {
         "model_id": model.name,
@@ -229,6 +230,9 @@ def output_open_html_script(file_out: str, port: int = 8000):
     import socketserver
     import webbrowser
     import sys
+    import os
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     PORT = {port}
 

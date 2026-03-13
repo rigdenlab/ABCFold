@@ -99,8 +99,8 @@ def test_run_custom_template(test_data):
     with pytest.raises(SystemExit):
         main()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
+    with tempfile.TemporaryDirectory() as tmpdir_str:
+        tmpdir = Path(tmpdir_str)
         output_json = tmpdir / "output.json"
         add_custom_template(
             test_data.test_inputA_json,

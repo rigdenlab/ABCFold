@@ -5,14 +5,14 @@ from abcfold.backend_envs import MicromambaEnv
 logger = logging.getLogger("logger")
 
 
-CHAI_VERSION = "0.6.1"
-CHAI_ENV = "abcfold-chai-py311"
-
 # Set requirment versions for chai dependencies
 PANDERA_VERSION = "0.24.0"
 
 
-def ensure_chai_env():
+def ensure_chai_env(config: dict) -> MicromambaEnv:
+    CHAI_ENV = config['chai_env']
+    CHAI_VERSION = config['chai_version']
+
     env = MicromambaEnv(CHAI_ENV)
 
     # 1. Ensure env exists
@@ -30,6 +30,7 @@ def ensure_chai_env():
                 installed,
                 CHAI_VERSION,
             )
+        env.conda_install(["kalign2"], channels=["conda-forge", "bioconda"])
         env.pip_install([f"chai_lab=={CHAI_VERSION}"])
     else:
         logger.info("chai_lab is already up-to-date (%s)", CHAI_VERSION)

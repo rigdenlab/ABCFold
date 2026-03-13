@@ -9,7 +9,7 @@ from abcfold.chai1.af3_to_chai import ChaiFasta
 
 def test_af3_to_chai(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputAB_json)
 
@@ -37,7 +37,7 @@ CC(=O)OC1C[NH+]2CCC1CC2
 
 def test_af3_to_chai_rna(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputRNA_json)
 
@@ -54,7 +54,7 @@ def test_af3_to_chai_rna(test_data):
 
 def test_af3_to_chai_dna(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputDNA_json)
 
@@ -71,7 +71,7 @@ def test_af3_to_chai_dna(test_data):
 
 def test_af3_to_chai_ligand(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputLIG_json)
 
@@ -114,7 +114,7 @@ def test_af3_to_chai_ligand(test_data):
 
 def test_af3_to_chai_ptm(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputPTM_json)
 
@@ -137,7 +137,7 @@ def test_af3_to_chai_ptm(test_data):
 
 def test_chai_output_constraints(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputBOND_json)
 
@@ -177,7 +177,7 @@ def test_chai_output_constraints(test_data):
 def test_chai_output_msa(test_data):
     pytest.importorskip("chai_lab")
     with tempfile.TemporaryDirectory() as temp_dir:
-        chai_fasta = ChaiFasta(temp_dir)
+        chai_fasta = ChaiFasta(temp_dir, config=test_data.config_dict)
 
         chai_fasta.json_to_fasta(test_data.test_inputAmsa_json)
 
@@ -209,8 +209,8 @@ RDWFGDYSEQFLKESRQLLQQANDLKQG"
         assert df.iloc[0]["comment"] == "101"
 
 
-def test_ccd_to_smiles():
-    chai_fasta = ChaiFasta(".")
+def test_ccd_to_smiles(test_data):
+    chai_fasta = ChaiFasta(".", config=test_data.config_dict)
 
     smiles = chai_fasta.ccd_to_smiles("DAO")
     assert smiles == "CCCCCCCCCCCC(O)=O"
@@ -224,7 +224,7 @@ def test_af3_data_json_to_fasta(output_objs):
     try:
         af3_json = output_objs.af3_output.input_json
         with tempfile.TemporaryDirectory() as temp_dir:
-            chai_fasta = ChaiFasta(temp_dir)
+            chai_fasta = ChaiFasta(temp_dir, config=output_objs.config_dict)
             chai_fasta.json_to_fasta(af3_json)
     except TypeError:
         assert False

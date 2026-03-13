@@ -120,13 +120,12 @@ def test_get_sequence_data(output_objs):
     protenix_files = output_objs.protenix_output.cif_files["seed-1"]
     openfold_files = output_objs.openfold_output.cif_files["seed-1"]
 
-    cif_files = []
-
-    [cif_files.extend(files) for files in [af3_files,
-                                           boltz_files,
-                                           chai_files,
-                                           openfold_files,
-                                           protenix_files]]
+    cif_files = [item for sublist in [af3_files,
+                                      boltz_files,
+                                      chai_files,
+                                      openfold_files,
+                                      protenix_files]
+                 for item in sublist]
 
     outputdic = get_model_sequence_data(cif_files)
 

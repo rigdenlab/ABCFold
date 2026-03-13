@@ -74,16 +74,19 @@ class AlphafoldOutput:
         Process the output of an AlphaFold3 run
 
         """
-        file_groups = {}
+        file_groups: dict[
+            str, dict[int, dict[str, Union[CifFile, ConfidenceJsonFile]]]
+        ] = {}
         for pathway in self.output_dir.iterdir():
             if pathway.is_dir():
                 seed = pathway.name.split("_")[0]
-                sample = pathway.name.split("-")[-1]
                 if seed not in file_groups:
                     file_groups[seed] = {}
-                if not sample.isdigit():
+                sample = None
+                sample_str = pathway.name.split("-")[-1]
+                if not sample_str.isdigit():
                     continue
-                sample = int(sample)
+                sample = int(sample_str)
                 if sample not in file_groups[seed]:
                     file_groups[seed][sample] = {}
                 for file in pathway.iterdir():
@@ -134,7 +137,7 @@ class AlphafoldOutput:
         Returns:
             None
         """
-        new_pae_files = {}
+        new_pae_files: dict[str, list[ConfidenceJsonFile]] = {}
         for seed in self.seeds:
             for i, (pae_file, cif_file) in enumerate(
                 zip(self.af3_pae_files[seed], self.cif_files[seed])

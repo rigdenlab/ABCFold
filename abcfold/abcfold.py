@@ -8,6 +8,7 @@ import sys
 import tempfile
 import webbrowser
 from pathlib import Path
+from typing import Any, Dict, List, Union
 
 from abcfold.alphafold3.run_alphafold3 import run_alphafold3
 from abcfold.argparse_utils import (alphafold_argparse_util,
@@ -31,7 +32,7 @@ from abcfold.output.file_handlers import superpose_models
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
-                                  make_dummy_m8_file)
+                                  make_dummy_m8_file, verify_config_file)
 from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
                                               make_dummy_af3_db, setup_logger)
 from abcfold.scripts.add_custom_template import add_custom_template
@@ -43,13 +44,17 @@ HTML_DIR = Path(__file__).parent / "html"
 HTML_TEMPLATE = HTML_DIR.joinpath("abcfold.html.jinja2")
 PLOTS_DIR = ".plots"
 
+ModelOutput = Union[
+    AlphafoldOutput, BoltzOutput, ChaiOutput, ProtenixOutput, OpenfoldOutput
+]
+
 
 def run(args, config, defaults, config_file):
     """Run ABCFold
 
     Args:
         args (argparse.Namespace): Arguments from the command line
-        config (configparser.SafeConfigParser): Config parser object
+        config (configparser.ConfigParser): Config parser object
         defaults (dict): Default values from the config file
         config_file (Path): Path to the config file
 
@@ -59,7 +64,7 @@ def run(args, config, defaults, config_file):
 
 
     """
-    outputs = []
+    outputs: List[ModelOutput] = []
 
     args.output_dir = Path(args.output_dir)
 
@@ -71,7 +76,7 @@ def run(args, config, defaults, config_file):
 
     updated_config = False
     if args.model_params is not None and args.model_params != defaults["model_params"]:
-        config.set("Databases", "model_params", args.model_params)
+        config.set("Weights", "model_params", args.model_params)
         updated_config = True
     if args.database_dir is not None and args.database_dir != defaults["database_dir"]:
         config.set("Databases", "database_dir", args.database_dir)
@@ -83,6 +88,10 @@ def run(args, config, defaults, config_file):
     if updated_config:
         with open(config_file, "w") as f:
             config.write(f)
+
+    rt_config = {}
+    for section in config.sections():
+        rt_config.update(dict(config.items(section)))
 
     args = raise_argument_errors(args)
     # Ensure that the input json file is valid
@@ -155,7 +164,8 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 sif_path=af3_sif,
-                save_distogram=args.save_distogram
+                save_distogram=args.save_distogram,
+                config=rt_config
             )
 
             if af3_success:
@@ -181,6 +191,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                config=rt_config
             )
 
             if boltz_success:
@@ -205,11 +216,14 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 template_hits_path=template_hits_path,
+                config=rt_config
             )
 
             if chai_success:
                 chai_output_dirs = list(args.output_dir.glob("chai_output*"))
-                co = ChaiOutput(chai_output_dirs, input_params, name, args.save_input)
+                co = ChaiOutput(
+                    chai_output_dirs, input_params, name, rt_config, args.save_input
+                    )
                 outputs.append(co)
             successful_runs.append(chai_success)
 
@@ -222,6 +236,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                config=rt_config
             )
 
             if protenix_success:
@@ -245,7 +260,8 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 template_hits_path=template_hits_path,
-                input_ckpt=args.inference_ckpt_path
+                input_ckpt=args.inference_ckpt_path,
+                config=rt_config
             )
 
             if openfold_success:
@@ -276,7 +292,7 @@ def run(args, config, defaults, config_file):
         indicies = get_gap_indicies(*cif_models)
         index_counter = 0
 
-        alphafold_models = {"models": []}
+        alphafold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
 
         if args.alphafold3:
             if af3_success:
@@ -304,7 +320,7 @@ def run(args, config, defaults, config_file):
                         )
                         alphafold_models["models"].append(model_data)
 
-        boltz_models = {"models": []}
+        boltz_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.boltz:
             if boltz_success:
                 programs_run.append("Boltz")
@@ -331,7 +347,7 @@ def run(args, config, defaults, config_file):
                         )
                         boltz_models["models"].append(model_data)
 
-        chai_models = {"models": []}
+        chai_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.chai1:
             if chai_success:
                 programs_run.append("Chai-1")
@@ -359,7 +375,7 @@ def run(args, config, defaults, config_file):
                             )
                             chai_models["models"].append(model_data)
 
-        openfold_models = {"models": []}
+        openfold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.openfold3:
             if openfold_success:
                 programs_run.append("OpenFold3")
@@ -387,7 +403,7 @@ def run(args, config, defaults, config_file):
                             )
                             openfold_models["models"].append(model_data)
 
-        protenix_models = {"models": []}
+        protenix_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
         if args.protenix:
             if protenix_success:
                 programs_run.append("Protenix")
@@ -532,18 +548,35 @@ def main():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix"
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument(
+        '--config-file',
+        type=str,
+        default=str(Path.home() / ".abcfold_config.ini"),
+        help='Path to the config file. '
+        'If not provided, a config file will be created '
+        'at ~/.abcfold_config.ini with default values. '
+        'If a config file already exists at that location, it will be used.'
     )
+    config_args, remaining = config_parser.parse_known_args()
 
     defaults = {}
-    config_file = Path(__file__).parent.joinpath("data", "config.ini")
-    config = configparser.SafeConfigParser()
+    config_file = Path(config_args.config_file)
+    default_config_file = Path(__file__).parent.joinpath("data", "config.ini")
+    if not config_file.exists():
+        shutil.copy(default_config_file, config_file)
+    else:
+        verify_config_file(config_file, default_config_file)
 
-    if config_file.exists():
-        config.read(str(config_file))
-        defaults.update(dict(config.items("Databases")))
-        defaults.update(dict(config.items("Sif_paths")))
+    config = configparser.ConfigParser()
+    config.read(str(config_file))
+    for section in config.sections():
+        defaults.update(dict(config.items(section)))
+
+    parser = argparse.ArgumentParser(
+        description="Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix",
+        parents=[config_parser],
+    )
 
     parser = main_argpase_util(parser)
     parser = alphafold_argparse_util(parser)
@@ -557,7 +590,7 @@ def main():
     parser = visuals_argparse_util(parser)
 
     parser.set_defaults(**defaults)
-    args = parser.parse_args()
+    args = parser.parse_args(remaining)
 
     run(
         args,

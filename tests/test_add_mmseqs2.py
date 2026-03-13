@@ -29,8 +29,8 @@ def test_add_msa_to_json(test_data):
     assert out_json.exists()
     out_json.unlink()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
+    with tempfile.TemporaryDirectory() as tmpdir_str:
+        tmpdir = Path(tmpdir_str)
         add_msa_to_json(
             input_json=test_data.test_inputA_json,
             mmseqs_db=None,
@@ -85,8 +85,8 @@ def test_run_mmseqs(test_data):
     with open(test_data.test_inputA_json) as f:
         input_dict = json.load(f)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
+    with tempfile.TemporaryDirectory() as tmpdir_str:
+        tmpdir = Path(tmpdir_str)
 
         sequence = input_dict["sequences"][0]
         input_sequence = sequence["protein"]["sequence"]
@@ -105,8 +105,8 @@ def test_mms2_exception():
 
 
 def test_fetch_mmcif():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
+    with tempfile.TemporaryDirectory() as tmpdir_str:
+        tmpdir = Path(tmpdir_str)
         cif_str = fetch_mmcif("6BJ9", "A", 1, 100, tmpdir)
         assert cif_str is not None
         assert len(cif_str) > 0

@@ -16,6 +16,7 @@ os.environ["DISABLE_PANDERA_IMPORT_WARNING"] = "True"
 def run_chai(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
@@ -29,6 +30,7 @@ def run_chai(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         save_input (bool): If True, save the input fasta file and MSA to the output
         directory
         test (bool): If True, run the test command
@@ -45,7 +47,7 @@ def run_chai(
     output_dir = Path(output_dir)
 
     logger.debug("Checking if Chai-1 is installed")
-    env = ensure_chai_env()
+    env = ensure_chai_env(config=config)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
@@ -54,7 +56,7 @@ def run_chai(
             working_dir = output_dir
             working_dir.mkdir(parents=True, exist_ok=True)
 
-        chai_fasta = ChaiFasta(working_dir)
+        chai_fasta = ChaiFasta(working_dir, config=config)
         chai_fasta.json_to_fasta(input_json)
 
         out_fasta = chai_fasta.fasta
@@ -133,7 +135,12 @@ def generate_chai_command(
     """
 
     chai_exe = Path(__file__).parent / "chai.py"
-    cmd = ["python", str(chai_exe), "fold", str(input_fasta)]
+    cmd = [
+        "python",
+        str(chai_exe),
+        "fold",
+        str(input_fasta)
+    ]
 
     if Path(msa_dir).exists():
         cmd += ["--msa-directory", str(msa_dir)]
@@ -174,10 +181,8 @@ def generate_chai_test_command() -> list:
     Returns:
         list: The Chai-1 test command
     """
-    chai_exe = Path(__file__).parent / "chai.py"
     return [
-        "python",
-        chai_exe,
+        "chai-lab",
         "fold",
         "--help",
     ]

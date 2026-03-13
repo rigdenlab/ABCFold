@@ -180,11 +180,11 @@ class CifFile(FileBase):
         self.clashes = 0
         self.clashes_residues = 0
         self.model = self.load_cif_file()
-        self.__ligand_plddts = None
-        self.__plddts = None
-        self.__residue_plddts = None
-        self.__h_score = None
-        self.__name = self.cif_file.stem
+        self.__ligand_plddts: Optional[dict] = None
+        self.__plddts: Optional[List[float]] = None
+        self.__residue_plddts: Optional[List[float]] = None
+        self.__h_score: Optional[float] = None
+        self.__name: str = self.cif_file.stem
 
     @property
     def name(self):

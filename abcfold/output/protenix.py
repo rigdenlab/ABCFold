@@ -1,12 +1,15 @@
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Dict, Union
 
 from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
                                           FileTypes, NpzFile)
 from abcfold.output.utils import Af3Pae
+from abcfold.protenix.af3_to_protenix import ProtenixJson
 
 logger = logging.getLogger("logger")
+
+FileDict = Dict[str, Union[CifFile, ConfidenceJsonFile]]
 
 
 class ProtenixOutput:
@@ -88,6 +91,8 @@ class ProtenixOutput:
                 new_output_dirs.append(output_dir)
         self.output_dirs = new_output_dirs
 
+        self.json_input_obj = self.get_input_json()
+
         self.output = self.process_protenix_output()
 
         self.seeds = list(self.output.keys())
@@ -109,24 +114,26 @@ class ProtenixOutput:
             for seed in self.seeds
         }
 
-    def process_protenix_output(self):
+    def process_protenix_output(self) -> dict:
         """
         Function to process the output of a Protenix run
         """
-        file_groups = {}
+        file_groups: Dict[str, Dict[int, list]] = {}
         for pathway in self.output_dirs:
             seed = pathway.name.split("_")[-1]
             if seed not in file_groups:
                 file_groups[seed] = {}
 
             for output in pathway.rglob("*"):
-                number = output.stem.split("_sample_")[-1]
-                if not number.isdigit():
+                number = None
+                number_str = output.stem.split("_sample_")[-1]
+                if not number_str.isdigit():
                     continue
-                number = int(number)
+                number = int(number_str)
 
                 file_type = output.suffix[1:]
 
+                file_: Union[NpzFile, CifFile, ConfidenceJsonFile]
                 if file_type == FileTypes.NPZ.value:
                     file_ = NpzFile(str(output))
                 elif file_type == FileTypes.CIF.value:
@@ -140,21 +147,26 @@ class ProtenixOutput:
                 else:
                     file_groups[seed][number].append(file_)
 
-        seed_dict = {}
+        seed_dict: Dict[str, Dict[int, FileDict]] = {}
         for seed, models in file_groups.items():
-            model_number_file_type_file = {}
+            model_number_file_type_file: Dict[int, FileDict] = {}
             for model_number, files in models.items():
-                intermediate_dict = {}
+                intermediate_dict: FileDict = {}
                 for file_ in sorted(files, key=lambda x: x.suffix):
-                    if "full_data" in file_.pathway.stem:
-                        intermediate_dict["pae"] = file_
-                    elif "summary_confidence" in file_.pathway.stem:
-                        intermediate_dict["score"] = file_
-                    elif file_.pathway.suffix == ".cif":
-                        file_.name = f"protenix_{seed}_{model_number}"
-                        intermediate_dict["cif"] = file_
-                    else:
-                        intermediate_dict[file_.suffix] = file_
+                    if isinstance(file_, CifFile):
+                        if file_.pathway.suffix == ".cif":
+                            file_.name = f"protenix_{seed}_{model_number}"
+                            file_ = self.update_chain_labels(file_)
+                            intermediate_dict["cif"] = file_
+                        elif "full_data" in file_.pathway.stem:
+                            intermediate_dict["pae"] = file_
+                        elif "summary_confidence" in file_.pathway.stem:
+                            intermediate_dict["score"] = file_
+                    elif isinstance(file_, ConfidenceJsonFile):
+                        if "full_data" in file_.pathway.stem:
+                            intermediate_dict["pae"] = file_
+                        elif "summary_confidence" in file_.pathway.stem:
+                            intermediate_dict["score"] = file_
 
                 model_number_file_type_file[model_number] = intermediate_dict
 
@@ -166,16 +178,18 @@ class ProtenixOutput:
 
         return seed_dict
 
-    def pae_to_af3(self):
+    def pae_to_af3(self) -> None:
         """
         Convert the PAE data from Protenix to the format used by Alphafold3
 
         Returns:
             None
         """
-        new_pae_files = {}
+        new_pae_files: Dict[str, list] = {}
         for seed in self.seeds:
-            for (pae_file, cif_file) in zip(self.pae_files[seed], self.cif_files[seed]):
+            for (pae_file, cif_file) in zip(
+                self.pae_files[seed], self.cif_files[seed]
+            ):
                 pae = Af3Pae.from_protenix(
                     pae_file.data,
                     cif_file,
@@ -200,3 +214,30 @@ class ProtenixOutput:
             }
             for seed in self.seeds
         }
+
+    def update_chain_labels(self, cif_file: CifFile) -> CifFile:
+        """
+        Function to update the chain labels in the CIF file
+
+        Args:
+            cif_file (CifFile): CifFile object to update the chain labels for
+
+        """
+
+        cif_file.relabel_chains(
+            list(self.json_input_obj.chain_ids.keys())
+        )
+        return cif_file
+
+    def get_input_json(self) -> ProtenixJson:
+        """
+        Get the input json file used for the Protenix run
+
+        Returns:
+            ProtenixJson: Object containing the input json file
+        """
+
+        pj = ProtenixJson(self.output_dirs[0], create_files=False)
+        pj.json_to_json(self.input_params)
+
+        return pj

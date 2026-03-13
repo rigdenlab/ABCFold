@@ -96,7 +96,7 @@ class OpenfoldJson:
                                 q = self.openfold_dict["queries"][self.name]
                                 q["use_msas"] = True
                                 q["use_main_msas"] = True
-                                q["use_paired_msas"] = True
+                                q["use_paired_msas"] = False
                                 query_flags_set = True
 
         self.openfold_dict["queries"][self.name]["chains"] = openfold_sequences
@@ -242,7 +242,7 @@ class OpenfoldJson:
             "      memory:",
             "        eval:",
             "          use_cueq_triangle_kernels: true",
-            "          use_deepspeed_evo_attention: true",
+            "          use_deepspeed_evo_attention: false",
             "experiment_settings:",
             "  mode: predict",
             f"  seeds: {seeds_str}",

@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+
+import configparser
 import json
 import logging
 import shutil
@@ -43,6 +46,16 @@ tests from the root of the repository or the tests directory"
         stem, suffix = test_file.stem, test_file.suffix[1:]
         d[f"test_{stem.replace('-', '_')}_{suffix}"] = str(test_file)
 
+    config_file = Path("../abcfold/data/config.ini")
+    if not config_file.exists():
+        config_file = Path("./abcfold/data/config.ini")
+    config = configparser.ConfigParser()
+    config_dict = {}
+    config.read(str(config_file))
+    for section in config.sections():
+        config_dict.update(dict(config.items(section)))
+    d["config_dict"] = config_dict
+
     nt = namedtuple("TestData", d)
     n = nt(**d)
 
@@ -60,6 +73,15 @@ def output_objs():
         logger.critical(msg)
         raise FileNotFoundError()
     d = {}
+
+    config_file = Path("../abcfold/data/config.ini")
+    if not config_file.exists():
+        config_file = Path("./abcfold/data/config.ini")
+    config = configparser.ConfigParser()
+    config_dict = {}
+    config.read(str(config_file))
+    for section in config.sections():
+        config_dict.update(dict(config.items(section)))
 
     adir = data_dir.joinpath("alphafold3_6BJ9")
     bdir = data_dir.joinpath("boltz_6BJ9_seed-1")
@@ -101,6 +123,7 @@ def output_objs():
             [temp_cdir],
             input_params.copy(),
             name,
+            config_dict,
         )
 
         protenix_output = ProtenixOutput(
@@ -120,6 +143,7 @@ def output_objs():
         d["chai_output"] = chai_output
         d["protenix_output"] = protenix_output
         d["openfold_output"] = openfold_output
+        d["config_dict"] = config_dict
         nt = namedtuple("output_objs", d)
         n = nt(**d)
 

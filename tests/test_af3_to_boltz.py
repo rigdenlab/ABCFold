@@ -98,6 +98,7 @@ def test_boltz_output_msa(test_data):
         boltz_yaml.json_to_yaml(test_data.test_inputAmsa_json)
 
         assert boltz_yaml.msa_file != "null"
+        assert isinstance(boltz_yaml.msa_file, Path)
         assert boltz_yaml.msa_file.exists()
         assert boltz_yaml.msa_file.is_file()
 
@@ -189,14 +190,14 @@ def test_extra_ligand_ids():
         assert yaml_string[36] == f'{DELIM}{DELIM}smiles: "CC(=O)OC1C[NH+]2CCC1CC2"'
         assert yaml_string[37] == "constraints:"
         assert yaml_string[38] == f"{DELIM}- bond:"
-        assert yaml_string[39] == f"{DELIM}{DELIM}atom1: \"['A', 1, 'CA']\""
-        assert yaml_string[40] == f"{DELIM}{DELIM}atom2: \"['B', 1, 'CA']\""
+        assert yaml_string[39] == f"{DELIM}{DELIM}atom1: ['A', 1, 'CA']"
+        assert yaml_string[40] == f"{DELIM}{DELIM}atom2: ['B', 1, 'CA']"
         assert yaml_string[41] == f"{DELIM}- bond:"
-        assert yaml_string[42] == f"{DELIM}{DELIM}atom1: \"['C', 7, 'CA']\""
-        assert yaml_string[43] == f"{DELIM}{DELIM}atom2: \"['A', 10, 'CA']\""
+        assert yaml_string[42] == f"{DELIM}{DELIM}atom1: ['C', 7, 'CA']"
+        assert yaml_string[43] == f"{DELIM}{DELIM}atom2: ['A', 10, 'CA']"
         assert yaml_string[44] == f"{DELIM}- bond:"
-        assert yaml_string[45] == f"{DELIM}{DELIM}atom1: \"['I', 1, 'O3']\""
-        assert yaml_string[46] == f"{DELIM}{DELIM}atom2: \"['E', 1, 'C1']\""
+        assert yaml_string[45] == f"{DELIM}{DELIM}atom1: ['I', 1, 'O3']"
+        assert yaml_string[46] == f"{DELIM}{DELIM}atom2: ['E', 1, 'C1']"
         assert yaml_string[47] == f"{DELIM}- bond:"
-        assert yaml_string[48] == f"{DELIM}{DELIM}atom1: \"['E', 1, 'C1']\""
-        assert yaml_string[49] == f"{DELIM}{DELIM}atom2: \"['G', 1, 'C1']\""
+        assert yaml_string[48] == f"{DELIM}{DELIM}atom1: ['E', 1, 'C1']"
+        assert yaml_string[49] == f"{DELIM}{DELIM}atom2: ['G', 1, 'C1']"

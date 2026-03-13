@@ -13,7 +13,7 @@ except ImportError:
 
 
 @pytest.mark.skipif(not run_chai1, reason="chai_lab not installed")
-def test_generate_chai_command():
+def test_generate_chai_command(test_data):
     from abcfold.chai1.run_chai1 import generate_chai_command
 
     input_fasta = "/road/to/nowhere.fasta"
@@ -54,6 +54,7 @@ def test_run_chai(test_data):
                 temp_dir,
                 save_input=True,
                 test=True,
+                config=test_data.config_dict,
             )
         except Exception as e:
             print(e)

@@ -6,9 +6,6 @@ from abcfold.backend_envs import MicromambaEnv
 
 logger = logging.getLogger("logger")
 
-OPENFOLD_VERSION = "0.3.1"
-OPENFOLD_ENV = "abcfold-openfold3-py311"
-
 OPENFOLD_BUCKET = "openfold"
 CHECKPOINT_NAME = "of3_ft3_v1.pt"
 S3_KEY = f"openfold3_params/{CHECKPOINT_NAME}"
@@ -46,7 +43,10 @@ def ensure_openfold_checkpoint(target_path: Path) -> Path:
     return target_path
 
 
-def ensure_openfold_env():
+def ensure_openfold_env(config: dict) -> MicromambaEnv:
+    OPENFOLD_ENV = config['openfold_env']
+    OPENFOLD_VERSION = config['openfold_version']
+
     env = MicromambaEnv(OPENFOLD_ENV)
 
     # 1. Ensure env exists
@@ -73,8 +73,6 @@ def ensure_openfold_env():
             "cuequivariance_ops_torch-cu12",
             "--no-cache-dir",
         ])
-        # Setup databases
-        env.run(["setup_openfold"])
     else:
         logger.info("openfold3 is already up-to-date (%s)", OPENFOLD_ENV)
 

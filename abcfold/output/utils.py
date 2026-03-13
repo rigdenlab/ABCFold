@@ -1,7 +1,8 @@
+import configparser
 import json
 from itertools import zip_longest
 from pathlib import Path
-from typing import List, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -76,7 +77,6 @@ class Af3Pae:
                     order_mapping[i] = i
 
             # Reorder the PAE matrix rows and columns based on the mapping
-
             reordered_matrix = np.zeros_like(pae_matrix)
             for i in range(len(pae_matrix)):
                 for j in range(len(pae_matrix)):
@@ -136,6 +136,40 @@ class Af3Pae:
         af3_scores["atom_plddts"] = atom_plddts
         af3_scores["contact_probs"] = contact_probs
         af3_scores["pae"] = reordered_pae
+        af3_scores["token_chain_ids"] = token_chain_ids
+        af3_scores["token_res_ids"] = token_res_ids
+
+        return cls(af3_scores)
+
+    @classmethod
+    def from_alphapulldown(cls, scores: dict, cif_file: CifFile):
+        af3_scores = AF3TEMPLATE.copy()
+
+        chain_lengths = cif_file.chain_lengths(mode="residues", ligand_atoms=True)
+        residue_lengths = cif_file.chain_lengths(mode="all", ligand_atoms=True)
+
+        atom_chain_ids = flatten(
+            [[key] * value for key, value in residue_lengths.items()]
+        )
+
+        atom_plddts = cif_file.plddts
+        token_chain_ids = flatten(
+            [[key] * value for key, value in chain_lengths.items()]
+        )
+
+        token_res_ids = flatten(
+            [
+                [value for value in values]
+                for _, values in cif_file.token_residue_ids().items()
+            ]
+        )
+
+        af3_scores["pae"] = scores[0]["predicted_aligned_error"]
+        af3_scores["atom_chain_ids"] = atom_chain_ids
+        af3_scores["atom_plddts"] = atom_plddts
+        af3_scores["contact_probs"] = np.zeros(
+            shape=np.asarray(scores[0]["predicted_aligned_error"]).shape
+        ).tolist()
         af3_scores["token_chain_ids"] = token_chain_ids
         af3_scores["token_res_ids"] = token_res_ids
 
@@ -395,7 +429,7 @@ def interleave_repeated(lst, n, chain_no):
 
 
 def insert_none_by_minus_one(indices, values):
-    result = []
+    result: List[Union[None, Any]] = []
     value_index = 0
 
     for idx in indices:
@@ -417,7 +451,7 @@ def make_dummy_m8_file(run_json, output_dir):
     with open(run_json) as f:
         input_json = json.load(f)
 
-    templates = {}
+    templates: Dict[str, List[str]] = {}
     for sequence in input_json["sequences"]:
         if "protein" not in sequence:
             continue
@@ -441,3 +475,36 @@ def make_dummy_m8_file(run_json, output_dir):
     pd.DataFrame(table).to_csv(m8_file, sep="\t", header=False, index=False)
 
     return m8_file
+
+
+def verify_config_file(abc_config, default_config_file):
+    """
+    Verify that the config file has the correct keys and values
+
+    Args:
+        abc_config (Union[str, Path]): The config file to verify
+        default_config_file (Union[str, Path]): The path to the default config file
+
+    Returns:
+        None
+    """
+
+    config_a = configparser.SafeConfigParser()
+    config_a.read(str(abc_config))
+
+    config_b = configparser.SafeConfigParser()
+    config_b.read(str(default_config_file))
+
+    for section in config_b.sections():
+        if section == "Versions":
+            # Update the versions to match the default config file so we know we're
+            # using compatible versions of the programs
+            config_a[section] = config_b[section]
+        if not config_a.has_section(section):
+            config_a.add_section(section)
+        for key in config_b[section]:
+            if not config_a.has_option(section, key):
+                config_a[section][key] = config_b[section][key]
+
+    with open(abc_config, "w") as f:
+        config_a.write(f)

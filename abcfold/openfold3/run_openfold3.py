@@ -14,6 +14,7 @@ logger = logging.getLogger("logger")
 def run_openfold(
     input_json: Union[str, Path],
     output_dir: Union[str, Path],
+    config: dict,
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
@@ -26,6 +27,7 @@ def run_openfold(
     Args:
         input_json (Union[str, Path]): Path to the input JSON file
         output_dir (Union[str, Path]): Path to the output directory
+        config (dict): Configuration dictionary
         save_input (bool): If True, save the input JSON file and MSA to the output
         directory
         test (bool): If True, run the test command
@@ -45,9 +47,15 @@ def run_openfold(
     output_dir = Path(output_dir)
 
     logger.debug("Checking if openfold is installed")
-    env = ensure_openfold_env()
+    env = ensure_openfold_env(config=config)
 
-    default_ckpt = Path.home() / ".openfold3" / "of3_ft3_v1.pt"
+    openfold_weight_dir = config['openfold_weights']
+    if openfold_weight_dir is not None and openfold_weight_dir != "None":
+        cache_path = Path(openfold_weight_dir)
+    else:
+        cache_path = Path.home().joinpath(".openfold3")
+
+    default_ckpt = cache_path.joinpath("of3_ft3_v1.pt")
     if input_ckpt is None:
         if not default_ckpt.exists():
             logger.info(
@@ -60,6 +68,15 @@ def run_openfold(
     elif Path(input_ckpt).exists():
         logger.info(f"Using user provided OpenFold3 checkpoint: {input_ckpt}")
         openfold_ckpt = Path(input_ckpt)
+
+    elif Path(input_ckpt).exists():
+        logger.info(f"Using user provided OpenFold3 checkpoint: {input_ckpt}")
+        openfold_ckpt = Path(input_ckpt)
+    else:
+        logger.error(
+            "No valid OpenFold3 checkpoint path provided."
+        )
+        return False
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
