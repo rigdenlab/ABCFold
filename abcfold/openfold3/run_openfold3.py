@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Optional, Union
 
 from abcfold.openfold3.af3_to_openfold3 import OpenfoldJson
-from abcfold.openfold3.check_install import (ensure_openfold_checkpoint,
+from abcfold.openfold3.check_install import (CHECKPOINT_NAME,
+                                             ensure_openfold_checkpoint,
                                              ensure_openfold_env)
 
 logger = logging.getLogger("logger")
@@ -55,7 +56,7 @@ def run_openfold(
     else:
         cache_path = Path.home().joinpath(".openfold3")
 
-    default_ckpt = cache_path.joinpath("of3_ft3_v1.pt")
+    default_ckpt = cache_path.joinpath(CHECKPOINT_NAME)
     if input_ckpt is None:
         if not default_ckpt.exists():
             logger.info(

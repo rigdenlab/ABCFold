@@ -235,7 +235,6 @@ class OpenfoldJson:
             "model_update:",
             "  presets:",
             "    - predict",
-            "    - pae_enabled",
             "    - low_mem",
             "  custom:",
             "    settings:",

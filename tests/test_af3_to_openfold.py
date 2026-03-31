@@ -262,7 +262,6 @@ def test_openfold_write_yaml(test_data):
         assert yaml_string[0] == "model_update:"
         assert yaml_string[1] == "  presets:"
         assert yaml_string[2] == "    - predict"
-        assert yaml_string[3] == "    - pae_enabled"
         assert yaml_string[4] == "    - low_mem"
         assert yaml_string[5] == "  custom:"
         assert yaml_string[6] == "    settings:"
