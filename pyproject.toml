@@ -48,6 +48,7 @@ packages = [
     "abcfold.chai1",
     "abcfold.protenix",
     "abcfold.openfold3",
+    "abcfold.rosettafold3",
     "abcfold.html",
     "abcfold.output",
     "abcfold.plots",

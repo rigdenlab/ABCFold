@@ -272,6 +272,19 @@ def run(args, config, defaults, config_file):
                 outputs.append(oo)
             successful_runs.append(openfold_success)
 
+        if args.rosettafold3:
+            from abcfold.rosettafold3.run_rosettafold3 import run_rosettafold
+
+            rosettafold_success = run_rosettafold(
+                input_json=run_json,
+                output_dir=args.output_dir,
+                save_input=args.save_input,
+                number_of_models=args.number_of_models,
+                config=rt_config
+            )
+
+            successful_runs.append(rosettafold_success)
+
         if args.no_visuals:
             logger.info("Visuals disabled")
             return
