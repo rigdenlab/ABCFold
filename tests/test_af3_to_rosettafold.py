@@ -138,18 +138,20 @@ def test_rosettafold_write_json(test_data):
         out_file = Path(temp_dir) / "rosettafold_output.json"
         rosettafold_json.write_json(out_file)
 
-        reference = {
-            'name': '2PV7',
-            'components':
-                [
-                    {'seq': 'GMRES', 'chain_id': 'A'},
-                    {'seq': 'GMRES', 'chain_id': 'B'},
-                    {'seq': 'YANEN', 'chain_id': 'C'},
-                    {'ccd_code': 'ATP'},
-                    {'ccd_code': 'ATP'},
-                    {'smiles': 'CC(=O)OC1C[NH+]2CCC1CC2'}
-                ]
-        }
+        reference = [
+            {
+                'name': '2PV7',
+                'components':
+                    [
+                        {'seq': 'GMRES', 'chain_id': 'A'},
+                        {'seq': 'GMRES', 'chain_id': 'B'},
+                        {'seq': 'YANEN', 'chain_id': 'C'},
+                        {'ccd_code': 'ATP'},
+                        {'ccd_code': 'ATP'},
+                        {'smiles': 'CC(=O)OC1C[NH+]2CCC1CC2'}
+                    ]
+            }
+        ]
 
         with open(out_file, "r") as f:
             written_data = f.read()
