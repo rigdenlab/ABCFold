@@ -108,13 +108,13 @@ def test_rosettafold_output_msa(test_data):
 
         data = rosettafold_json.json_to_json(test_data.test_inputAmsa_json)
         msa_path = (
-            data[0]["components"][0].get("msa_path")
+            data["components"][0].get("msa_path")
         )
         # MSA directory has a random path, so just check that it exists then give
         # it a placeholder value for comparison
         assert msa_path is not None
         assert Path(msa_path).exists()
-        data[0]["components"][0]["msa_path"] = (
+        data["components"][0]["msa_path"] = (
             "PRECOMPUTED_MSA"
         )
 
