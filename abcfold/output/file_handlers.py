@@ -844,6 +844,28 @@ for reordering"
         cls._fix_openfold_mmcif(str(openfold_path), str(tmp_path))
         return cls(str(tmp_path), input_params)
 
+    @classmethod
+    def from_rosettafold(cls,
+                         rosettafold_cif: Union[str, Path],
+                         input_params: Optional[dict] = None) -> "CifFile":
+        """
+        Create a CifFile from an RosettaFold mmCIF but fix formatting difference
+        in pLDDT scores (which are stored in the B-factor field but with a
+        different scale)
+        """
+        rosettafold_path = Path(rosettafold_cif)
+        tmp_path = rosettafold_path.parent / f"{rosettafold_path.stem}_fixed.cif"
+        parser = MMCIFParser(QUIET=True)
+        model = parser.get_structure(rosettafold_path.stem, rosettafold_path)
+        for atom in model.get_atoms():
+            # RosettaFold pLDDT is on a 0-1 scale, convert to 0-100
+            atom.bfactor = atom.bfactor * 100.0
+        io = MMCIFIO()
+        io.set_structure(model)
+        io.save(str(tmp_path))
+
+        return cls(str(tmp_path), input_params)
+
 
 class ConfidenceJsonFile(FileBase):
     def __init__(self, json_file: Union[str, Path]):

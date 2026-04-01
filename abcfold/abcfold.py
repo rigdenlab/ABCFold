@@ -33,6 +33,7 @@ from abcfold.output.chai import ChaiOutput
 from abcfold.output.file_handlers import superpose_models
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
+from abcfold.output.rosettafold3 import RosettafoldOutput
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
                                   make_dummy_m8_file, verify_config_file)
 from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
@@ -47,7 +48,8 @@ HTML_TEMPLATE = HTML_DIR.joinpath("abcfold.html.jinja2")
 PLOTS_DIR = ".plots"
 
 ModelOutput = Union[
-    AlphafoldOutput, BoltzOutput, ChaiOutput, ProtenixOutput, OpenfoldOutput
+    AlphafoldOutput, BoltzOutput, ChaiOutput,
+    ProtenixOutput, OpenfoldOutput, RosettafoldOutput
 ]
 
 
@@ -284,6 +286,15 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 config=rt_config
             )
+
+            if rosettafold_success:
+                rosettafold_output_dirs = list(
+                    args.output_dir.glob("rosettafold_results*")
+                )
+                ro = RosettafoldOutput(
+                    rosettafold_output_dirs, input_params, name, args.save_input
+                )
+                outputs.append(ro)
 
             successful_runs.append(rosettafold_success)
 
