@@ -65,7 +65,6 @@ class Rosettafoldjson:
         for key, value in json_dict.items():
             if key == "name":
                 self.name = value
-                self.rosettafold_dict["queries"][self.name] = {}
             if key == "modelSeeds":
                 if isinstance(value, list):
                     self.seeds = value
@@ -127,7 +126,7 @@ class Rosettafoldjson:
 
         chain = {
             "seq": sequence,
-            "chain_ids": chain_id,
+            "chain_id": chain_id,
         }
 
         random_string = ''.join(random.choices(string.ascii_letters, k=5))
@@ -140,9 +139,7 @@ class Rosettafoldjson:
                 unpaired_msa,
                 msa_out
             )
-            chain["msa_path"] = [
-                msa_dir.resolve().as_posix()
-            ]
+            chain["msa_path"] = msa_out.resolve().as_posix()
 
         return chain
 

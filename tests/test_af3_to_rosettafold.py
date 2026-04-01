@@ -17,9 +17,9 @@ def test_af3_to_rosettafold(test_data):
             'name': '2PV7',
             'components':
                 [
-                    {'seq': 'GMRES', 'chain_ids': 'A'},
-                    {'seq': 'GMRES', 'chain_ids': 'B'},
-                    {'seq': 'YANEN', 'chain_ids': 'C'},
+                    {'seq': 'GMRES', 'chain_id': 'A'},
+                    {'seq': 'GMRES', 'chain_id': 'B'},
+                    {'seq': 'YANEN', 'chain_id': 'C'},
                     {'ccd_code': 'ATP'},
                     {'ccd_code': 'ATP'},
                     {'smiles': 'CC(=O)OC1C[NH+]2CCC1CC2'}
@@ -39,7 +39,7 @@ def test_af3_to_rosettafold_rna(test_data):
             'name': 'RNA_example',
             'components':
                 [
-                    {'seq': 'AGCU', 'chain_ids': 'A'},
+                    {'seq': 'AGCU', 'chain_id': 'A'},
                 ]
         }
 
@@ -55,8 +55,8 @@ def test_af3_to_rosettafold_dna(test_data):
             'name': 'DNA_example',
             'components':
                 [
-                    {'seq': 'AGCT', 'chain_ids': 'A'},
-                    {'seq': 'AGCT', 'chain_ids': 'B'}
+                    {'seq': 'AGCT', 'chain_id': 'A'},
+                    {'seq': 'AGCT', 'chain_id': 'B'}
                 ]
         }
 
@@ -72,8 +72,8 @@ def test_af3_to_rosettafold_ligand(test_data):
             'name': '2PV7',
             'components':
                 [
-                    {'seq': 'GMRESYANENQFGFKTINSDIHKIVIVGGYGKLGGLFARYLRASGYPISILDREDWAVAESILANADVVIVSVPINLTLETIERLKPYLTENMLLADLTSVKREPLAKMLEVHTGAVLGLHPMFGADIASMAKQVVVRCDGRFPERYEWLLEQIQIWGAKIYQTNATEHDHNMTYIQALRHFSTFANGLHLSKQPINLANLLALSSPIYRLELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQANDLKQG', 'chain_ids': 'A'},
-                    {'seq': 'GMRESYANENQFGFKTINSDIHKIVIVGGYGKLGGLFARYLRASGYPISILDREDWAVAESILANADVVIVSVPINLTLETIERLKPYLTENMLLADLTSVKREPLAKMLEVHTGAVLGLHPMFGADIASMAKQVVVRCDGRFPERYEWLLEQIQIWGAKIYQTNATEHDHNMTYIQALRHFSTFANGLHLSKQPINLANLLALSSPIYRLELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQANDLKQG', 'chain_ids': 'B'},
+                    {'seq': 'GMRESYANENQFGFKTINSDIHKIVIVGGYGKLGGLFARYLRASGYPISILDREDWAVAESILANADVVIVSVPINLTLETIERLKPYLTENMLLADLTSVKREPLAKMLEVHTGAVLGLHPMFGADIASMAKQVVVRCDGRFPERYEWLLEQIQIWGAKIYQTNATEHDHNMTYIQALRHFSTFANGLHLSKQPINLANLLALSSPIYRLELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQANDLKQG', 'chain_id': 'A'},
+                    {'seq': 'GMRESYANENQFGFKTINSDIHKIVIVGGYGKLGGLFARYLRASGYPISILDREDWAVAESILANADVVIVSVPINLTLETIERLKPYLTENMLLADLTSVKREPLAKMLEVHTGAVLGLHPMFGADIASMAKQVVVRCDGRFPERYEWLLEQIQIWGAKIYQTNATEHDHNMTYIQALRHFSTFANGLHLSKQPINLANLLALSSPIYRLELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQANDLKQG', 'chain_id': 'B'},
                     {'ccd_code': 'ATP'},
                     {'ccd_code': 'ATP'},
                     {'smiles': 'CC(=O)OC1C[NH+]2CCC1CC2'},
@@ -95,8 +95,8 @@ def test_af3_to_rosettafold_ptm(test_data):
             'name': 'PTM example',
             'components':
                 [
-                    {'seq': '(HY3)VLS(P1L)GEWQL', 'chain_ids': 'A'},
-                    {'seq': '(2MG)GC(5MC)', 'chain_ids': 'B'}
+                    {'seq': '(HY3)VLS(P1L)GEWQL', 'chain_id': 'A'},
+                    {'seq': '(2MG)GC(5MC)', 'chain_id': 'B'}
                 ]
         }
 
@@ -108,14 +108,14 @@ def test_rosettafold_output_msa(test_data):
 
         data = rosettafold_json.json_to_json(test_data.test_inputAmsa_json)
         msa_path = (
-            data[0]["components"][0].get("msa_path")[0]
+            data[0]["components"][0].get("msa_path")
         )
         # MSA directory has a random path, so just check that it exists then give
         # it a placeholder value for comparison
         assert msa_path is not None
         assert Path(msa_path).exists()
         data[0]["components"][0]["msa_path"] = (
-            "PRECOMPUTED_MSA_DIR"
+            "PRECOMPUTED_MSA"
         )
 
         reference = {
@@ -123,8 +123,8 @@ def test_rosettafold_output_msa(test_data):
             'components':
                 [
                     {'seq': 'GMRESYANENQFGFKTINSDIHKIVIVGGYGKLGGLFARYLRASGYPISILDREDWAVAESILANADVVIVSVPINLTLETIERLKPYLTENMLLADLTSVKREPLAKMLEVHTGAVLGLHPMFGADIASMAKQVVVRCDGRFPERYEWLLEQIQIWGAKIYQTNATEHDHNMTYIQALRHFSTFANGLHLSKQPINLANLLALSSPIYRLELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQANDLKQG',
-                     'chain_ids': 'A',
-                     'msa_path': 'PRECOMPUTED_MSA_DIR'},
+                     'chain_id': 'A',
+                     'msa_path': 'PRECOMPUTED_MSA'},
                 ]
         }
 
@@ -142,9 +142,9 @@ def test_rosettafold_write_json(test_data):
             'name': '2PV7',
             'components':
                 [
-                    {'seq': 'GMRES', 'chain_ids': 'A'},
-                    {'seq': 'GMRES', 'chain_ids': 'B'},
-                    {'seq': 'YANEN', 'chain_ids': 'C'},
+                    {'seq': 'GMRES', 'chain_id': 'A'},
+                    {'seq': 'GMRES', 'chain_id': 'B'},
+                    {'seq': 'YANEN', 'chain_id': 'C'},
                     {'ccd_code': 'ATP'},
                     {'ccd_code': 'ATP'},
                     {'smiles': 'CC(=O)OC1C[NH+]2CCC1CC2'}

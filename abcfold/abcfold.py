@@ -8,6 +8,7 @@ import sys
 import tempfile
 import webbrowser
 from pathlib import Path
+from textwrap import dedent
 from typing import Any, Dict, List, Union
 
 from abcfold.alphafold3.run_alphafold3 import run_alphafold3
@@ -19,6 +20,7 @@ from abcfold.argparse_utils import (alphafold_argparse_util,
                                     prediction_argparse_util,
                                     protenix_argparse_util,
                                     raise_argument_errors,
+                                    rosettafold_argparse_util,
                                     visuals_argparse_util)
 from abcfold.html.html_utils import (PORT, NoCacheHTTPRequestHandler,
                                      get_all_cif_files, get_model_data,
@@ -557,7 +559,7 @@ view the output pages"
 
 def main():
     """
-    Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix
+    Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix / RosettaFold3
     """
     import argparse
 
@@ -566,10 +568,9 @@ def main():
         '--config-file',
         type=str,
         default=str(Path.home() / ".abcfold_config.ini"),
-        help='Path to the config file. '
-        'If not provided, a config file will be created '
-        'at ~/.abcfold_config.ini with default values. '
-        'If a config file already exists at that location, it will be used.'
+        help=dedent('Path to the config file. If not provided, a config file will  \
+        be created at ~/.abcfold_config.ini with default values. \
+        If a config file already exists at that location, it will be used.')
     )
     config_args, remaining = config_parser.parse_known_args()
 
@@ -587,7 +588,8 @@ def main():
         defaults.update(dict(config.items(section)))
 
     parser = argparse.ArgumentParser(
-        description="Run AlphaFold3 / Boltz / Chai-1 / OpenFold3 / Protenix",
+        description=dedent("Run AlphaFold3 / Boltz / Chai-1 / \
+        OpenFold3 / Protenix / RosettaFold3"),
         parents=[config_parser],
     )
 
@@ -597,6 +599,7 @@ def main():
     parser = chai_argparse_util(parser)
     parser = openfold_argparse_util(parser)
     parser = protenix_argparse_util(parser)
+    parser = rosettafold_argparse_util(parser)
     parser = mmseqs2_argparse_util(parser)
     parser = custom_template_argpase_util(parser)
     parser = prediction_argparse_util(parser)

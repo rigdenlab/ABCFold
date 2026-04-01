@@ -42,7 +42,7 @@ def ensure_rosettafold_checkpoint(target_path: Path) -> Path:
 
 def ensure_rosettafold_env(config: dict) -> MicromambaEnv:
     ROSETTAFOLD_ENV = config['rosettafold_env']
-    ROSETTAFOLD_VERSION = config['rosettafold_version']
+    ROSETTAFOLD_VERSION = config['rosetta_version']
 
     env = MicromambaEnv(ROSETTAFOLD_ENV)
     # 1. Ensure env exists
