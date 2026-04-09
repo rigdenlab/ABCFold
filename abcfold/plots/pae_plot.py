@@ -15,6 +15,7 @@ from abcfold.output.chai import ChaiOutput
 from abcfold.output.file_handlers import CifFile
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
+from abcfold.output.rosettafold3 import RosettafoldOutput
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ CSSPATHS = {
     "C": "paeViewerStandaloneLayoutChai.css",
     "O": "paeViewerStandaloneLayoutOpenfold.css",
     "P": "paeViewerStandaloneLayoutProtenix.css",
+    "R": "paeViewerStandaloneLayoutRosetta.css",
 }
 
 PAEVIEWER = Path(__file__).parent.joinpath(
@@ -173,6 +175,32 @@ def create_pae_plots(
             template_files.append(template_file)
             cmd = get_template_run_script(
                 "ABCFold - OpenFold 3 Output",
+                css_path,
+                template_file,
+                output_dir.joinpath(".pae_viewer"),
+            )
+            run_script(cmd)
+
+            for seed in output.seeds:
+                run_scripts.extend(
+                    prepare_scripts(
+                        output.cif_files[seed],
+                        output.af3_pae_files[seed],
+                        plots_dir,
+                        pathway_plot,
+                        template_file,
+                        True,
+                    )
+                )
+
+            continue
+
+        elif isinstance(output, RosettafoldOutput):
+            css_path = CSSPATHS["R"]
+            template_file = plots_dir.joinpath("rf3_template.html")
+            template_files.append(template_file)
+            cmd = get_template_run_script(
+                "ABCFold - RosettaFold 3 Output",
                 css_path,
                 template_file,
                 output_dir.joinpath(".pae_viewer"),
