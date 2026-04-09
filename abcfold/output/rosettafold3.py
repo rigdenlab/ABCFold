@@ -121,7 +121,7 @@ class RosettafoldOutput:
 
             for output in pathway.rglob("*"):
                 number = None
-                number_str = output.stem.split("_sample_")[-1].split("_")[0]
+                number_str = output.stem.split("_sample-")[-1].split('_')[0]
                 if not number_str.isdigit():
                     continue
                 number = int(number_str)
@@ -150,11 +150,11 @@ class RosettafoldOutput:
                 for file_ in sorted(files, key=lambda x: x.suffix):
                     if (
                         "confidences" in file_.pathway.stem
-                        and "aggregated" not in file_.pathway.stem
+                        and "summary" not in file_.pathway.stem
                     ) and isinstance(file_, ConfidenceJsonFile):
                         intermediate_dict["pae"] = file_
                     elif (
-                        "confidences_aggregated" in file_.pathway.stem
+                        "summary_confidences" in file_.pathway.stem
                     ) and isinstance(file_, ConfidenceJsonFile):
                         intermediate_dict["score"] = file_
                     elif isinstance(file_, CifFile):

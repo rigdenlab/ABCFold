@@ -457,12 +457,41 @@ def run(args, config, defaults, config_file):
                             )
                             protenix_models["models"].append(model_data)
 
+        rosettafold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
+        if args.rosettafold3:
+            if rosettafold_success:
+                programs_run.append("RosettaFold3")
+                for seed in ro.output.keys():
+                    for idx in ro.output[seed].keys():
+                        if idx >= 0:
+                            model = ro.output[seed][idx]["cif"]
+                            model.check_clashes()
+                            score_file = ro.output[seed][idx]["scores"]
+                            plddt = model.residue_plddts
+                            pae = ro.output[seed][idx]["af3_pae"]
+                            if len(indicies) > 0:
+                                plddt = insert_none_by_minus_one(
+                                    indicies[index_counter], plddt
+                                )
+                            index_counter += 1
+                            model_data = get_model_data(
+                                model,
+                                plot_dict,
+                                "RosettaFold3",
+                                plddt,
+                                pae,
+                                score_file,
+                                args.output_dir,
+                            )
+                            rosettafold_models["models"].append(model_data)
+
         combined_models = (
             alphafold_models["models"] +
             boltz_models["models"] +
             chai_models["models"] +
             openfold_models["models"] +
-            protenix_models["models"]
+            protenix_models["models"] +
+            rosettafold_models["models"]
         )
 
         # Make the output directory for the models
@@ -480,6 +509,8 @@ def run(args, config, defaults, config_file):
                 output_name = "openfold_model_" + model["model_id"][-1] + ".cif"
             elif model["model_source"] == "Protenix":
                 output_name = "protenix_model_" + model["model_id"][-1] + ".cif"
+            elif model["model_source"] == "RosettaFold3":
+                output_name = "rosettafold_model_" + model["model_id"][-1] + ".cif"
             shutil.copy(
                 cif_file,
                 args.output_dir.joinpath("output_models").joinpath(output_name),
