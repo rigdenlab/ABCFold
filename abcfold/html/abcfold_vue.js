@@ -62,6 +62,8 @@ Vue.component('abc-table', {
                     return 'btn-source4';
                 case 'OpenFold3':
                     return 'btn-source5';
+                case 'RosettaFold3':
+                    return 'btn-source6';
                 default:
                     return 'btn-default';
             }

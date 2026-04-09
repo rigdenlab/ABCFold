@@ -496,6 +496,16 @@ rect{
     transition: background-color 0.3s ease;
 }
 
+.btn-source6 {
+    background-color: #49aaa1eb;
+    color: #3b3b3d;
+    border: none;
+    border-radius: 12px;
+    padding: 7px 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
 .btn-default {
     background-color: rgb(199, 195, 195);
     color: white;
