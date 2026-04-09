@@ -16,6 +16,7 @@ from abcfold.output.chai import ChaiOutput
 from abcfold.output.file_handlers import ConfidenceJsonFile, NpzFile
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
+from abcfold.output.rosettafold3 import RosettafoldOutput
 from abcfold.plots.pae_plot import create_pae_plots
 from abcfold.plots.plddt_plot import plot_plddt
 from abcfold.scripts.ipsae import Ipsae
@@ -293,6 +294,11 @@ def get_all_cif_files(outputs) -> Dict[str, list]:
                 if "Protenix" not in method_cif_objs:
                     method_cif_objs["Protenix"] = []
                 method_cif_objs["Protenix"].extend(output.cif_files[seed])
+        elif isinstance(output, RosettafoldOutput):
+            for seed in output.seeds:
+                if "RosettaFold3" not in method_cif_objs:
+                    method_cif_objs["RosettaFold3"] = []
+                method_cif_objs["RosettaFold3"].extend(output.cif_files[seed])
 
     return method_cif_objs
 
