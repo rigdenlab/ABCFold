@@ -19,7 +19,7 @@ def run_openfold(
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
-    template_hits_path: Path | None = None,
+    template_hits_path: Optional[Path] = None,
     input_ckpt: Optional[Union[str, Path]] = None,
 ) -> bool:
     """
