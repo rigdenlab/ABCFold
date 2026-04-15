@@ -3,8 +3,9 @@
         "memory": {
             "train": {
                 "chunk_size": null,
-                "use_deepspeed_evo_attention": true,
+                "use_deepspeed_evo_attention": false,
                 "use_cueq_triangle_kernels": false,
+                "use_triton_triangle_kernels": false,
                 "use_lma": false,
                 "msa_module": {
                     "swiglu_chunk_token_cutoff": null,
@@ -13,8 +14,9 @@
             },
             "eval": {
                 "chunk_size": 4,
-                "use_deepspeed_evo_attention": true,
+                "use_deepspeed_evo_attention": false,
                 "use_cueq_triangle_kernels": true,
+                "use_triton_triangle_kernels": false,
                 "use_lma": false,
                 "msa_module": {
                     "swiglu_chunk_token_cutoff": null,
@@ -35,7 +37,6 @@
         "clear_cache_between_steps": true,
         "train_confidence_only": false,
         "optimizer": {
-            "use_deepspeed_adam": false,
             "learning_rate": 0.0018,
             "beta1": 0.9,
             "beta2": 0.95,
@@ -52,9 +53,17 @@
             "decay": 0.999,
             "submodules_to_update": null
         },
-        "gradient_clipping": 10.0,
+        "gradient_clipping": {
+            "per_sample_clipping": true,
+            "clip_val": 10.0
+        },
+        "manual_optimization": {
+            "accumulate_grad_batches": 1,
+            "log_lr": false
+        },
         "model_selection_weight_scheme": "initial_training",
         "debug": {
+            "log_grad_norm": false,
             "log_extra_grad_metrics": false,
             "profile_grad_logging": false
         }
@@ -66,13 +75,15 @@
             "c_s": 384,
             "c_z": 128,
             "num_recycles": 3,
+            "use_confidence_emb_prob": 1.0,
             "diffusion": {
                 "sigma_data": 16,
                 "no_samples": 48,
                 "no_mini_rollout_samples": 1,
                 "no_full_rollout_samples": 2,
                 "no_mini_rollout_steps": 20,
-                "no_full_rollout_steps": 200
+                "no_full_rollout_steps": 200,
+                "use_conditioning_prob": 1.0
             }
         },
         "input_embedder": {
@@ -298,6 +309,7 @@
                 "tri_mul_first": true,
                 "fuse_projection_weights": false,
                 "blocks_per_ckpt": null,
+                "ckpt_per_template": false,
                 "inf": 1000000000.0,
                 "linear_init_params": {
                     "tri_mul": {
@@ -831,6 +843,7 @@
                 "c_fourier_emb": 256,
                 "max_relative_idx": 32,
                 "max_relative_chain": 2,
+                "seed_fourier_emb": 42,
                 "linear_init_params": {
                     "linear_z": {
                         "bias": false,
@@ -1539,7 +1552,8 @@
                 "rna_weight": 5.0,
                 "ligand_weight": 10.0,
                 "eps": 1e-08,
-                "chunk_size": null
+                "chunk_size": null,
+                "use_sparse_loss": false
             },
             "distogram": {
                 "no_bins": 64,
@@ -1585,7 +1599,7 @@
                 "ptm_weight": 0.2,
                 "iptm_weight": 0.8,
                 "disorder_weight": 0.5,
-                "has_clash_weight": -100.0,
+                "has_clash_weight": 100.0,
                 "disorder_threshold": 0.581
             },
             "chain_pair_iptm": {
