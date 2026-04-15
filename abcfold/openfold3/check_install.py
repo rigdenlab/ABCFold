@@ -6,9 +6,9 @@ from abcfold.backend_envs import MicromambaEnv
 
 logger = logging.getLogger("logger")
 
-OPENFOLD_BUCKET = "openfold"
-CHECKPOINT_NAME = "of3_ft3_v1.pt"
-S3_KEY = f"openfold3_params/{CHECKPOINT_NAME}"
+OPENFOLD_BUCKET = "openfold3-data"
+CHECKPOINT_NAME = "of3-p2-155k.pt"
+S3_KEY = f"openfold3-parameters/{CHECKPOINT_NAME}"
 HTTPS_URL = (
     f"https://{OPENFOLD_BUCKET}.s3.amazonaws.com/{S3_KEY}"
 )
