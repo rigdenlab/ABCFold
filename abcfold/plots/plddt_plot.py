@@ -56,6 +56,7 @@ def plot_plddt(
         "Chai-1": px.colors.qualitative.Prism,
         "Protenix": px.colors.qualitative.Set3,
         "OpenFold3": px.colors.qualitative.Alphabet,
+        "RosettaFold3": px.colors.qualitative.Bold,
     }
 
     line_ranges: dict = {}

@@ -166,6 +166,16 @@ def openfold_argparse_util(parser):
     return parser
 
 
+def rosettafold_argparse_util(parser):
+    parser.add_argument(
+        "-r",
+        "--rosettafold3",
+        action="store_true",
+        help="Run RosettaFold 3",
+    )
+    return parser
+
+
 def alphafold_argparse_util(parser):
     parser.add_argument(
         "--database",
@@ -235,10 +245,11 @@ def raise_argument_errors(args):
         and not args.chai1
         and not args.protenix
         and not args.openfold3
+        and not args.rosettafold3
     ):
         logger.info(
-            dedent("None of AlphaFold3, Boltz, Chai-1, Protenix or OpenFold3 selected. \
-            Running AlphaFold3 by default")
+            dedent("None of AlphaFold3, Boltz, Chai-1, Protenix, OpenFold3 or  \
+            RosettaFold3 selected. Running AlphaFold3 by default")
         )
         args.alphafold3 = True
 

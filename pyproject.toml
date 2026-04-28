@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abcfold"
-version = "1.1.3"
-description = "Tool to run & compare AlphaFold3, Boltz, Chai-1, OpenFold3 and Protenix"
+version = "1.1.4"
+description = "Tool to run & compare AlphaFold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3"
 readme = "README.md"
 license = { text = "BSD License" }
 authors = [
@@ -48,6 +48,7 @@ packages = [
     "abcfold.chai1",
     "abcfold.protenix",
     "abcfold.openfold3",
+    "abcfold.rosettafold3",
     "abcfold.html",
     "abcfold.output",
     "abcfold.plots",

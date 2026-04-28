@@ -15,6 +15,7 @@ from abcfold.output.boltz import BoltzOutput
 from abcfold.output.chai import ChaiOutput
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
+from abcfold.output.rosettafold3 import RosettafoldOutput
 
 logger = logging.getLogger("logger")
 
@@ -88,6 +89,7 @@ def output_objs():
     cdir = data_dir.joinpath("chai1_6BJ9_seed-1")
     pdir = data_dir.joinpath("protenix_6BJ9_seed-1")
     odir = data_dir.joinpath("openfold_6BJ9_seed-1")
+    rdir = data_dir.joinpath("rosettafold_6BJ9_seed-1")
     name = "6BJ9"
     input_params = adir.joinpath("6bj9_data.json")
 
@@ -98,12 +100,14 @@ def output_objs():
         temp_cdir = Path(temp_dir) / "chai1_6BJ9_seed-1"
         temp_pdir = Path(temp_dir) / "protenix_6BJ9_seed-1"
         temp_odir = Path(temp_dir) / "openfold_6BJ9_seed-1"
+        temp_rdir = Path(temp_dir) / "rosettafold_6BJ9_seed-1"
 
         shutil.copytree(adir, temp_adir)
         shutil.copytree(bdir, temp_bdir)
         shutil.copytree(cdir, temp_cdir)
         shutil.copytree(pdir, temp_pdir)
         shutil.copytree(odir, temp_odir)
+        shutil.copytree(rdir, temp_rdir)
 
         with open(input_params, "r") as f:
             input_params = json.load(f)
@@ -138,11 +142,18 @@ def output_objs():
             name,
         )
 
+        rosettafold_output = RosettafoldOutput(
+            [temp_rdir],
+            input_params.copy(),
+            name,
+        )
+
         d["af3_output"] = af3_output
         d["boltz_output"] = boltz_output
         d["chai_output"] = chai_output
         d["protenix_output"] = protenix_output
         d["openfold_output"] = openfold_output
+        d["rosettafold_output"] = rosettafold_output
         d["config_dict"] = config_dict
         nt = namedtuple("output_objs", d)
         n = nt(**d)
