@@ -12,10 +12,6 @@ RF3_URL = f"{RF3_BASE_URL}/{CHECKPOINT_NAME}"
 
 
 def ensure_rosettafold_checkpoint(target_path: Path) -> Path:
-    """
-    Ensure RoseTTAFold3 checkpoint exists at target_path.
-    Non-interactive, automation-safe.
-    """
     if target_path.exists():
         return target_path
 
