@@ -127,17 +127,20 @@ class Ipsae():
             else:
                 raise ValueError(f"Unsupported PAE file type: {suffix}")
 
-        # Construct input_params obj dict with protein seqs to avoid error msg
         self.struct.input_params = {"sequences": []}
         for chain in self.struct.get_chains():
-            seq_data = {}
-            seq_data["protein"] = {}
-            if all([is_aa(res.resname) for res in chain.get_residues()]):
-                seq_data["protein"]["ID"] = [chain.id]
-                seq_data["protein"]["sequence"] = "".join(
-                        [seq1(residue.get_resname()) for residue in chain]
-                    )
-                self.struct.input_params["sequences"].append(seq_data)
+            if all(is_aa(res.resname) for res in chain.get_residues()):
+                seq_data = {
+                    "protein": {
+                        "id": [chain.id],
+                        "sequence": "".join(
+                            seq1(residue.get_resname()) for residue in chain
+                        ),
+                    }
+                }
+            else:
+                seq_data = {"ligand": {"id": [chain.id]}}
+            self.struct.input_params["sequences"].append(seq_data)
 
         # Get PAE data for different formats
         if self.pae_format == "alphafold2":
