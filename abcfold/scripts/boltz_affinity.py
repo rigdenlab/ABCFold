@@ -132,39 +132,23 @@ class Boltzina:
         self,
         input_model,
         output_dir,
-        work_dir=None,
         ligand_chain=None,
         ligand_resname=None,
         smiles=None,
         ccd=None,
         ligand_name="LIG",
         seed=None,
-        batch_size=1,
-        boltz_override=False,
         use_msa_server=True,
         clean_intermediate_files=True,
         cache=None,
-        score_processed=False,
         mw_correction=False,
-        diffusion_samples=3,
-        sampling_steps=200,
-        skip_run_structure=True,
-        run_trunk_and_structure=True,
-        subsample_msa=True,
-        num_subsampled_msa=1024,
+        msa=None,
     ):
         self.input_model = Path(input_model)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.external_work_dir = Path(work_dir) if work_dir else None
-        self.score_processed = score_processed
         self.mw_correction = mw_correction
-        self.diffusion_samples = diffusion_samples
-        self.sampling_steps = sampling_steps
-        self.skip_run_structure = skip_run_structure
-        self.run_trunk_and_structure = run_trunk_and_structure
-        self.subsample_msa = subsample_msa
-        self.num_subsampled_msa = num_subsampled_msa
+        self.msa = Path(msa) if msa else None
         self.ligand_chain = ligand_chain
         self.ligand_resname = ligand_resname
         self.smiles = smiles
@@ -172,8 +156,6 @@ class Boltzina:
         self.ligand_name = ligand_name
         self.cache = Path(cache) if cache else None
         self.seed = seed
-        self.batch_size = batch_size
-        self.boltz_override = boltz_override
         self.use_msa_server = use_msa_server
         self.clean_intermediate_files = clean_intermediate_files
 
@@ -216,23 +198,15 @@ class Boltzina:
 
     # ------------------------------------------------------------------ #
     def _prepare_work_dir(self):
-        """Build the processed work_dir internally, or reuse the external one."""
-        if self.external_work_dir is not None:
-            logger.info("Reusing Boltz work_dir: %s", self.external_work_dir)
-            self.work_dir = self.external_work_dir
-            self.base_manifest = bu.load_manifest(self.work_dir)
-            self.base_record_id = self.base_manifest["records"][0]["id"]
-            return
-
+        """Build the processed work_dir (manifest, constraints, MSA) internally."""
         logger.info("Building Boltz processed inputs from %s", self.complex_cif)
         sequences = bu.extract_protein_sequences(self.model)
         if not sequences:
             raise ValueError("No protein chains found in the input structure.")
         if not (self.smiles or self.ccd):
             raise ValueError(
-                "Building processed inputs internally requires --smiles or "
-                "--ccd for the ligand. Alternatively pass --work_dir from an "
-                "existing Boltz run."
+                "Building processed inputs requires --smiles or --ccd for the "
+                "ligand."
             )
 
         yaml_path = bu.build_boltz_yaml(
@@ -240,21 +214,21 @@ class Boltzina:
             ligand_name=self.ligand_name,
             ligand_smiles=self.smiles,
             ligand_ccd=self.ccd,
+            msa=self.msa,
             out_yaml=self.output_dir / f"{self.record_id}.yaml",
         )
+        # A supplied MSA means there's nothing to fetch from the server.
         self.work_dir = bu.build_processed_inputs(
             yaml_path=yaml_path,
             work_dir=self.output_dir / f"boltz_work_{self.ligand_name}",
             cache_dir=self.cache,
-            use_msa_server=self.use_msa_server,
+            use_msa_server=self.use_msa_server and self.msa is None,
         )
         self.base_manifest = bu.load_manifest(self.work_dir)
         self.base_record_id = self.base_manifest["records"][0]["id"]
 
     # ------------------------------------------------------------------ #
     def run(self):
-        if self.score_processed:
-            return self._run_score_processed()
 
         self._load_structure()
 
@@ -330,7 +304,7 @@ class Boltzina:
             predictions_dir=self.predictions_dir,
             extra_mols_dir=self.parse_mols_dir,
             ccd=ccd,
-            override=self.boltz_override,
+            override=True,
         )
         if pose_dir is None:
             raise RuntimeError("Structure preparation failed; cannot score.")
@@ -388,103 +362,18 @@ class Boltzina:
                     pass
 
     # ------------------------------------------------------------------ #
-    def _run_score_processed(self):
-        """Score a genuine Boltz ``processed/`` dir as-is (parity / debug mode).
-
-        Runs the affinity head directly on an existing Boltz results dir --
-        genuine structure, mols, MSA, constraints and manifest -- with no
-        re-parsing or mol rebuilding of our own. This isolates whether our
-        affinity *inference* reproduces native Boltz given identical inputs.
-        """
-        if self.external_work_dir is None:
-            raise ValueError(
-                "--score_processed requires --work_dir pointing at a Boltz "
-                "results directory that contains processed/manifest.json."
-            )
-        manifest = bu.load_manifest(self.external_work_dir)
-        record_ids = [r["id"] for r in manifest["records"]]
-        logger.info(
-            "Scoring genuine processed dir as-is: %s (records: %s)",
-            self.external_work_dir,
-            record_ids,
-        )
-
-        from abcfold.affinity.predict_affinity import (load_boltz2_model,
-                                                       predict_affinity)
-
-        # Write affinity outputs into our output dir; read everything else
-        # (msa/constraints/manifest/mols) from the genuine processed/.
-        out_predictions = self.predictions_dir
-        out_predictions.mkdir(parents=True, exist_ok=True)
-        self._clear_stale_affinity(record_ids)
-        genuine_mols = self.external_work_dir / "processed" / "mols"
-
-        # The affinity datamodule loads each structure from
-        # target_dir/{record}/pre_affinity_{record}.npz. Boltz's processed
-        # structure (processed/structures/{record}.npz) is the same StructureV2
-        # dump, so stage it into the expected location verbatim.
-        import shutil
-
-        genuine_structures = self.external_work_dir / "processed" / "structures"
-        for rid in record_ids:
-            src = genuine_structures / f"{rid}.npz"
-            if not src.exists():
-                logger.warning("Genuine structure not found: %s", src)
-                continue
-            dst = out_predictions / rid / f"pre_affinity_{rid}.npz"
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src, dst)
-
-        model_module = load_boltz2_model(
-            skip_run_structure=self.skip_run_structure,
-            run_trunk_and_structure=self.run_trunk_and_structure,
-            # The structure-run path ranks poses by iptm, which only exists when
-            # confidence prediction is on; pose-scoring (skip) doesn't need it.
-            confidence_prediction=not self.skip_run_structure,
-            affinity_mw_correction=self.mw_correction,
-            diffusion_samples_affinity=self.diffusion_samples,
-            sampling_steps_affinity=self.sampling_steps,
-            subsample_msa=self.subsample_msa,
-            num_subsampled_msa=self.num_subsampled_msa,
-        )
-        predict_affinity(
-            self.external_work_dir,
-            model_module=model_module,
-            output_dir=str(out_predictions),
-            extra_mols_dir=str(genuine_mols),
-            num_workers=1,
-            batch_size=self.batch_size,
-            seed=self.seed,
-        )
-
-        self.results = bu.extract_affinity_results(
-            out_predictions,
-            record_ids,
-            extra={
-                "mode": "score_processed",
-                "work_dir": str(self.external_work_dir),
-            },
-        )
-        return self.results
-
-    # ------------------------------------------------------------------ #
     def _score(self):
-        """Invoke the Boltz-2 affinity predictor."""
+        """Invoke the Boltz-2 affinity predictor on the prepared pose."""
         from abcfold.affinity.predict_affinity import (load_boltz2_model,
                                                        predict_affinity)
 
         logger.info("Scoring pose(s) with Boltz-2 affinity head...")
+        # skip_run_structure=True scores the input pose as-is (the point of the
+        # tool); confidence prediction isn't needed in that path.
         model_module = load_boltz2_model(
-            skip_run_structure=self.skip_run_structure,
-            run_trunk_and_structure=self.run_trunk_and_structure,
-            # The structure-run path ranks poses by iptm, which only exists when
-            # confidence prediction is on; pose-scoring (skip) doesn't need it.
-            confidence_prediction=not self.skip_run_structure,
+            skip_run_structure=True,
+            run_trunk_and_structure=True,
             affinity_mw_correction=self.mw_correction,
-            diffusion_samples_affinity=self.diffusion_samples,
-            sampling_steps_affinity=self.sampling_steps,
-            subsample_msa=self.subsample_msa,
-            num_subsampled_msa=self.num_subsampled_msa,
         )
         predict_affinity(
             self.work_dir,
@@ -495,7 +384,7 @@ class Boltzina:
             extra_mols_dir=self.extra_mols_dir,
             manifest_path=self.processed_dir / "manifest.json",
             num_workers=1,
-            batch_size=self.batch_size,
+            batch_size=1,
             seed=self.seed,
         )
 
@@ -542,14 +431,6 @@ def main():
         help="Working/output directory (default: alongside the input model).",
     )
     parser.add_argument(
-        "--work_dir",
-        default=None,
-        help=(
-            "Existing Boltz 'processed' work_dir to reuse (e.g. from an ABCFold "
-            "Boltz run). If omitted, processed inputs are built internally."
-        ),
-    )
-    parser.add_argument(
         "--cache",
         default=None,
         help=(
@@ -593,51 +474,13 @@ def main():
         ),
     )
     parser.add_argument(
-        "--diffusion_samples",
-        type=int,
-        default=3,
-        help="Affinity diffusion samples (default: 3, matching native Boltz).",
-    )
-    parser.add_argument(
-        "--sampling_steps",
-        type=int,
-        default=200,
-        help="Affinity sampling steps (default: 200).",
-    )
-    parser.add_argument(
-        "--no_skip_run_structure",
-        dest="skip_run_structure",
-        action="store_false",
+        "--msa",
+        default=None,
         help=(
-            "Let Boltz re-run its structure module instead of scoring your "
-            "input pose as-is. Default scores the pose you provide; use this to "
-            "reproduce native Boltz's folds-then-scores behaviour (diagnostic)."
+            "Path to a precomputed MSA (.a3m) for the protein, reused instead of "
+            "querying the MSA server. Faster and reproducible across runs; "
+            "applied to all protein chains."
         ),
-    )
-    parser.add_argument(
-        "--no_run_trunk_and_structure",
-        dest="run_trunk_and_structure",
-        action="store_false",
-        help="Disable running the trunk+structure pass (diagnostic).",
-    )
-    parser.add_argument(
-        "--no_subsample_msa",
-        dest="subsample_msa",
-        action="store_false",
-        help=(
-            "Use the full MSA instead of a random subsample. The affinity value "
-            "is sensitive to which sequences are subsampled, so disabling this "
-            "makes the score deterministic and comparable across runs."
-        ),
-    )
-    parser.add_argument(
-        "--num_subsampled_msa",
-        type=int,
-        default=1024,
-        help="MSA sequences to subsample when subsampling is on (default: 1024).",
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=1, help="Affinity batch size."
     )
     parser.add_argument(
         "--no_msa_server",
@@ -645,30 +488,9 @@ def main():
         help="Do not use the MSA server when building processed inputs.",
     )
     parser.add_argument(
-        "--boltz_override",
-        action="store_true",
-        help="Recompute even if intermediate outputs already exist.",
-    )
-    parser.add_argument(
         "--keep_intermediate",
         action="store_true",
         help="Keep intermediate Boltz files after scoring.",
-    )
-    parser.add_argument(
-        "--score_processed",
-        action="store_true",
-        help=(
-            "Parity/debug mode: score the genuine Boltz 'processed/' dir given "
-            "by --work_dir directly (genuine structure, mols, MSA, constraints, "
-            "manifest), with no re-parsing of the input. Use to compare our "
-            "affinity inference against a native Boltz run on identical inputs."
-        ),
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        default=None,
-        help="Output path for results (.csv or .json).",
     )
     parser.add_argument(
         "--boltz_env",
@@ -702,36 +524,22 @@ def main():
     boltzina = Boltzina(
         input_model=input_model,
         output_dir=output_dir,
-        work_dir=args.work_dir,
         ligand_chain=args.ligand_chain,
         ligand_resname=args.ligand_resname,
         smiles=args.smiles,
         ccd=args.ccd,
         ligand_name=args.ligand_name,
         seed=args.seed,
-        batch_size=args.batch_size,
-        boltz_override=args.boltz_override,
         use_msa_server=not args.no_msa_server,
         clean_intermediate_files=not args.keep_intermediate,
         cache=args.cache,
-        score_processed=args.score_processed,
         mw_correction=args.mw_correction,
-        diffusion_samples=args.diffusion_samples,
-        sampling_steps=args.sampling_steps,
-        skip_run_structure=args.skip_run_structure,
-        run_trunk_and_structure=args.run_trunk_and_structure,
-        subsample_msa=args.subsample_msa,
-        num_subsampled_msa=args.num_subsampled_msa,
+        msa=args.msa,
     )
 
     boltzina.run()
 
-    output_path = (
-        Path(args.output)
-        if args.output
-        else output_dir / "boltzina_results.csv"
-    )
-    boltzina.save_results(output_path)
+    boltzina.save_results(output_dir / "boltz_affinity_results.csv")
 
     df = boltzina.get_results_dataframe()
     if not df.empty:

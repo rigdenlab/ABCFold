@@ -705,13 +705,16 @@ def build_boltz_yaml(
     ligand_name: str = "LIG",
     ligand_smiles: Optional[str] = None,
     ligand_ccd: Optional[str] = None,
+    msa: Optional[Path] = None,
     out_yaml: Optional[Path] = None,
 ) -> Path:
     """Write a minimal Boltz-2 YAML for the complex, flagging affinity.
 
     The ligand is given its own chain and marked as the affinity binder. Either
     ``ligand_smiles`` or ``ligand_ccd`` must be supplied so Boltz can build the
-    ligand topology when processing inputs.
+    ligand topology when processing inputs. If ``msa`` (an .a3m path) is given,
+    it is attached to every protein chain so Boltz reuses it instead of querying
+    the MSA server.
     """
     if not ligand_smiles and not ligand_ccd:
         raise ValueError(
@@ -721,6 +724,7 @@ def build_boltz_yaml(
     if out_yaml is None:
         out_yaml = Path(tempfile.mkstemp(suffix=".yaml")[1])
     out_yaml = Path(out_yaml)
+    msa_path = str(Path(msa).resolve()) if msa else None
 
     lines: List[str] = ["version: 1", "sequences:"]
     used_ids = sorted(sequences.keys())
@@ -728,6 +732,8 @@ def build_boltz_yaml(
         lines.append("  - protein:")
         lines.append(f"      id: {chain_id}")
         lines.append(f"      sequence: {seq}")
+        if msa_path:
+            lines.append(f"      msa: {msa_path}")
 
     # Give the ligand a fresh single-letter chain id not used by the protein.
     ligand_chain = next(
