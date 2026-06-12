@@ -434,6 +434,9 @@ class Boltzina:
         model_module = load_boltz2_model(
             skip_run_structure=self.skip_run_structure,
             run_trunk_and_structure=self.run_trunk_and_structure,
+            # The structure-run path ranks poses by iptm, which only exists when
+            # confidence prediction is on; pose-scoring (skip) doesn't need it.
+            confidence_prediction=not self.skip_run_structure,
             affinity_mw_correction=self.mw_correction,
             diffusion_samples_affinity=self.diffusion_samples,
             sampling_steps_affinity=self.sampling_steps,
@@ -468,6 +471,9 @@ class Boltzina:
         model_module = load_boltz2_model(
             skip_run_structure=self.skip_run_structure,
             run_trunk_and_structure=self.run_trunk_and_structure,
+            # The structure-run path ranks poses by iptm, which only exists when
+            # confidence prediction is on; pose-scoring (skip) doesn't need it.
+            confidence_prediction=not self.skip_run_structure,
             affinity_mw_correction=self.mw_correction,
             diffusion_samples_affinity=self.diffusion_samples,
             sampling_steps_affinity=self.sampling_steps,
