@@ -154,7 +154,7 @@ class Boltzina:
         )
         self.work_dir = bu.build_processed_inputs(
             yaml_path=yaml_path,
-            work_dir=self.output_dir / "boltz_work",
+            work_dir=self.output_dir / f"boltz_work_{self.ligand_name}",
             cache_dir=self.cache,
             use_msa_server=self.use_msa_server,
         )
@@ -165,34 +165,55 @@ class Boltzina:
     def run(self):
         self._load_structure()
 
-        # Resolve ligand and build its RDKit mol.
+        # Resolve which ligand to score.
         self.ligand = bu.select_ligand(
             self.model, self.ligand_chain, self.ligand_resname, smiles=self.smiles
         )
+
+        # Canonical residue name shared by the CIF ligand, the mol pickles and
+        # the Boltz manifest (mirrors Boltzina's base_ligand_name). Boltz names
+        # SMILES ligands "LIG" (our default) and CCD ligands by their CCD code.
+        if self.ccd:
+            self.ligand_name = self.ccd.strip().upper()
+
         logger.info(
-            "Scoring ligand %s (chain %s, %d atoms)",
+            "Scoring ligand %s (chain %s, %d atoms) as '%s'",
             self.ligand["resname"],
             self.ligand["chain_id"],
             self.ligand["num_atoms"],
+            self.ligand_name,
         )
+
+        # Namespace per-ligand artefacts so scoring different ligands of the
+        # same model doesn't collide or reuse a stale work_dir/manifest.
+        self.record_id = f"{self.input_model.stem}_{self.ligand_name}"
 
         self._prepare_work_dir()
 
         # One record / one pose for a single complex.
         record_ids = [self.record_id]
 
-        # Normalise the predicted complex CIF for boltzina's parser: regenerate
-        # entity/subchain records (gemmi setup_entities) AND give the ligand the
-        # single canonical residue name shared by the mol pickles and manifest
-        # (mirrors Boltzina's base_ligand_name). Predictors name the ligand
-        # arbitrarily (e.g. LIG0), so the rename is restricted to its chain.
-        original_resname = self.ligand["resname"]
+        # parse_mmcif parses the WHOLE complex and needs a mol for every non-CCD
+        # residue, and the manifest only describes protein + the scored ligand.
+        # So strip every other ligand / cofactor / ion (and waters).
+        others = [
+            (c["chain_id"], c["resseq"])
+            for c in bu.detect_ligands(self.model, include_additives=True)
+            if not (
+                c["chain_id"] == self.ligand["chain_id"]
+                and c["resseq"] == self.ligand["resseq"]
+            )
+        ]
+
+        # Normalise: strip others, rename the scored ligand to the canonical
+        # name, and regenerate entity/subchain records for boltzina's parser.
         self.scored_cif = bu.normalize_complex_cif(
             self.complex_cif,
             cif_out=self.output_dir / f"{self.record_id}_prepared.cif",
             ligand_chain=self.ligand["chain_id"],
-            old_resname=original_resname,
+            old_resname=self.ligand["resname"],
             new_resname=self.ligand_name,
+            remove_residues=others,
         )
 
         # Ligand mol, written in BOTH layouts (datamodule + parse_mmcif).
@@ -206,9 +227,10 @@ class Boltzina:
         )
         bu.write_parse_mol(mol, self.ligand_name, self.parse_mols_dir)
 
-        # Per-record CCD + structure preparation (parse the relabeled CIF using
-        # the parse_mmcif mol layout).
-        ccd = bu.load_ccd(cache_dir=self.cache, drop_name=self.ligand_name)
+        # SMILES ligands use our custom mol (drop the name from the CCD so the
+        # parser uses ours); CCD ligands are resolved from the CCD itself.
+        drop = None if self.ccd else self.ligand_name
+        ccd = bu.load_ccd(cache_dir=self.cache, drop_name=drop)
         pose_dir = bu.prepare_affinity_structure(
             complex_cif=self.scored_cif,
             record_id=self.record_id,

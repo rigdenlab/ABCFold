@@ -615,6 +615,7 @@ def normalize_complex_cif(
     ligand_chain: Optional[str] = None,
     old_resname: Optional[str] = None,
     new_resname: Optional[str] = None,
+    remove_residues: Optional[List] = None,
 ) -> Path:
     """Normalise a predicted complex CIF for boltzina's ``parse_mmcif``.
 
@@ -627,6 +628,13 @@ def normalize_complex_cif(
     subchain records from the atom records (idempotent when they already
     exist), and rewrite a clean mmCIF.
 
+    ``remove_residues`` is a list of ``(chain_id, resseq)`` tuples for other
+    ligands/cofactors to delete: ``parse_mmcif`` parses the *whole* complex and
+    needs a mol for every non-CCD residue, so any non-selected ligand must be
+    stripped. Removing them also makes the parsed structure match the manifest,
+    which only describes the protein plus the single scored ligand. Waters are
+    always removed.
+
     Optionally renames the selected ligand residue (restricted to
     ``ligand_chain`` when given) to ``new_resname`` in the same pass, so the CIF
     ligand name matches the mol pickles and manifest.
@@ -634,6 +642,21 @@ def normalize_complex_cif(
     import gemmi
 
     st = gemmi.read_structure(str(cif_in))
+    st.remove_waters()
+
+    # Strip non-selected ligands/cofactors/ions.
+    if remove_residues:
+        remove_set = {(str(c), int(r)) for c, r in remove_residues}
+        for model in st:
+            for chain in model:
+                doomed = [
+                    i
+                    for i, residue in enumerate(chain)
+                    if (chain.name, residue.seqid.num) in remove_set
+                ]
+                for i in reversed(doomed):
+                    del chain[i]
+        st.remove_empty_chains()
 
     if old_resname and new_resname and old_resname != new_resname:
         for model in st:
