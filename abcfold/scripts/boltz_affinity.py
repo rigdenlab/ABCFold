@@ -144,11 +144,13 @@ class Boltzina:
         use_msa_server=True,
         clean_intermediate_files=True,
         cache=None,
+        score_processed=False,
     ):
         self.input_model = Path(input_model)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.external_work_dir = Path(work_dir) if work_dir else None
+        self.score_processed = score_processed
         self.ligand_chain = ligand_chain
         self.ligand_resname = ligand_resname
         self.smiles = smiles
@@ -237,6 +239,9 @@ class Boltzina:
 
     # ------------------------------------------------------------------ #
     def run(self):
+        if self.score_processed:
+            return self._run_score_processed()
+
         self._load_structure()
 
         # Resolve which ligand to score.
@@ -346,6 +351,61 @@ class Boltzina:
 
         if self.clean_intermediate_files:
             self._cleanup()
+        return self.results
+
+    # ------------------------------------------------------------------ #
+    def _run_score_processed(self):
+        """Score a genuine Boltz ``processed/`` dir as-is (parity / debug mode).
+
+        Runs the affinity head directly on an existing Boltz results dir --
+        genuine structure, mols, MSA, constraints and manifest -- with no
+        re-parsing or mol rebuilding of our own. This isolates whether our
+        affinity *inference* reproduces native Boltz given identical inputs.
+        """
+        if self.external_work_dir is None:
+            raise ValueError(
+                "--score_processed requires --work_dir pointing at a Boltz "
+                "results directory that contains processed/manifest.json."
+            )
+        manifest = bu.load_manifest(self.external_work_dir)
+        record_ids = [r["id"] for r in manifest["records"]]
+        logger.info(
+            "Scoring genuine processed dir as-is: %s (records: %s)",
+            self.external_work_dir,
+            record_ids,
+        )
+
+        from abcfold.affinity.predict_affinity import (load_boltz2_model,
+                                                       predict_affinity)
+
+        # Write affinity outputs into our output dir; read everything else
+        # (structures/msa/constraints/manifest) from the genuine processed/.
+        out_predictions = self.predictions_dir
+        out_predictions.mkdir(parents=True, exist_ok=True)
+        genuine_mols = self.external_work_dir / "processed" / "mols"
+
+        model_module = load_boltz2_model(
+            skip_run_structure=True,
+            run_trunk_and_structure=True,
+        )
+        predict_affinity(
+            self.external_work_dir,
+            model_module=model_module,
+            output_dir=str(out_predictions),
+            extra_mols_dir=str(genuine_mols),
+            num_workers=1,
+            batch_size=self.batch_size,
+            seed=self.seed,
+        )
+
+        self.results = bu.extract_affinity_results(
+            out_predictions,
+            record_ids,
+            extra={
+                "mode": "score_processed",
+                "work_dir": str(self.external_work_dir),
+            },
+        )
         return self.results
 
     # ------------------------------------------------------------------ #
@@ -476,6 +536,16 @@ def main():
         help="Keep intermediate Boltz files after scoring.",
     )
     parser.add_argument(
+        "--score_processed",
+        action="store_true",
+        help=(
+            "Parity/debug mode: score the genuine Boltz 'processed/' dir given "
+            "by --work_dir directly (genuine structure, mols, MSA, constraints, "
+            "manifest), with no re-parsing of the input. Use to compare our "
+            "affinity inference against a native Boltz run on identical inputs."
+        ),
+    )
+    parser.add_argument(
         "--output",
         "-o",
         default=None,
@@ -525,6 +595,7 @@ def main():
         use_msa_server=not args.no_msa_server,
         clean_intermediate_files=not args.keep_intermediate,
         cache=args.cache,
+        score_processed=args.score_processed,
     )
 
     boltzina.run()
