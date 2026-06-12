@@ -145,12 +145,18 @@ class Boltzina:
         clean_intermediate_files=True,
         cache=None,
         score_processed=False,
+        mw_correction=False,
+        diffusion_samples=5,
+        sampling_steps=200,
     ):
         self.input_model = Path(input_model)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.external_work_dir = Path(work_dir) if work_dir else None
         self.score_processed = score_processed
+        self.mw_correction = mw_correction
+        self.diffusion_samples = diffusion_samples
+        self.sampling_steps = sampling_steps
         self.ligand_chain = ligand_chain
         self.ligand_resname = ligand_resname
         self.smiles = smiles
@@ -424,6 +430,9 @@ class Boltzina:
         model_module = load_boltz2_model(
             skip_run_structure=True,
             run_trunk_and_structure=True,
+            affinity_mw_correction=self.mw_correction,
+            diffusion_samples_affinity=self.diffusion_samples,
+            sampling_steps_affinity=self.sampling_steps,
         )
         predict_affinity(
             self.external_work_dir,
@@ -455,6 +464,9 @@ class Boltzina:
         model_module = load_boltz2_model(
             skip_run_structure=True,
             run_trunk_and_structure=True,
+            affinity_mw_correction=self.mw_correction,
+            diffusion_samples_affinity=self.diffusion_samples,
+            sampling_steps_affinity=self.sampling_steps,
         )
         predict_affinity(
             self.work_dir,
@@ -555,6 +567,26 @@ def main():
     )
     parser.add_argument("--seed", type=int, default=None, help="Random seed.")
     parser.add_argument(
+        "--mw_correction",
+        action="store_true",
+        help=(
+            "Apply Boltz's affinity molecular-weight correction to "
+            "affinity_pred_value (off by default; match your native Boltz run)."
+        ),
+    )
+    parser.add_argument(
+        "--diffusion_samples",
+        type=int,
+        default=5,
+        help="Affinity diffusion samples (default: 5).",
+    )
+    parser.add_argument(
+        "--sampling_steps",
+        type=int,
+        default=200,
+        help="Affinity sampling steps (default: 200).",
+    )
+    parser.add_argument(
         "--batch_size", type=int, default=1, help="Affinity batch size."
     )
     parser.add_argument(
@@ -633,6 +665,9 @@ def main():
         clean_intermediate_files=not args.keep_intermediate,
         cache=args.cache,
         score_processed=args.score_processed,
+        mw_correction=args.mw_correction,
+        diffusion_samples=args.diffusion_samples,
+        sampling_steps=args.sampling_steps,
     )
 
     boltzina.run()
