@@ -150,6 +150,8 @@ class Boltzina:
         sampling_steps=200,
         skip_run_structure=True,
         run_trunk_and_structure=True,
+        subsample_msa=True,
+        num_subsampled_msa=1024,
     ):
         self.input_model = Path(input_model)
         self.output_dir = Path(output_dir)
@@ -161,6 +163,8 @@ class Boltzina:
         self.sampling_steps = sampling_steps
         self.skip_run_structure = skip_run_structure
         self.run_trunk_and_structure = run_trunk_and_structure
+        self.subsample_msa = subsample_msa
+        self.num_subsampled_msa = num_subsampled_msa
         self.ligand_chain = ligand_chain
         self.ligand_resname = ligand_resname
         self.smiles = smiles
@@ -440,6 +444,8 @@ class Boltzina:
             affinity_mw_correction=self.mw_correction,
             diffusion_samples_affinity=self.diffusion_samples,
             sampling_steps_affinity=self.sampling_steps,
+            subsample_msa=self.subsample_msa,
+            num_subsampled_msa=self.num_subsampled_msa,
         )
         predict_affinity(
             self.external_work_dir,
@@ -477,6 +483,8 @@ class Boltzina:
             affinity_mw_correction=self.mw_correction,
             diffusion_samples_affinity=self.diffusion_samples,
             sampling_steps_affinity=self.sampling_steps,
+            subsample_msa=self.subsample_msa,
+            num_subsampled_msa=self.num_subsampled_msa,
         )
         predict_affinity(
             self.work_dir,
@@ -613,6 +621,22 @@ def main():
         help="Disable running the trunk+structure pass (diagnostic).",
     )
     parser.add_argument(
+        "--no_subsample_msa",
+        dest="subsample_msa",
+        action="store_false",
+        help=(
+            "Use the full MSA instead of a random subsample. The affinity value "
+            "is sensitive to which sequences are subsampled, so disabling this "
+            "makes the score deterministic and comparable across runs."
+        ),
+    )
+    parser.add_argument(
+        "--num_subsampled_msa",
+        type=int,
+        default=1024,
+        help="MSA sequences to subsample when subsampling is on (default: 1024).",
+    )
+    parser.add_argument(
         "--batch_size", type=int, default=1, help="Affinity batch size."
     )
     parser.add_argument(
@@ -696,6 +720,8 @@ def main():
         sampling_steps=args.sampling_steps,
         skip_run_structure=args.skip_run_structure,
         run_trunk_and_structure=args.run_trunk_and_structure,
+        subsample_msa=args.subsample_msa,
+        num_subsampled_msa=args.num_subsampled_msa,
     )
 
     boltzina.run()
