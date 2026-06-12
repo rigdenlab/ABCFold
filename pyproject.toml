@@ -43,6 +43,7 @@ homepage = "https://github.com/rigdenlab/ABCFold"
 [tool.setuptools]
 packages = [
     "abcfold",
+    "abcfold.affinity",
     "abcfold.alphafold3",
     "abcfold.boltz",
     "abcfold.chai1",
@@ -74,6 +75,7 @@ abcfold = "abcfold.abcfold:main"
 mmseqs2msa = "abcfold.scripts.add_mmseqs_msa:main"
 custom_templates = "abcfold.scripts.add_custom_template:main"
 ipsae = "abcfold.scripts.ipsae:main"
+boltzina = "abcfold.scripts.boltzina_score:main"
 
 [tool.flake8]
 max-line-length = 88
