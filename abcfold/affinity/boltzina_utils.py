@@ -1,5 +1,5 @@
 # This module collects the Boltzina-specific helper functions used by the
-# standalone ``abcfold/scripts/boltzina_score.py`` entry point.
+# standalone ``abcfold/scripts/boltz_affinity.py`` entry point.
 #
 # Background
 # ----------

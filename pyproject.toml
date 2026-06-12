@@ -75,7 +75,7 @@ abcfold = "abcfold.abcfold:main"
 mmseqs2msa = "abcfold.scripts.add_mmseqs_msa:main"
 custom_templates = "abcfold.scripts.add_custom_template:main"
 ipsae = "abcfold.scripts.ipsae:main"
-boltzina = "abcfold.scripts.boltzina_score:main"
+boltz_affinity = "abcfold.scripts.boltz_affinity:main"
 
 [tool.flake8]
 max-line-length = 88
@@ -93,4 +93,8 @@ check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = ["abcfold.scripts.ipsae", "abcfold.scripts.add_mmseqs2_msa", "abcfold.tests.conftest"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["abcfold.affinity.*", "abcfold.scripts.boltz_affinity"]
 ignore_errors = true
