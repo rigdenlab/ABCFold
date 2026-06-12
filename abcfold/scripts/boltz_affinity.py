@@ -335,6 +335,10 @@ class Boltzina:
             target_constraints_dir=self.constraints_dir,
         )
 
+        # Remove any stale affinity output for these records so a skipped /
+        # failed record reports as missing instead of re-reading an old result.
+        self._clear_stale_affinity(record_ids)
+
         # Run the Boltz-2 affinity head.
         self._score()
 
@@ -352,6 +356,22 @@ class Boltzina:
         if self.clean_intermediate_files:
             self._cleanup()
         return self.results
+
+    # ------------------------------------------------------------------ #
+    def _clear_stale_affinity(self, record_ids):
+        """Delete pre-existing affinity JSON for these records before scoring.
+
+        Without this, a record the affinity step skips (e.g. the cropper
+        failing) would silently re-read a previous run's result and report it
+        as if fresh.
+        """
+        for rid in record_ids:
+            stale = self.predictions_dir / rid / f"affinity_{rid}.json"
+            if stale.exists():
+                try:
+                    stale.unlink()
+                except OSError:
+                    pass
 
     # ------------------------------------------------------------------ #
     def _run_score_processed(self):
@@ -379,10 +399,27 @@ class Boltzina:
                                                        predict_affinity)
 
         # Write affinity outputs into our output dir; read everything else
-        # (structures/msa/constraints/manifest) from the genuine processed/.
+        # (msa/constraints/manifest/mols) from the genuine processed/.
         out_predictions = self.predictions_dir
         out_predictions.mkdir(parents=True, exist_ok=True)
+        self._clear_stale_affinity(record_ids)
         genuine_mols = self.external_work_dir / "processed" / "mols"
+
+        # The affinity datamodule loads each structure from
+        # target_dir/{record}/pre_affinity_{record}.npz. Boltz's processed
+        # structure (processed/structures/{record}.npz) is the same StructureV2
+        # dump, so stage it into the expected location verbatim.
+        import shutil
+
+        genuine_structures = self.external_work_dir / "processed" / "structures"
+        for rid in record_ids:
+            src = genuine_structures / f"{rid}.npz"
+            if not src.exists():
+                logger.warning("Genuine structure not found: %s", src)
+                continue
+            dst = out_predictions / rid / f"pre_affinity_{rid}.npz"
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst)
 
         model_module = load_boltz2_model(
             skip_run_structure=True,
