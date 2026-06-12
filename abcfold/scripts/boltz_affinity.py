@@ -146,8 +146,10 @@ class Boltzina:
         cache=None,
         score_processed=False,
         mw_correction=False,
-        diffusion_samples=5,
+        diffusion_samples=3,
         sampling_steps=200,
+        skip_run_structure=True,
+        run_trunk_and_structure=True,
     ):
         self.input_model = Path(input_model)
         self.output_dir = Path(output_dir)
@@ -157,6 +159,8 @@ class Boltzina:
         self.mw_correction = mw_correction
         self.diffusion_samples = diffusion_samples
         self.sampling_steps = sampling_steps
+        self.skip_run_structure = skip_run_structure
+        self.run_trunk_and_structure = run_trunk_and_structure
         self.ligand_chain = ligand_chain
         self.ligand_resname = ligand_resname
         self.smiles = smiles
@@ -428,8 +432,8 @@ class Boltzina:
             shutil.copy(src, dst)
 
         model_module = load_boltz2_model(
-            skip_run_structure=True,
-            run_trunk_and_structure=True,
+            skip_run_structure=self.skip_run_structure,
+            run_trunk_and_structure=self.run_trunk_and_structure,
             affinity_mw_correction=self.mw_correction,
             diffusion_samples_affinity=self.diffusion_samples,
             sampling_steps_affinity=self.sampling_steps,
@@ -462,8 +466,8 @@ class Boltzina:
 
         logger.info("Scoring pose(s) with Boltz-2 affinity head...")
         model_module = load_boltz2_model(
-            skip_run_structure=True,
-            run_trunk_and_structure=True,
+            skip_run_structure=self.skip_run_structure,
+            run_trunk_and_structure=self.run_trunk_and_structure,
             affinity_mw_correction=self.mw_correction,
             diffusion_samples_affinity=self.diffusion_samples,
             sampling_steps_affinity=self.sampling_steps,
@@ -577,14 +581,30 @@ def main():
     parser.add_argument(
         "--diffusion_samples",
         type=int,
-        default=5,
-        help="Affinity diffusion samples (default: 5).",
+        default=3,
+        help="Affinity diffusion samples (default: 3, matching native Boltz).",
     )
     parser.add_argument(
         "--sampling_steps",
         type=int,
         default=200,
         help="Affinity sampling steps (default: 200).",
+    )
+    parser.add_argument(
+        "--no_skip_run_structure",
+        dest="skip_run_structure",
+        action="store_false",
+        help=(
+            "Let Boltz re-run its structure module instead of scoring your "
+            "input pose as-is. Default scores the pose you provide; use this to "
+            "reproduce native Boltz's folds-then-scores behaviour (diagnostic)."
+        ),
+    )
+    parser.add_argument(
+        "--no_run_trunk_and_structure",
+        dest="run_trunk_and_structure",
+        action="store_false",
+        help="Disable running the trunk+structure pass (diagnostic).",
     )
     parser.add_argument(
         "--batch_size", type=int, default=1, help="Affinity batch size."
@@ -668,6 +688,8 @@ def main():
         mw_correction=args.mw_correction,
         diffusion_samples=args.diffusion_samples,
         sampling_steps=args.sampling_steps,
+        skip_run_structure=args.skip_run_structure,
+        run_trunk_and_structure=args.run_trunk_and_structure,
     )
 
     boltzina.run()
