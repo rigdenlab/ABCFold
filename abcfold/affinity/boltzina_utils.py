@@ -223,30 +223,52 @@ def detect_ligands(
             if (not include_additives) and resname in COMMON_ADDITIVES:
                 continue
 
+            atoms = list(residue.get_atoms())
+            num_heavy = sum(
+                1
+                for a in atoms
+                if (getattr(a, "element", "") or "").strip().upper()
+                not in ("H", "D")
+            )
             ligands.append(
                 {
                     "chain_id": chain.id,
                     "resname": resname,
                     "resseq": residue.id[1],
-                    "num_atoms": sum(1 for _ in residue.get_atoms()),
+                    "num_atoms": len(atoms),
+                    "num_heavy_atoms": num_heavy,
                 }
             )
 
     # Biggest heteromolecule first -- a reasonable default "ligand of interest".
-    ligands.sort(key=lambda x: x["num_atoms"], reverse=True)
+    ligands.sort(key=lambda x: x["num_heavy_atoms"], reverse=True)
     return ligands
+
+
+def smiles_heavy_atom_count(smiles: str) -> Optional[int]:
+    """Return the heavy-atom count of a SMILES string (None if unparseable)."""
+    from rdkit import Chem
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    return mol.GetNumAtoms()  # RDKit SMILES mols are heavy-atom only by default
 
 
 def select_ligand(
     model,
     ligand_chain: Optional[str] = None,
     ligand_resname: Optional[str] = None,
+    smiles: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Resolve which ligand to score.
 
-    If ``ligand_chain``/``ligand_resname`` are given they act as a filter over
-    the auto-detected candidates; otherwise the top auto-detected candidate is
-    returned.
+    ``ligand_chain``/``ligand_resname`` act as explicit filters over the
+    auto-detected candidates. When neither is given and ``smiles`` is provided,
+    candidates are disambiguated by matching the SMILES heavy-atom count -- this
+    correctly picks the intended ligand over cofactors (e.g. ATP) that the
+    size heuristic would otherwise grab. Otherwise the largest non-additive
+    heteromolecule is returned.
     """
     candidates = detect_ligands(model, include_additives=True)
     if not candidates:
@@ -270,6 +292,32 @@ def select_ligand(
             f"was found. Detected candidates: "
             f"{[(c['chain_id'], c['resname']) for c in candidates]}"
         )
+
+    # SMILES-aware disambiguation when no explicit chain/resname was given.
+    if smiles and ligand_chain is None and ligand_resname is None and len(filtered) > 1:
+        target = smiles_heavy_atom_count(smiles)
+        if target is not None:
+            matches = [c for c in filtered if c["num_heavy_atoms"] == target]
+            if matches:
+                if len({c["resname"] for c in matches}) > 1:
+                    logger.warning(
+                        "Multiple ligands match the SMILES heavy-atom count "
+                        "(%d): %s. Scoring %s/%s; pass --ligand_chain to choose.",
+                        target,
+                        [(c["chain_id"], c["resname"]) for c in matches],
+                        matches[0]["chain_id"],
+                        matches[0]["resname"],
+                    )
+                filtered = matches
+            else:
+                logger.warning(
+                    "No detected ligand matches the SMILES heavy-atom count "
+                    "(%d); candidates=%s. Falling back to the size heuristic -- "
+                    "pass --ligand_chain/--ligand_resname if this is wrong.",
+                    target,
+                    [(c["chain_id"], c["resname"], c["num_heavy_atoms"])
+                     for c in filtered],
+                )
 
     # Prefer a non-additive candidate when auto-selecting.
     non_additive = [

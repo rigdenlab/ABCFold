@@ -167,7 +167,7 @@ class Boltzina:
 
         # Resolve ligand and build its RDKit mol.
         self.ligand = bu.select_ligand(
-            self.model, self.ligand_chain, self.ligand_resname
+            self.model, self.ligand_chain, self.ligand_resname, smiles=self.smiles
         )
         logger.info(
             "Scoring ligand %s (chain %s, %d atoms)",
