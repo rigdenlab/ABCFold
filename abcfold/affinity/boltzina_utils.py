@@ -386,6 +386,7 @@ def write_ligand_pdb(
         )
 
     lines = []
+    atom_names = []
     serial = 0
     for atom in residue.get_atoms():
         element = (getattr(atom, "element", "") or "").strip()
@@ -396,6 +397,7 @@ def write_ligand_pdb(
             element = "".join(c for c in name if c.isalpha())[:2] or "C"
         element = element.upper()
         serial += 1
+        atom_names.append(name)
         # Atom-name column (13-16): 2-char elements left-justified from col 13,
         # 1-char elements indented one space (PDB convention).
         if len(element) == 2:
@@ -422,7 +424,7 @@ def write_ligand_pdb(
 
     out_pdb = Path(out_pdb)
     out_pdb.write_text("\n".join(lines) + "\n")
-    return out_pdb
+    return out_pdb, atom_names
 
 
 def ligand_to_mol(
@@ -456,7 +458,7 @@ def ligand_to_mol(
     lig_pdb = work_dir / f"ligand_{ligand['chain_id']}_{ligand['resseq']}.pdb"
 
     try:
-        write_ligand_pdb(model, ligand, lig_pdb)
+        _, atom_names = write_ligand_pdb(model, ligand, lig_pdb)
 
         mol = Chem.MolFromPDBFile(str(lig_pdb), removeHs=False, sanitize=False)
         if mol is None:
@@ -482,11 +484,22 @@ def ligand_to_mol(
         except Exception as exc:  # noqa: BLE001
             logger.warning("RDKit sanitisation warning for ligand: %s", exc)
 
-        # Mirror Boltzina: stash the PDB atom name on each atom.
-        for atom in mol.GetAtoms():
-            pdb_info = atom.GetPDBResidueInfo()
-            if pdb_info is not None:
-                atom.SetProp("name", pdb_info.GetName().strip().upper())
+        # Set the FULL original atom names by order (not the round-tripped PDB
+        # names, which truncate to 4 chars -- e.g. Chai's "CL1_1" -> "CL1_").
+        # parse_mmcif matches the ligand to the CIF by exact atom name, so the
+        # names must equal the structure's verbatim.
+        if mol.GetNumAtoms() == len(atom_names):
+            for atom, name in zip(mol.GetAtoms(), atom_names):
+                atom.SetProp("name", name)
+        else:
+            logger.warning(
+                "Ligand atom count (%d) != structure heavy atoms (%d); falling "
+                "back to PDB names.", mol.GetNumAtoms(), len(atom_names),
+            )
+            for atom in mol.GetAtoms():
+                pdb_info = atom.GetPDBResidueInfo()
+                if pdb_info is not None:
+                    atom.SetProp("name", pdb_info.GetName().strip())
         return mol
     finally:
         if cleanup:
@@ -673,13 +686,16 @@ def normalize_complex_cif(
                     del chain[i]
         st.remove_empty_chains()
 
-    if old_resname and new_resname and old_resname != new_resname:
+    if old_resname and new_resname and old_resname.upper() != new_resname.upper():
+        old_upper = old_resname.strip().upper()
         for model in st:
             for chain in model:
                 if ligand_chain is not None and chain.name != ligand_chain:
                     continue
                 for residue in chain:
-                    if residue.name == old_resname:
+                    # Case-insensitive: predictors may use lowercase resnames
+                    # (e.g. Protenix "l01") while detection upper-cases them.
+                    if residue.name.strip().upper() == old_upper:
                         residue.name = new_resname
 
     # Regenerate entity / subchain records so every subchain maps to an entity.
