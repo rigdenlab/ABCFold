@@ -355,50 +355,73 @@ def write_ligand_pdb(
     out_pdb: Path,
     safe_resname: str = "LIG",
 ) -> Path:
-    """Write the chosen ligand residue out to its own PDB file.
+    """Write the chosen ligand residue to a clean, strictly-columned PDB.
 
-    The fixed-column PDB format only allows a 3-character residue name. Many
-    structure-prediction back-ends label ligands with longer names (e.g.
-    ``LIG0``), which overflow the residue-name field, shift the chain/residue-
-    number columns and make ``RDKit.MolFromPDBFile`` return ``None`` with a
-    "Problem with residue number" warning. We therefore temporarily relabel the
-    ligand residue to a safe <=3-char placeholder while writing (atom names --
-    which is what we actually need from the resulting mol -- are preserved).
+    Prediction back-ends label ligands inconsistently (long resnames like
+    ``LIG0``, 4-character atom names, odd residue numbers), and BioPython's
+    ``PDBIO`` faithfully reproduces those quirks -- which then make
+    ``RDKit.MolFromPDBFile`` choke ("Problem with residue number ..."). Rather
+    than fight that, we emit the heavy atoms ourselves with fixed-width HETATM
+    records (safe resname ``LIG``, chain ``A``, resSeq ``1``, sequential
+    serials, explicit element column), so RDKit can always parse it. Atom names
+    -- which is what we need from the resulting mol -- are preserved.
     """
-    from Bio.PDB import PDBIO, Select
-
     chain_id = ligand["chain_id"]
     resseq = ligand["resseq"]
-    safe_resname = (safe_resname or "LIG")[:3]
+    resname = (safe_resname or "LIG")[:3].ljust(3)
 
-    class _LigandSelect(Select):
-        def accept_residue(self, residue):
-            return (
-                residue.get_parent().id == chain_id
-                and residue.id[1] == resseq
-            )
-
-    # Find the residue and temporarily give it a PDB-safe resname.
-    target = None
+    residue = None
     for chain in model:
         if chain.id != chain_id:
             continue
-        for residue in chain:
-            if residue.id[1] == resseq:
-                target = residue
+        for res in chain:
+            if res.id[1] == resseq:
+                residue = res
                 break
-    original_resname = target.resname if target is not None else None
-    if target is not None:
-        target.resname = safe_resname
+        if residue is not None:
+            break
+    if residue is None:
+        raise ValueError(
+            f"Ligand residue {chain_id}/{resseq} not found in structure."
+        )
 
-    try:
-        io = PDBIO()
-        io.set_structure(model)
-        out_pdb = Path(out_pdb)
-        io.save(str(out_pdb), _LigandSelect())
-    finally:
-        if target is not None and original_resname is not None:
-            target.resname = original_resname
+    lines = []
+    serial = 0
+    for atom in residue.get_atoms():
+        element = (getattr(atom, "element", "") or "").strip()
+        if element.upper() in ("H", "D"):
+            continue  # heavy atoms only (matches the SMILES template)
+        name = atom.get_name().strip()
+        if not element:
+            element = "".join(c for c in name if c.isalpha())[:2] or "C"
+        element = element.upper()
+        serial += 1
+        # Atom-name column (13-16): 2-char elements left-justified from col 13,
+        # 1-char elements indented one space (PDB convention).
+        if len(element) == 2:
+            atom_name = name[:4].ljust(4)
+        else:
+            atom_name = (" " + name)[:4].ljust(4)
+        x, y, z = (float(c) for c in atom.coord)
+        lines.append(
+            "HETATM"
+            + f"{serial:>5}"
+            + " "
+            + atom_name
+            + " "
+            + resname
+            + " A"
+            + f"{1:>4}"
+            + "    "
+            + f"{x:>8.3f}{y:>8.3f}{z:>8.3f}"
+            + f"{1.0:>6.2f}{0.0:>6.2f}"
+            + " " * 10
+            + f"{element:>2}"
+        )
+    lines.append("END")
+
+    out_pdb = Path(out_pdb)
+    out_pdb.write_text("\n".join(lines) + "\n")
     return out_pdb
 
 
