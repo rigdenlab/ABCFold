@@ -258,43 +258,35 @@ def smiles_heavy_atom_count(smiles: str) -> Optional[int]:
 def select_ligand(
     model,
     ligand_chain: Optional[str] = None,
-    ligand_resname: Optional[str] = None,
     smiles: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Resolve which ligand to score.
 
-    ``ligand_chain``/``ligand_resname`` act as explicit filters over the
-    auto-detected candidates. When neither is given and ``smiles`` is provided,
-    candidates are disambiguated by matching the SMILES heavy-atom count -- this
-    correctly picks the intended ligand over cofactors (e.g. ATP) that the
-    size heuristic would otherwise grab. Otherwise the largest non-additive
-    heteromolecule is returned.
+    ``ligand_chain`` restricts selection to one chain. When it isn't given and
+    ``smiles`` is provided, candidates are disambiguated by matching the SMILES
+    heavy-atom count -- this correctly picks the intended ligand over cofactors
+    (e.g. ATP) that the size heuristic would otherwise grab. Otherwise the
+    largest non-additive heteromolecule is returned.
     """
     candidates = detect_ligands(model, include_additives=True)
     if not candidates:
         raise ValueError(
             "No non-polymer ligand could be detected in the input structure. "
-            "Pass --ligand_chain/--ligand_resname explicitly if the ligand is "
-            "encoded unusually."
+            "Pass --ligand_chain explicitly if the ligand is encoded unusually."
         )
 
     filtered = candidates
     if ligand_chain is not None:
         filtered = [c for c in filtered if c["chain_id"] == ligand_chain]
-    if ligand_resname is not None:
-        filtered = [
-            c for c in filtered if c["resname"] == ligand_resname.strip().upper()
-        ]
 
     if not filtered:
         raise ValueError(
-            f"No ligand matching chain={ligand_chain!r} resname={ligand_resname!r} "
-            f"was found. Detected candidates: "
+            f"No ligand found in chain {ligand_chain!r}. Detected candidates: "
             f"{[(c['chain_id'], c['resname']) for c in candidates]}"
         )
 
-    # SMILES-aware disambiguation when no explicit chain/resname was given.
-    if smiles and ligand_chain is None and ligand_resname is None and len(filtered) > 1:
+    # SMILES-aware disambiguation when no explicit chain was given.
+    if smiles and ligand_chain is None and len(filtered) > 1:
         target = smiles_heavy_atom_count(smiles)
         if target is not None:
             matches = [c for c in filtered if c["num_heavy_atoms"] == target]
@@ -313,7 +305,7 @@ def select_ligand(
                 logger.warning(
                     "No detected ligand matches the SMILES heavy-atom count "
                     "(%d); candidates=%s. Falling back to the size heuristic -- "
-                    "pass --ligand_chain/--ligand_resname if this is wrong.",
+                    "pass --ligand_chain if this is wrong.",
                     target,
                     [(c["chain_id"], c["resname"], c["num_heavy_atoms"])
                      for c in filtered],
@@ -327,7 +319,7 @@ def select_ligand(
     if len(filtered) > 1:
         logger.warning(
             "Multiple ligand candidates found %s; scoring %s/%s. Use "
-            "--ligand_chain/--ligand_resname to choose another.",
+            "--ligand_chain to choose another.",
             [(c["chain_id"], c["resname"]) for c in filtered],
             chosen["chain_id"],
             chosen["resname"],

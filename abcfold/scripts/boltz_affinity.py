@@ -115,18 +115,17 @@ class Boltzina:
         input_model: Path to the complex structure (CIF or PDB) with the ligand
             already placed.
         output_dir: Working/output directory for intermediate Boltz files.
-        ligand_chain / ligand_resname: Optional overrides for ligand selection;
-            by default the largest non-polymer heteromolecule is auto-detected.
+        ligand_chain: Optional override restricting ligand selection to one
+            chain; by default the ligand is auto-detected (SMILES-matched).
         smiles / ccd: Ligand chemistry used when building processed inputs
             (one is required).
-        ligand_name: Residue/component name used for the ligand inside Boltz.
-        msa: Optional precomputed MSA (.a3m) reused instead of querying the MSA
+        ligand_name: Internal canonical name for the ligand inside Boltz.
+        msa: Optional precomputed MSA (.a3m) used instead of querying the MSA
             server -- reuse one MSA across many models to remove MSA-driven
-            score variance.
-        mw_correction: Apply Boltz's affinity molecular-weight correction.
-        seed: Passed through to the affinity predictor.
-        use_msa_server: Use the MSA server when building processed inputs.
-        clean_intermediate_files: Remove scratch files after scoring.
+            score variance and skip the fetch.
+        mw_correction: Apply Boltz's affinity molecular-weight correction (on by
+            default).
+        seed: Seed for MSA subsampling; fixed by default for reproducibility.
     """
 
     def __init__(
@@ -134,33 +133,25 @@ class Boltzina:
         input_model,
         output_dir,
         ligand_chain=None,
-        ligand_resname=None,
         smiles=None,
         ccd=None,
         ligand_name="LIG",
         seed=42,
-        use_msa_server=True,
-        clean_intermediate_files=True,
         cache=None,
-        mw_correction=False,
+        mw_correction=True,
         msa=None,
-        save_msa=None,
     ):
         self.input_model = Path(input_model)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.mw_correction = mw_correction
         self.msa = Path(msa) if msa else None
-        self.save_msa = Path(save_msa) if save_msa else None
         self.ligand_chain = ligand_chain
-        self.ligand_resname = ligand_resname
         self.smiles = smiles
         self.ccd = ccd
         self.ligand_name = ligand_name
         self.cache = Path(cache) if cache else None
         self.seed = seed
-        self.use_msa_server = use_msa_server
-        self.clean_intermediate_files = clean_intermediate_files
 
         self.results = []
 
@@ -220,38 +211,17 @@ class Boltzina:
             msa=self.msa,
             out_yaml=self.output_dir / f"{self.record_id}.yaml",
         )
-        # A supplied MSA means there's nothing to fetch from the server.
+        # Boltz reuses an existing work_dir ("All inputs are already
+        # processed"); on a fresh build, a supplied --msa is used so there's
+        # nothing to fetch from the server.
         self.work_dir = bu.build_processed_inputs(
             yaml_path=yaml_path,
             work_dir=self.output_dir / f"boltz_work_{self.ligand_name}",
             cache_dir=self.cache,
-            use_msa_server=self.use_msa_server and self.msa is None,
+            use_msa_server=self.msa is None,
         )
         self.base_manifest = bu.load_manifest(self.work_dir)
         self.base_record_id = self.base_manifest["records"][0]["id"]
-
-        # Save the freshly-built MSA so it can be reused (--msa) across models of
-        # the same protein, removing MSA-driven score variance.
-        if self.save_msa is not None and self.msa is None:
-            built = sorted(self.work_dir.glob("msa/*.csv")) + sorted(
-                self.work_dir.glob("msa/*.a3m")
-            )
-            if not built:
-                logger.warning(
-                    "Could not find a built MSA to save under %s/msa", self.work_dir
-                )
-            else:
-                if len(built) > 1:
-                    logger.warning(
-                        "Multiple MSAs built %s; saving the first. (Heteromers "
-                        "need per-chain MSAs.)",
-                        [p.name for p in built],
-                    )
-                self.save_msa.parent.mkdir(parents=True, exist_ok=True)
-                import shutil
-
-                shutil.copy(built[0], self.save_msa)
-                logger.info("Saved MSA to %s (reuse with --msa)", self.save_msa)
 
     # ------------------------------------------------------------------ #
     def run(self):
@@ -260,7 +230,7 @@ class Boltzina:
 
         # Resolve which ligand to score.
         self.ligand = bu.select_ligand(
-            self.model, self.ligand_chain, self.ligand_resname, smiles=self.smiles
+            self.model, self.ligand_chain, smiles=self.smiles
         )
 
         # Canonical residue name shared by the CIF ligand, the mol pickles and
@@ -367,8 +337,7 @@ class Boltzina:
             },
         )
 
-        if self.clean_intermediate_files:
-            self._cleanup()
+        self._cleanup()
         return self.results
 
     # ------------------------------------------------------------------ #
@@ -481,16 +450,6 @@ def main():
         help="Override auto-detected ligand chain id.",
     )
     parser.add_argument(
-        "--ligand_resname",
-        default=None,
-        help="Override auto-detected ligand residue name.",
-    )
-    parser.add_argument(
-        "--ligand_name",
-        default="LIG",
-        help="Component name to give the ligand inside Boltz (default: LIG).",
-    )
-    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -501,40 +460,23 @@ def main():
         ),
     )
     parser.add_argument(
-        "--mw_correction",
-        action="store_true",
+        "--no_mw_correction",
+        dest="mw_correction",
+        action="store_false",
         help=(
-            "Apply Boltz's affinity molecular-weight correction to "
-            "affinity_pred_value (off by default; match your native Boltz run)."
+            "Disable Boltz's affinity molecular-weight correction (on by "
+            "default)."
         ),
     )
     parser.add_argument(
         "--msa",
         default=None,
         help=(
-            "Path to a precomputed MSA (.a3m or Boltz .csv) for the protein, "
-            "reused instead of querying the MSA server. Reuse one MSA across "
-            "many models of the same protein to remove MSA-driven score "
-            "variance. Applied to all protein chains."
+            "Path to a precomputed MSA (.a3m) for the protein, used instead of "
+            "querying the MSA server. Reuse one MSA across many models of the "
+            "same protein to remove MSA-driven score variance (and skip the "
+            "fetch). Applied to all protein chains."
         ),
-    )
-    parser.add_argument(
-        "--save_msa",
-        default=None,
-        help=(
-            "After building the MSA from the server, copy it to this path so it "
-            "can be reused with --msa on subsequent models of the same protein."
-        ),
-    )
-    parser.add_argument(
-        "--no_msa_server",
-        action="store_true",
-        help="Do not use the MSA server when building processed inputs.",
-    )
-    parser.add_argument(
-        "--keep_intermediate",
-        action="store_true",
-        help="Keep intermediate Boltz files after scoring.",
     )
     parser.add_argument(
         "--boltz_env",
@@ -569,17 +511,12 @@ def main():
         input_model=input_model,
         output_dir=output_dir,
         ligand_chain=args.ligand_chain,
-        ligand_resname=args.ligand_resname,
         smiles=args.smiles,
         ccd=args.ccd,
-        ligand_name=args.ligand_name,
         seed=args.seed,
-        use_msa_server=not args.no_msa_server,
-        clean_intermediate_files=not args.keep_intermediate,
         cache=args.cache,
         mw_correction=args.mw_correction,
         msa=args.msa,
-        save_msa=args.save_msa,
     )
 
     boltzina.run()
