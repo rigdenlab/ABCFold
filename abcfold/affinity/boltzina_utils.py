@@ -386,7 +386,6 @@ def write_ligand_pdb(
         )
 
     lines = []
-    atom_names = []
     serial = 0
     for atom in residue.get_atoms():
         element = (getattr(atom, "element", "") or "").strip()
@@ -397,7 +396,6 @@ def write_ligand_pdb(
             element = "".join(c for c in name if c.isalpha())[:2] or "C"
         element = element.upper()
         serial += 1
-        atom_names.append(name)
         # Atom-name column (13-16): 2-char elements left-justified from col 13,
         # 1-char elements indented one space (PDB convention).
         if len(element) == 2:
@@ -424,7 +422,24 @@ def write_ligand_pdb(
 
     out_pdb = Path(out_pdb)
     out_pdb.write_text("\n".join(lines) + "\n")
-    return out_pdb, atom_names
+    return out_pdb
+
+
+def canonical_atom_names(symbols) -> List[str]:
+    """Return short, unique, element-based atom names (C1, C2, N1, CL1, F1...).
+
+    Predictors use atom names that vary and can exceed PDB's / Boltz's 4-char
+    limit (e.g. Chai's ``CL1_1``), which then get truncated inconsistently
+    between the structure and the ligand mol. Renaming both to these canonical
+    names -- in the same atom order -- keeps them consistent and <=4 chars.
+    """
+    counts: Dict[str, int] = {}
+    names = []
+    for sym in symbols:
+        el = sym.strip().upper()
+        counts[el] = counts.get(el, 0) + 1
+        names.append(f"{el}{counts[el]}")
+    return names
 
 
 def ligand_to_mol(
@@ -458,7 +473,7 @@ def ligand_to_mol(
     lig_pdb = work_dir / f"ligand_{ligand['chain_id']}_{ligand['resseq']}.pdb"
 
     try:
-        _, atom_names = write_ligand_pdb(model, ligand, lig_pdb)
+        write_ligand_pdb(model, ligand, lig_pdb)
 
         mol = Chem.MolFromPDBFile(str(lig_pdb), removeHs=False, sanitize=False)
         if mol is None:
@@ -484,22 +499,12 @@ def ligand_to_mol(
         except Exception as exc:  # noqa: BLE001
             logger.warning("RDKit sanitisation warning for ligand: %s", exc)
 
-        # Set the FULL original atom names by order (not the round-tripped PDB
-        # names, which truncate to 4 chars -- e.g. Chai's "CL1_1" -> "CL1_").
-        # parse_mmcif matches the ligand to the CIF by exact atom name, so the
-        # names must equal the structure's verbatim.
-        if mol.GetNumAtoms() == len(atom_names):
-            for atom, name in zip(mol.GetAtoms(), atom_names):
-                atom.SetProp("name", name)
-        else:
-            logger.warning(
-                "Ligand atom count (%d) != structure heavy atoms (%d); falling "
-                "back to PDB names.", mol.GetNumAtoms(), len(atom_names),
-            )
-            for atom in mol.GetAtoms():
-                pdb_info = atom.GetPDBResidueInfo()
-                if pdb_info is not None:
-                    atom.SetProp("name", pdb_info.GetName().strip())
+        # Canonical element-based names (C1, CL1, F1...), matching what
+        # normalize_complex_cif assigns the same ligand in the CIF -- keeps the
+        # mol and structure atom names identical and within the 4-char limit.
+        names = canonical_atom_names([a.GetSymbol() for a in mol.GetAtoms()])
+        for atom, name in zip(mol.GetAtoms(), names):
+            atom.SetProp("name", name)
         return mol
     finally:
         if cleanup:
@@ -686,7 +691,7 @@ def normalize_complex_cif(
                     del chain[i]
         st.remove_empty_chains()
 
-    if old_resname and new_resname and old_resname.upper() != new_resname.upper():
+    if old_resname and new_resname:
         old_upper = old_resname.strip().upper()
         for model in st:
             for chain in model:
@@ -695,8 +700,20 @@ def normalize_complex_cif(
                 for residue in chain:
                     # Case-insensitive: predictors may use lowercase resnames
                     # (e.g. Protenix "l01") while detection upper-cases them.
-                    if residue.name.strip().upper() == old_upper:
-                        residue.name = new_resname
+                    if residue.name.strip().upper() != old_upper:
+                        continue
+                    residue.name = new_resname
+                    # Canonicalise heavy-atom names to match the ligand mol
+                    # (see canonical_atom_names) -- short, unique, consistent.
+                    heavy = [
+                        a for a in residue
+                        if a.element.name.strip().upper() not in ("H", "D")
+                    ]
+                    new_names = canonical_atom_names(
+                        [a.element.name for a in heavy]
+                    )
+                    for atom, name in zip(heavy, new_names):
+                        atom.name = name
 
     # Regenerate entity / subchain records so every subchain maps to an entity.
     st.setup_entities()
