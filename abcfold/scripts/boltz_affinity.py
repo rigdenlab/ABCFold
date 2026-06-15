@@ -123,8 +123,8 @@ class Boltzina:
         msa: Optional precomputed MSA (.a3m) used instead of querying the MSA
             server -- reuse one MSA across many models to remove MSA-driven
             score variance and skip the fetch.
-        mw_correction: Apply Boltz's affinity molecular-weight correction (on by
-            default).
+        mw_correction: Apply Boltz's affinity molecular-weight correction (off
+            by default, matching native Boltz).
         seed: Seed for MSA subsampling; fixed by default for reproducibility.
     """
 
@@ -138,7 +138,7 @@ class Boltzina:
         ligand_name="LIG",
         seed=42,
         cache=None,
-        mw_correction=True,
+        mw_correction=False,
         msa=None,
     ):
         self.input_model = Path(input_model)
@@ -460,12 +460,11 @@ def main():
         ),
     )
     parser.add_argument(
-        "--no_mw_correction",
-        dest="mw_correction",
-        action="store_false",
+        "--mw_correction",
+        action="store_true",
         help=(
-            "Disable Boltz's affinity molecular-weight correction (on by "
-            "default)."
+            "Apply Boltz's affinity molecular-weight correction (off by "
+            "default, matching native Boltz)."
         ),
     )
     parser.add_argument(
