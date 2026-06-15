@@ -3,23 +3,26 @@
 #
 # Standalone Boltzina-style affinity scorer for ABCFold.
 #
-# Mirrors the ``ipsae`` script: it can be run directly on a single predicted
-# complex (a CIF/PDB containing a protein with a placed ligand, as produced by
-# AlphaFold3, Chai-1, Protenix, Boltz, ...) and writes the Boltz-2 affinity
-# score for that complex.
+# Mirrors the ``ipsae`` script: run it on one or more predicted complexes
+# (CIF/PDB containing a protein with a placed ligand, as produced by
+# AlphaFold3, Chai-1, Protenix, Boltz, ...) and it writes the Boltz-2 affinity
+# score for each.
 #
 # Unlike upstream Boltzina, no docking (AutoDock Vina) is performed: the ligand
 # is already placed by the prediction back-end, so we go straight to the
-# "scoring only" path -- parse the complex, build (or reuse) the Boltz
-# ``processed`` work_dir, and run the Boltz-2 affinity head.
+# "scoring only" path -- parse the complex, build the Boltz ``processed``
+# work_dir, and run the Boltz-2 affinity head. With several models of the same
+# protein+ligand the MSA is built once and reused, and all poses are scored in
+# one batched pass into a single CSV.
 #
 # Example
 # -------
-#   # auto-detect ligand, build processed inputs internally (needs net for MSA)
-#   boltz_affinity model.cif --smiles "CC(=O)Oc1ccccc1C(=O)O" -o affinity.csv
+#   # one model
+#   boltz_affinity model.cif --smiles "CC(=O)Oc1ccccc1C(=O)O"
 #
-#   # reuse a processed work_dir from an existing ABCFold/Boltz run
-#   boltz_affinity model.cif --work_dir /path/to/boltz_run -o affinity.csv
+#   # many models of the same target, sharing one MSA
+#   boltz_affinity preds/*_model_*.cif --smiles "CC(=O)Oc1ccccc1C(=O)O" \
+#       --msa target.a3m
 
 import argparse
 import configparser
@@ -109,20 +112,24 @@ def _dispatch_to_boltz_env(boltz_env: str) -> int:
 
 
 class Boltzina:
-    """Score a single predicted protein-ligand complex with Boltz-2 affinity.
+    """Score one or more predicted protein-ligand complexes with Boltz-2.
+
+    Every model must be the same protein + ligand (e.g. different predicted
+    poses); the MSA/manifest are built once and each pose is parsed and scored
+    against them in a single batched affinity pass.
 
     Args:
-        input_model: Path to the complex structure (CIF or PDB) with the ligand
-            already placed.
-        output_dir: Working/output directory for intermediate Boltz files.
+        input_models: One path, or a list of paths, to complex structures
+            (CIF/PDB) with the ligand already placed.
+        output_dir: Working/output directory for intermediate Boltz files and
+            the combined results.
         ligand_chain: Optional override restricting ligand selection to one
             chain; by default the ligand is auto-detected (SMILES-matched).
         smiles / ccd: Ligand chemistry used when building processed inputs
             (one is required).
-        ligand_name: Internal canonical name for the ligand inside Boltz.
         msa: Optional precomputed MSA (.a3m) used instead of querying the MSA
-            server -- reuse one MSA across many models to remove MSA-driven
-            score variance and skip the fetch.
+            server -- reuse one MSA to remove MSA-driven score variance and skip
+            the fetch.
         mw_correction: Apply Boltz's affinity molecular-weight correction (off
             by default, matching native Boltz).
         seed: Seed for MSA subsampling; fixed by default for reproducibility.
@@ -130,18 +137,19 @@ class Boltzina:
 
     def __init__(
         self,
-        input_model,
+        input_models,
         output_dir,
         ligand_chain=None,
         smiles=None,
         ccd=None,
-        ligand_name="LIG",
         seed=42,
         cache=None,
         mw_correction=False,
         msa=None,
     ):
-        self.input_model = Path(input_model)
+        if isinstance(input_models, (str, Path)):
+            input_models = [input_models]
+        self.input_models = [Path(m) for m in input_models]
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.mw_correction = mw_correction
@@ -149,11 +157,14 @@ class Boltzina:
         self.ligand_chain = ligand_chain
         self.smiles = smiles
         self.ccd = ccd
-        self.ligand_name = ligand_name
+        # One canonical ligand name shared by every model (same protein+ligand):
+        # the CCD code for --ccd, else "LIG" (what Boltz names a SMILES ligand).
+        self.ligand_name = self.ccd.strip().upper() if self.ccd else "LIG"
         self.cache = Path(cache) if cache else None
         self.seed = seed
 
         self.results = []
+        self.model_meta = {}
 
         # Boltz output layout under output_dir.
         self.boltz_out = self.output_dir / "boltz_out"
@@ -167,11 +178,11 @@ class Boltzina:
         self.constraints_dir = self.processed_dir / "constraints"
 
     # ------------------------------------------------------------------ #
-    def _load_structure(self):
-        """Load the input structure into a BioPython model via CifFile."""
+    def _load_structure(self, path):
+        """Load a structure into a BioPython model; return (model, cif_path)."""
         from abcfold.output.file_handlers import CifFile
 
-        path = self.input_model
+        path = Path(path)
         if path.suffix.lower() == ".pdb":
             # Convert PDB -> CIF so CifFile / parse_mmcif are happy.
             from Bio.PDB import MMCIFIO, PDBParser
@@ -182,38 +193,36 @@ class Boltzina:
             io.set_structure(structure)
             cif_path = self.output_dir / f"{path.stem}.cif"
             io.save(str(cif_path))
-            self.complex_cif = cif_path
         else:
-            self.complex_cif = path
+            cif_path = path
 
-        self.cif = CifFile(self.complex_cif)
-        self.model = self.cif.model[0]
-        self.record_id = self.input_model.stem
+        return CifFile(cif_path).model[0], cif_path
 
     # ------------------------------------------------------------------ #
-    def _prepare_work_dir(self):
-        """Build the processed work_dir (manifest, constraints, MSA) internally."""
-        logger.info("Building Boltz processed inputs from %s", self.complex_cif)
-        sequences = bu.extract_protein_sequences(self.model)
-        if not sequences:
-            raise ValueError("No protein chains found in the input structure.")
+    def _build_shared_inputs(self):
+        """Build the processed work_dir (MSA, manifest) once for all models.
+
+        Every model is the same protein + ligand, so the MSA/manifest are built
+        a single time from the first model and reused for the whole batch.
+        """
         if not (self.smiles or self.ccd):
             raise ValueError(
-                "Building processed inputs requires --smiles or --ccd for the "
-                "ligand."
+                "Scoring requires --smiles or --ccd for the ligand."
             )
+        model, _ = self._load_structure(self.input_models[0])
+        sequences = bu.extract_protein_sequences(model)
+        if not sequences:
+            raise ValueError("No protein chains found in the input structure.")
 
+        logger.info("Building Boltz processed inputs (MSA, manifest)...")
         yaml_path = bu.build_boltz_yaml(
             sequences=sequences,
             ligand_name=self.ligand_name,
             ligand_smiles=self.smiles,
             ligand_ccd=self.ccd,
             msa=self.msa,
-            out_yaml=self.output_dir / f"{self.record_id}.yaml",
+            out_yaml=self.output_dir / "boltz_affinity.yaml",
         )
-        # Boltz reuses an existing work_dir ("All inputs are already
-        # processed"); on a fresh build, a supplied --msa is used so there's
-        # nothing to fetch from the server.
         self.work_dir = bu.build_processed_inputs(
             yaml_path=yaml_path,
             work_dir=self.output_dir / f"boltz_work_{self.ligand_name}",
@@ -222,90 +231,90 @@ class Boltzina:
         )
         self.base_manifest = bu.load_manifest(self.work_dir)
         self.base_record_id = self.base_manifest["records"][0]["id"]
-
-    # ------------------------------------------------------------------ #
-    def run(self):
-
-        self._load_structure()
-
-        # Resolve which ligand to score.
-        self.ligand = bu.select_ligand(
-            self.model, self.ligand_chain, smiles=self.smiles
+        self.extra_mols_dir.mkdir(parents=True, exist_ok=True)
+        self.parse_mols_dir.mkdir(parents=True, exist_ok=True)
+        # CCD ligands resolve from the CCD; SMILES ligands use our custom mol so
+        # the name is dropped from the CCD to force the parser to use ours.
+        self.ccd_components = bu.load_ccd(
+            cache_dir=self.cache,
+            drop_name=None if self.ccd else self.ligand_name,
         )
 
-        # Canonical residue name shared by the CIF ligand, the mol pickles and
-        # the Boltz manifest (mirrors Boltzina's base_ligand_name). Boltz names
-        # SMILES ligands "LIG" (our default) and CCD ligands by their CCD code.
-        if self.ccd:
-            self.ligand_name = self.ccd.strip().upper()
-
+    # ------------------------------------------------------------------ #
+    def _prepare_model(self, model_path):
+        """Parse one model, prepare its affinity structure. Returns record id."""
+        model_path = Path(model_path)
+        model, complex_cif = self._load_structure(model_path)
+        ligand = bu.select_ligand(model, self.ligand_chain, smiles=self.smiles)
+        record_id = f"{model_path.stem}_{self.ligand_name}"
         logger.info(
-            "Scoring ligand %s (chain %s, %d atoms) as '%s'",
-            self.ligand["resname"],
-            self.ligand["chain_id"],
-            self.ligand["num_atoms"],
+            "Preparing %s: ligand %s (chain %s) as '%s'",
+            model_path.name, ligand["resname"], ligand["chain_id"],
             self.ligand_name,
         )
 
-        # Namespace per-ligand artefacts so scoring different ligands of the
-        # same model doesn't collide or reuse a stale work_dir/manifest.
-        self.record_id = f"{self.input_model.stem}_{self.ligand_name}"
-
-        self._prepare_work_dir()
-
-        # One record / one pose for a single complex.
-        record_ids = [self.record_id]
-
-        # parse_mmcif parses the WHOLE complex and needs a mol for every non-CCD
-        # residue, and the manifest only describes protein + the scored ligand.
-        # So strip every other ligand / cofactor / ion (and waters).
+        # Strip every other ligand/cofactor/ion so the parsed structure matches
+        # the manifest (protein + the scored ligand only).
         others = [
             (c["chain_id"], c["resseq"])
-            for c in bu.detect_ligands(self.model, include_additives=True)
+            for c in bu.detect_ligands(model, include_additives=True)
             if not (
-                c["chain_id"] == self.ligand["chain_id"]
-                and c["resseq"] == self.ligand["resseq"]
+                c["chain_id"] == ligand["chain_id"]
+                and c["resseq"] == ligand["resseq"]
             )
         ]
-
-        # Normalise: strip others, rename the scored ligand to the canonical
-        # name, and regenerate entity/subchain records for boltzina's parser.
-        self.scored_cif = bu.normalize_complex_cif(
-            self.complex_cif,
-            cif_out=self.output_dir / f"{self.record_id}_prepared.cif",
-            ligand_chain=self.ligand["chain_id"],
-            old_resname=self.ligand["resname"],
+        scored_cif = bu.normalize_complex_cif(
+            complex_cif,
+            cif_out=self.output_dir / f"{record_id}_prepared.cif",
+            ligand_chain=ligand["chain_id"],
+            old_resname=ligand["resname"],
             new_resname=self.ligand_name,
             remove_residues=others,
         )
 
-        # Ligand mol, written in BOTH layouts (datamodule + parse_mmcif).
-        self.extra_mols_dir.mkdir(parents=True, exist_ok=True)
-        self.parse_mols_dir.mkdir(parents=True, exist_ok=True)
         mol = bu.ligand_to_mol(
-            self.model, self.ligand, smiles=self.smiles, work_dir=self.output_dir
+            model, ligand, smiles=self.smiles, work_dir=self.output_dir
         )
         bu.write_extra_mols(
-            mol, record_ids, self.extra_mols_dir, ligand_name=self.ligand_name
+            mol, [record_id], self.extra_mols_dir, ligand_name=self.ligand_name
         )
         bu.write_parse_mol(mol, self.ligand_name, self.parse_mols_dir)
 
-        # SMILES ligands use our custom mol (drop the name from the CCD so the
-        # parser uses ours); CCD ligands are resolved from the CCD itself.
-        drop = None if self.ccd else self.ligand_name
-        ccd = bu.load_ccd(cache_dir=self.cache, drop_name=drop)
         pose_dir = bu.prepare_affinity_structure(
-            complex_cif=self.scored_cif,
-            record_id=self.record_id,
+            complex_cif=scored_cif,
+            record_id=record_id,
             predictions_dir=self.predictions_dir,
             extra_mols_dir=self.parse_mols_dir,
-            ccd=ccd,
+            ccd=self.ccd_components,
             override=True,
         )
         if pose_dir is None:
-            raise RuntimeError("Structure preparation failed; cannot score.")
+            logger.warning("Skipping %s: structure preparation failed.",
+                           model_path.name)
+            return None
 
-        # Manifest + constraints for the scored record(s).
+        self.model_meta[record_id] = {
+            "input_model": str(model_path),
+            "ligand_chain": ligand["chain_id"],
+            "ligand_resname": ligand["resname"],
+        }
+        return record_id
+
+    # ------------------------------------------------------------------ #
+    def run(self):
+        self._build_shared_inputs()
+
+        # Prepare every model's structure; collect the ones that succeeded.
+        record_ids = []
+        for model_path in self.input_models:
+            rid = self._prepare_model(model_path)
+            if rid is not None:
+                record_ids.append(rid)
+        if not record_ids:
+            raise RuntimeError("No models could be prepared for scoring.")
+
+        # One manifest + constraints covering all records, then a single
+        # batched affinity pass over them.
         bu.build_record_manifest(
             base_manifest=self.base_manifest,
             base_record_id=self.base_record_id,
@@ -318,24 +327,16 @@ class Boltzina:
             record_ids=record_ids,
             target_constraints_dir=self.constraints_dir,
         )
-
-        # Remove any stale affinity output for these records so a skipped /
-        # failed record reports as missing instead of re-reading an old result.
         self._clear_stale_affinity(record_ids)
 
-        # Run the Boltz-2 affinity head.
+        logger.info("Scoring %d model(s) with the Boltz-2 affinity head...",
+                    len(record_ids))
         self._score()
 
-        # Collect results.
-        self.results = bu.extract_affinity_results(
-            self.predictions_dir,
-            record_ids,
-            extra={
-                "input_model": str(self.input_model),
-                "ligand_chain": self.ligand["chain_id"],
-                "ligand_resname": self.ligand["resname"],
-            },
-        )
+        results = bu.extract_affinity_results(self.predictions_dir, record_ids)
+        for r in results:
+            r.update(self.model_meta.get(r.get("record_id"), {}))
+        self.results = results
 
         self._cleanup()
         return self.results
@@ -413,17 +414,25 @@ def main():
     parser = argparse.ArgumentParser(
         prog="boltz_affinity",
         description=(
-            "Boltzina-style Boltz-2 affinity scoring of a predicted "
-            "protein-ligand complex (CIF/PDB)."
+            "Boltzina-style Boltz-2 affinity scoring of one or more predicted "
+            "protein-ligand complexes (CIF/PDB). Multiple models of the same "
+            "protein+ligand are scored against a shared MSA and written to one "
+            "combined CSV."
         ),
     )
     parser.add_argument(
-        "input_model", help="Path to the complex structure (CIF or PDB)."
+        "input_models",
+        nargs="+",
+        help=(
+            "One or more complex structures (CIF/PDB), or a glob like "
+            "'preds/*_model_*.cif'. All must be the same protein+ligand; the "
+            "MSA is built once and each model scored against it."
+        ),
     )
     parser.add_argument(
         "--output_dir",
         default=None,
-        help="Working/output directory (default: alongside the input model).",
+        help="Working/output directory (default: alongside the input models).",
     )
     parser.add_argument(
         "--cache",
@@ -499,15 +508,26 @@ def main():
     if not args._in_boltz_env and not _boltz_available():
         return _dispatch_to_boltz_env(_resolve_boltz_env(args.boltz_env))
 
-    input_model = Path(args.input_model)
+    # Expand any globs the shell didn't (e.g. quoted patterns) and de-dupe.
+    import glob as _glob
+
+    input_models = []
+    for pattern in args.input_models:
+        matches = _glob.glob(pattern)
+        input_models.extend(matches if matches else [pattern])
+    input_models = [Path(m) for m in dict.fromkeys(input_models)]
+    missing = [m for m in input_models if not m.exists()]
+    if missing:
+        parser.error(f"input model(s) not found: {[str(m) for m in missing]}")
+
     output_dir = (
         Path(args.output_dir)
         if args.output_dir
-        else input_model.parent / f"{input_model.stem}_boltz_affinity"
+        else input_models[0].parent / "boltz_affinity"
     )
 
     boltzina = Boltzina(
-        input_model=input_model,
+        input_models=input_models,
         output_dir=output_dir,
         ligand_chain=args.ligand_chain,
         smiles=args.smiles,
