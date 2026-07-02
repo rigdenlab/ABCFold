@@ -237,3 +237,29 @@ input:checked + .switch-label .switch-inner {
 input:checked + .switch-label .switch-slider {
   transform: translateX(20px); /* Adjusted for smaller size */
 }
+
+/* Expandable per-interface score cells (ipSAE / reactifPTM). Collapsed shows
+   the best score + a count; click to expand a scrollable list. */
+details.score-cell > summary {
+    cursor: pointer;
+    list-style: none;
+    white-space: nowrap;
+}
+details.score-cell > summary::-webkit-details-marker { display: none; }
+details.score-cell > summary::before {
+    content: "\25B8";
+    display: inline-block;
+    margin-right: 4px;
+    color: #888;
+    transition: transform 0.15s ease;
+}
+details.score-cell[open] > summary::before { transform: rotate(90deg); }
+details.score-cell .score-more { color: #888; font-size: 0.85em; }
+details.score-cell .score-list {
+    max-height: 160px;
+    overflow-y: auto;
+    margin-top: 4px;
+    font-size: 0.9em;
+    white-space: nowrap;
+    text-align: left;
+}

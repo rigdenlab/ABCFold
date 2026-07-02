@@ -241,12 +241,14 @@ class Boltzina:
         )
 
     # ------------------------------------------------------------------ #
-    def _prepare_model(self, model_path):
+    def _prepare_model(self, model_path, index=0):
         """Parse one model, prepare its affinity structure. Returns record id."""
         model_path = Path(model_path)
         model, complex_cif = self._load_structure(model_path)
         ligand = bu.select_ligand(model, self.ligand_chain, smiles=self.smiles)
-        record_id = f"{model_path.stem}_{self.ligand_name}"
+        # Index-prefixed so models sharing a stem (e.g. many "model.cif" in
+        # different seed dirs) get unique records.
+        record_id = f"m{index:03d}_{model_path.stem}_{self.ligand_name}"
         logger.info(
             "Preparing %s: ligand %s (chain %s) as '%s'",
             model_path.name, ligand["resname"], ligand["chain_id"],
@@ -306,8 +308,8 @@ class Boltzina:
 
         # Prepare every model's structure; collect the ones that succeeded.
         record_ids = []
-        for model_path in self.input_models:
-            rid = self._prepare_model(model_path)
+        for index, model_path in enumerate(self.input_models):
+            rid = self._prepare_model(model_path, index)
             if rid is not None:
                 record_ids.append(rid)
         if not record_ids:

@@ -318,6 +318,21 @@ def run(args, config, defaults, config_file):
         indicies = get_gap_indicies(*cif_models)
         index_counter = 0
 
+        # Batched Boltz-2 affinity scoring of every predicted complex (one MSA,
+        # one inference pass). Runs only when a ligand SMILES/CCD is provided.
+        affinity_scores: Dict[str, Dict[str, Any]] = {}
+        if getattr(args, "ligand_smiles", None) or getattr(
+            args, "ligand_ccd", None
+        ):
+            from abcfold.affinity.run_affinity import run_boltz_affinity
+
+            affinity_scores = run_boltz_affinity(
+                [cif.pathway for cif in cif_models],
+                args.output_dir,
+                smiles=args.ligand_smiles,
+                ccd=args.ligand_ccd,
+            )
+
         alphafold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
 
         if args.alphafold3:
@@ -343,6 +358,7 @@ def run(args, config, defaults, config_file):
                             pae,
                             score_file,
                             args.output_dir,
+                            affinity_scores=affinity_scores,
                         )
                         alphafold_models["models"].append(model_data)
 
@@ -369,7 +385,8 @@ def run(args, config, defaults, config_file):
                             plddt,
                             pae,
                             score_file,
-                            args.output_dir
+                            args.output_dir,
+                            affinity_scores=affinity_scores,
                         )
                         boltz_models["models"].append(model_data)
 
@@ -398,6 +415,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             chai_models["models"].append(model_data)
 
@@ -426,6 +444,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             openfold_models["models"].append(model_data)
 
@@ -454,6 +473,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             protenix_models["models"].append(model_data)
 
@@ -482,6 +502,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             rosettafold_models["models"].append(model_data)
 

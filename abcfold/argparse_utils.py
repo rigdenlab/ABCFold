@@ -109,6 +109,18 @@ def prediction_argparse_util(parser):
         default=10,
         help="[optional] Number of recycles to use during inference (default: 10)",
     )
+    parser.add_argument(
+        "--ligand_smiles",
+        default=None,
+        help=dedent("[optional] Ligand SMILES for Boltz-2 affinity scoring of \
+        the predicted complexes. Enables affinity scoring."),
+    )
+    parser.add_argument(
+        "--ligand_ccd",
+        default=None,
+        help=dedent("[optional] Ligand CCD code for Boltz-2 affinity scoring \
+        (alternative to --ligand_smiles)."),
+    )
     return parser
 
 

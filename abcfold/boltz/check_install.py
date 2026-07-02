@@ -39,5 +39,6 @@ def ensure_boltz_env(config: dict) -> MicromambaEnv:
     env.ensure_package("numpy")
     env.ensure_package("typer")
     env.ensure_package("matplotlib")
+    env.ensure_package("boltzina")
 
     return env
