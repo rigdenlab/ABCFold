@@ -17,6 +17,37 @@ from typing import Dict, List, Optional, Union
 logger = logging.getLogger("logger")
 
 
+def extract_affinity_msa(
+    input_params: dict, output_dir: Union[str, Path]
+) -> Optional[str]:
+    """Return an .a3m path to reuse for affinity scoring, or None to fetch.
+
+    Reuses the MSA ABCFold already built (mmseqs2, or a user-supplied
+    ``unpairedMsa`` / ``unpairedMsaPath`` in the input) so the affinity step
+    doesn't re-query the MSA server. Only done for a *single* protein sequence:
+    one alignment can't be shared across different chains in a heteromer, and
+    ``--msa`` applies it to all protein chains.
+    """
+    proteins = [
+        s["protein"]
+        for s in input_params.get("sequences", [])
+        if isinstance(s, dict) and "protein" in s
+    ]
+    if len(proteins) != 1:
+        return None
+
+    prot = proteins[0]
+    if prot.get("unpairedMsaPath"):
+        return str(prot["unpairedMsaPath"])
+    if prot.get("unpairedMsa"):
+        msa_file = Path(output_dir) / "affinity" / "reused_msa.a3m"
+        msa_file.parent.mkdir(parents=True, exist_ok=True)
+        msa_file.write_text(prot["unpairedMsa"])
+        logger.info("Reusing ABCFold's MSA for affinity scoring: %s", msa_file)
+        return str(msa_file)
+    return None
+
+
 def run_boltz_affinity(
     model_paths: List[Union[str, Path]],
     output_dir: Union[str, Path],

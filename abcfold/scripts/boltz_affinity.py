@@ -230,7 +230,14 @@ class Boltzina:
             use_msa_server=self.msa is None,
         )
         self.base_manifest = bu.load_manifest(self.work_dir)
-        self.base_record_id = self.base_manifest["records"][0]["id"]
+        records = self.base_manifest.get("records", [])
+        if not records:
+            raise RuntimeError(
+                "Boltz produced no processed records -- input processing "
+                "failed (commonly a transient MSA-server error). Reuse an "
+                "existing alignment with --msa to skip the fetch, or retry."
+            )
+        self.base_record_id = records[0]["id"]
         self.extra_mols_dir.mkdir(parents=True, exist_ok=True)
         self.parse_mols_dir.mkdir(parents=True, exist_ok=True)
         # CCD ligands resolve from the CCD; SMILES ligands use our custom mol so

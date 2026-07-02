@@ -324,13 +324,20 @@ def run(args, config, defaults, config_file):
         if getattr(args, "ligand_smiles", None) or getattr(
             args, "ligand_ccd", None
         ):
-            from abcfold.affinity.run_affinity import run_boltz_affinity
+            from abcfold.affinity.run_affinity import (extract_affinity_msa,
+                                                       run_boltz_affinity)
 
+            # Reuse an MSA abcfold already built (mmseqs2 / user-provided)
+            # instead of re-querying the MSA server for affinity scoring.
+            affinity_msa = extract_affinity_msa(
+                input_params, args.output_dir
+            )
             affinity_scores = run_boltz_affinity(
                 [cif.pathway for cif in cif_models],
                 args.output_dir,
                 smiles=args.ligand_smiles,
                 ccd=args.ligand_ccd,
+                msa=affinity_msa,
             )
 
         alphafold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
