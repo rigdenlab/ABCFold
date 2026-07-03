@@ -1,6 +1,7 @@
 import contextlib
 import http.server
 import io
+import json
 import logging
 import textwrap
 from itertools import groupby
@@ -167,20 +168,34 @@ def get_model_data(model,
     reactifptm_score = []
     if Reactifptm is not None:
         try:
-            # reactifptm prints progress / "Results saved to:" to stdout;
+            # Feed reactifptm the *processed* AF3-style PAE ABCFold already
+            # built (ipsae.pae_data: converted matrix + token_chain_ids/
+            # token_res_ids), not the raw per-predictor PAE file. The raw file
+            # varies by predictor (e.g. Boltz .npz) and can't always be reloaded
+            # or aligned by reactifptm; the AF3 json is the format it expects.
+            # reactifptm also prints progress / "Results saved to:" to stdout;
             # swallow it so only ABCFold's own log messages show.
             with contextlib.redirect_stdout(io.StringIO()):
-                reactif = Reactifptm(pae_obj.pathway, full_model_path)
-                reactif.compute_reactifptm()
-                for pair, v in (reactif.reactifptm_pairwise_max or {}).items():
-                    # reactifptm keys chain pairs as "A-B"; ipSAE uses "AB".
-                    # Drop the dash so both columns label interfaces the same.
-                    pair_label = str(pair).replace("-", "")
-                    reactifptm_score.append(f"{pair_label}:{np.round(v, 4)}")
-                reactif.save_results(
+                pae_json = (
                     full_model_path.parent
-                    / f"{Path(model_path).stem}_reactifptm.json"
+                    / f"{Path(model_path).stem}_pae_af3.json"
                 )
+                with open(pae_json, "w") as fh:
+                    json.dump(ipsae.pae_data, fh)
+                try:
+                    reactif = Reactifptm(pae_json, full_model_path)
+                    reactif.compute_reactifptm()
+                    for pair, v in (reactif.reactifptm_pairwise_max or {}).items():
+                        # reactifptm keys chain pairs "A-B"; ipSAE uses "AB".
+                        # Drop the dash so both columns label interfaces alike.
+                        pair_label = str(pair).replace("-", "")
+                        reactifptm_score.append(f"{pair_label}:{np.round(v, 4)}")
+                    reactif.save_results(
+                        full_model_path.parent
+                        / f"{Path(model_path).stem}_reactifptm.json"
+                    )
+                finally:
+                    pae_json.unlink(missing_ok=True)
         except Exception as exc:  # noqa: BLE001
             logger.warning("reactifPTM failed for %s: %s", model.name, exc)
 
