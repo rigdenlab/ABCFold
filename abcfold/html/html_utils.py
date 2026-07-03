@@ -1,4 +1,6 @@
+import contextlib
 import http.server
+import io
 import logging
 import textwrap
 from itertools import groupby
@@ -165,14 +167,20 @@ def get_model_data(model,
     reactifptm_score = []
     if Reactifptm is not None:
         try:
-            reactif = Reactifptm(pae_obj.pathway, full_model_path)
-            reactif.compute_reactifptm()
-            for pair, v in (reactif.reactifptm_pairwise_max or {}).items():
-                reactifptm_score.append(f"{pair}:{np.round(v, 4)}")
-            reactif.save_results(
-                full_model_path.parent
-                / f"{Path(model_path).stem}_reactifptm.json"
-            )
+            # reactifptm prints progress / "Results saved to:" to stdout;
+            # swallow it so only ABCFold's own log messages show.
+            with contextlib.redirect_stdout(io.StringIO()):
+                reactif = Reactifptm(pae_obj.pathway, full_model_path)
+                reactif.compute_reactifptm()
+                for pair, v in (reactif.reactifptm_pairwise_max or {}).items():
+                    # reactifptm keys chain pairs as "A-B"; ipSAE uses "AB".
+                    # Drop the dash so both columns label interfaces the same.
+                    pair_label = str(pair).replace("-", "")
+                    reactifptm_score.append(f"{pair_label}:{np.round(v, 4)}")
+                reactif.save_results(
+                    full_model_path.parent
+                    / f"{Path(model_path).stem}_reactifptm.json"
+                )
         except Exception as exc:  # noqa: BLE001
             logger.warning("reactifPTM failed for %s: %s", model.name, exc)
 

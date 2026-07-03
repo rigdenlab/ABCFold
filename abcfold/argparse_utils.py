@@ -121,6 +121,12 @@ def prediction_argparse_util(parser):
         help=dedent("[optional] Ligand CCD code for Boltz-2 affinity scoring \
         (alternative to --ligand_smiles)."),
     )
+    parser.add_argument(
+        "--ligand_chain",
+        default=None,
+        help=dedent("[optional] Restrict affinity scoring to the ligand in \
+        this chain (otherwise auto-detected)."),
+    )
     return parser
 
 

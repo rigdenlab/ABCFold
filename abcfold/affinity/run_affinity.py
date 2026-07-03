@@ -100,12 +100,14 @@ def run_boltz_affinity(
 
     logger.info("Running Boltz-2 affinity scoring on %d model(s)...", len(paths))
     try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as exc:
-        logger.error("Affinity scoring failed: %s", exc)
-        return {}
+        # Capture the (verbose) subprocess output; only surface it on failure.
+        result = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError as exc:
         logger.error("Could not launch affinity scoring: %s", exc)
+        return {}
+    if result.returncode != 0:
+        tail = "\n".join((result.stderr or result.stdout or "").splitlines()[-25:])
+        logger.error("Affinity scoring failed:\n%s", tail)
         return {}
 
     results_csv = affinity_dir / "boltz_affinity_results.csv"

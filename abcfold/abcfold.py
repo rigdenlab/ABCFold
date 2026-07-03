@@ -337,6 +337,7 @@ def run(args, config, defaults, config_file):
                 args.output_dir,
                 smiles=args.ligand_smiles,
                 ccd=args.ligand_ccd,
+                ligand_chain=getattr(args, "ligand_chain", None),
                 msa=affinity_msa,
             )
 
