@@ -53,14 +53,15 @@ Vue.component('abc-table', {
                   title: 'The best reactifPTM (interface pTM over residues in '
                        + 'contact) for each interface' },
                 { key: 'affinity_pred_value',
-                  label: 'Affinity (log10 IC50 µM)', type: 'decimal',
+                  label: 'Boltzina affinity', type: 'decimal',
                   decimals: 3,
-                  title: 'Boltz-2 predicted binding affinity as log10 IC50 in '
-                       + 'µM (lower = stronger binder)' },
-                { key: 'affinity_probability_binary', label: 'Binder prob.',
+                  title: 'Boltzina (Boltz-2) predicted binding affinity as '
+                       + 'log10 IC50 in µM (lower = stronger binder)' },
+                { key: 'affinity_probability_binary',
+                  label: 'Boltzina binder prob.',
                   type: 'decimal', decimals: 3,
-                  title: 'Boltz-2 predicted probability the ligand is a '
-                       + 'binder (0-1)' },
+                  title: 'Boltzina (Boltz-2) predicted probability the ligand '
+                       + 'is a binder (0-1)' },
                 { key: 'residue_clashes', label: 'Residue Clashes',
                   title: 'The number of possible residue clashes found in the '
                        + 'model - lower is better' },
