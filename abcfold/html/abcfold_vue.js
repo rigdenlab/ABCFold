@@ -30,6 +30,9 @@ Vue.component('abc-table', {
         }
         return {
             abc_models: this.$root.abc_models,
+            // ccp4cloud mode is viewed without a local server, so the model
+            // visualisation links can't be served -- hide that column.
+            ccp4cloud: (typeof abc_data !== 'undefined' && !!abc_data.ccp4cloud),
             // Column definitions in display order. Columns with no data across
             // any model are hidden (see visibleColumns). type: 'link' renders a
             // link, 'decimal' formats a number, 'scores' is an expandable list
@@ -53,15 +56,16 @@ Vue.component('abc-table', {
                   title: 'The best reactifPTM (interface pTM over residues in '
                        + 'contact) for each interface' },
                 { key: 'affinity_pred_value',
-                  label: 'Boltzina affinity', type: 'decimal',
+                  label: 'Boltz-2 affinity', type: 'decimal',
                   decimals: 3,
-                  title: 'Boltzina (Boltz-2) predicted binding affinity as '
-                       + 'log10 IC50 in µM (lower = stronger binder)' },
+                  title: 'Predicted binding affinity as log10 IC50 in µM '
+                       + '(lower = stronger binder), calculated with Boltzina '
+                       + '(Boltz-2 affinity head)' },
                 { key: 'affinity_probability_binary',
-                  label: 'Boltzina binder prob.',
+                  label: 'Boltz-2 binder prob.',
                   type: 'decimal', decimals: 3,
-                  title: 'Boltzina (Boltz-2) predicted probability the ligand '
-                       + 'is a binder (0-1)' },
+                  title: 'Predicted probability the ligand is a binder (0-1), '
+                       + 'calculated with Boltzina (Boltz-2 affinity head)' },
                 { key: 'residue_clashes', label: 'Residue Clashes',
                   title: 'The number of possible residue clashes found in the '
                        + 'model - lower is better' },
@@ -157,14 +161,15 @@ Vue.component('abc-table', {
                 <tr>
                     <th v-for="(col, idx) in visibleColumns" :key="col.key"
                         :title="col.title" @click="sortCol(idx)">{{ col.label }}</th>
-                    <th title="Link to a visualisation of the model and its corresponding PAE plot">Model visualisations</th>
+                    <th v-if="!ccp4cloud" title="Link to a visualisation of the model and its corresponding PAE plot">Model visualisations</th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="abcmodel in abc_models" :data-feature-name="abcmodel.model_id">
                     <td v-for="col in visibleColumns" :key="col.key">
                         <template v-if="col.type === 'link'">
-                            <a v-bind:href="abcmodel.model_path" target="_blank">{{ abcmodel[col.key] }}</a>
+                            <a v-if="!ccp4cloud" v-bind:href="abcmodel.model_path" target="_blank">{{ abcmodel[col.key] }}</a>
+                            <template v-else>{{ abcmodel[col.key] }}</template>
                         </template>
                         <template v-else-if="col.type === 'decimal'">
                             {{ fmtDecimal(abcmodel[col.key], col.decimals) }}
@@ -181,7 +186,7 @@ Vue.component('abc-table', {
                             {{ abcmodel[col.key] }}
                         </template>
                     </td>
-                    <td><a v-bind:href="abcmodel.pae_path" target="_blank"><button :class="getButtonClass(abcmodel.model_source)">Click for PAE Plot</button></a></td>
+                    <td v-if="!ccp4cloud"><a v-bind:href="abcmodel.pae_path" target="_blank"><button :class="getButtonClass(abcmodel.model_source)">Click for PAE Plot</button></a></td>
                 </tr>
             </tbody>
         </table>

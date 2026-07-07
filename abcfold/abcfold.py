@@ -567,6 +567,10 @@ def run(args, config, defaults, config_file):
             .relative_to(args.output_dir.resolve())
             .as_posix(),
             "chain_data": chain_data,
+            # In ccp4cloud mode the page is viewed without a local server, so
+            # the model-visualisation links can't be served -- tell the front
+            # end to omit that column.
+            "ccp4cloud": bool(getattr(args, "ccp4cloud", False)),
         }
         results_json = json.dumps(results_dict)
 
@@ -603,8 +607,14 @@ def run(args, config, defaults, config_file):
         # Make a script to open the output HTML file in the default web browser
         output_open_html_script("open_output.py", port=PORT)
 
-        if args.no_server:
-            logger.info("Server disabled")
+        if args.no_server or getattr(args, "ccp4cloud", False):
+            if getattr(args, "ccp4cloud", False):
+                logger.info(
+                    "ccp4cloud mode: local server disabled and model "
+                    "visualisations column omitted"
+                )
+            else:
+                logger.info("Server disabled")
             logger.info(
                 "Run 'python open_output.py' in the output directory to \
 view the output pages"

@@ -253,6 +253,14 @@ def visuals_argparse_util(parser):
         help=dedent("[optional] Do not start a local server to view the results, the \
         output page is still generated and is accessible in the output directory"),
     )
+
+    parser.add_argument(
+        "--ccp4cloud",
+        action="store_true",
+        help=dedent("[optional] Produce an output page for services where a local \
+        server can't be run (e.g. CCP4 Cloud): omits the model visualisations \
+        column and does not start a local server"),
+    )
     return parser
 
 
