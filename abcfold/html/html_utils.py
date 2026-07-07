@@ -136,6 +136,12 @@ def get_model_data(model,
     """
     regions = get_plddt_regions(plddt_scores)
     ptm_score, iptm_score = parse_scores(score_file)
+    # ipTM is only defined for multi-chain complexes. Non-AF3 predictors report
+    # 0.0 for single-chain (monomer) predictions rather than omitting it, which
+    # keeps a meaningless all-zero column visible. Normalise to None for
+    # monomers so the front end hides the column (matching AF3's behaviour).
+    if sum(1 for _ in model.get_chains()) < 2:
+        iptm_score = None
     full_model_path = Path(model.pathway)
     model_path = full_model_path.relative_to(output_dir).as_posix()
 
@@ -202,6 +208,15 @@ def get_model_data(model,
     # Boltz-2 affinity, looked up from the batched pre-computed results.
     affinity = (affinity_scores or {}).get(str(full_model_path.resolve()), {})
 
+    # PAE plots may be skipped (e.g. ccp4cloud mode), in which case there's no
+    # entry for this model in plot_dict -- leave pae_path unset.
+    pae_plot = plot_dict.get(model.pathway.as_posix())
+    pae_path = (
+        Path(pae_plot).relative_to(output_dir).as_posix()
+        if pae_plot is not None
+        else None
+    )
+
     model_data = {
         "model_id": model.name,
         "model_source": method,
@@ -219,9 +234,9 @@ def get_model_data(model,
         ),
         "residue_clashes": model.clashes_residues,
         "atom_clashes": model.clashes,
-        "pae_path": Path(plot_dict[model.pathway.as_posix()])
-        .relative_to(output_dir)
-        .as_posix(),
+        # None when PAE plots weren't generated (e.g. ccp4cloud mode); the
+        # front end omits the visualisations column in that case.
+        "pae_path": pae_path,
     }
     return model_data
 
@@ -236,15 +251,19 @@ class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-def plots(outputs: list, output_dir: Path):
+def plots(outputs: list, output_dir: Path, make_pae_plots: bool = True):
     """
     Generate plots for the output of the different programs
 
     Args:
         outputs (list): List of output objects
+        make_pae_plots (bool): Generate the per-model PAE viewer pages. Skipped
+            in ccp4cloud mode, where they aren't displayed and can't be served.
 
     """
-    pathway_plots = create_pae_plots(outputs, output_dir=output_dir)
+    pathway_plots = (
+        create_pae_plots(outputs, output_dir=output_dir) if make_pae_plots else {}
+    )
     plddt_plot_input: Dict[str, list] = get_all_cif_files(outputs)
 
     plot_plddt(plddt_plot_input, output_name=output_dir.joinpath("plddt_plot.html"))

@@ -306,7 +306,11 @@ def run(args, config, defaults, config_file):
             logger.error("No models were generated")
             return
 
-        plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
+        plot_dict = plots(
+            outputs,
+            args.output_dir.joinpath(PLOTS_DIR),
+            make_pae_plots=not getattr(args, "ccp4cloud", False),
+        )
 
         # Compile data to make output page
         programs_run = []
