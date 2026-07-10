@@ -119,3 +119,73 @@ def setup_environments(args, config: dict) -> None:
         "no inference was run.",
         ", ".join(selected),
     )
+
+
+def main() -> None:
+    """Standalone entry point: set up selected predictor environments.
+
+    Run directly with e.g.::
+
+        python -m abcfold.dry_run -b -c
+        python -m abcfold.dry_run -abcopr
+
+    Loads the same config file as ``abcfold`` (``~/.abcfold_config.ini``,
+    created from the packaged defaults on first use) and sets up only the
+    predictors chosen with -a/-b/-c/-p/-o/-r. No input JSON or GPU is required.
+    """
+    import argparse
+    import configparser
+    import shutil
+
+    from abcfold.argparse_utils import (alphafold_argparse_util,
+                                        boltz_argparse_util,
+                                        chai_argparse_util,
+                                        openfold_argparse_util,
+                                        protenix_argparse_util,
+                                        rosettafold_argparse_util)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument(
+        "--config-file",
+        type=str,
+        default=str(Path.home() / ".abcfold_config.ini"),
+        help="Path to the config file (defaults to ~/.abcfold_config.ini).",
+    )
+    config_args, _ = config_parser.parse_known_args()
+
+    config_file = Path(config_args.config_file)
+    default_config_file = Path(__file__).parent.joinpath("data", "config.ini")
+    if not config_file.exists():
+        shutil.copy(default_config_file, config_file)
+
+    config = configparser.ConfigParser()
+    config.read(str(config_file))
+    rt_config: dict = {}
+    for section in config.sections():
+        rt_config.update(dict(config.items(section)))
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Set up ABCFold predictor environments (env + weights + --help "
+            "smoke test) without running inference. No GPU required."
+        ),
+        parents=[config_parser],
+    )
+    parser = alphafold_argparse_util(parser)
+    parser = boltz_argparse_util(parser)
+    parser = chai_argparse_util(parser)
+    parser = openfold_argparse_util(parser)
+    parser = protenix_argparse_util(parser)
+    parser = rosettafold_argparse_util(parser)
+    args = parser.parse_args()
+
+    setup_environments(args, rt_config)
+
+
+if __name__ == "__main__":
+    main()
