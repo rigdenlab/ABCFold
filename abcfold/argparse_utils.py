@@ -127,6 +127,14 @@ def prediction_argparse_util(parser):
         help=dedent("[optional] Restrict affinity scoring to the ligand in \
         this chain (otherwise auto-detected)."),
     )
+    parser.add_argument(
+        "--dry_run",
+        action="store_true",
+        help=dedent("[optional] Set up the selected predictors only: create the \
+        micromamba environments, download model weights, and run each tool's \
+        --help smoke test, then exit without running any inference. Requires no \
+        GPU -- useful for priming a central install (e.g. via Ansible)."),
+    )
     return parser
 
 

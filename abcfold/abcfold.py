@@ -75,8 +75,10 @@ def run(args, config, defaults, config_file):
     if args.mmseqs2:
         logger.info("MMSeqs2 Selected, all other MSAs will be ignored")
 
-    make_dir(args.output_dir, overwrite=args.override)
-    make_dir(args.output_dir.joinpath(PLOTS_DIR))
+    # A dry run only sets up environments/weights, so skip creating output dirs.
+    if not getattr(args, "dry_run", False):
+        make_dir(args.output_dir, overwrite=args.override)
+        make_dir(args.output_dir.joinpath(PLOTS_DIR))
 
     updated_config = False
     if args.model_params is not None and args.model_params != defaults["model_params"]:
@@ -96,6 +98,12 @@ def run(args, config, defaults, config_file):
     rt_config = {}
     for section in config.sections():
         rt_config.update(dict(config.items(section)))
+
+    if getattr(args, "dry_run", False):
+        from abcfold.dry_run import setup_environments
+
+        setup_environments(args, rt_config)
+        return
 
     args = raise_argument_errors(args)
     # Ensure that the input json file is valid
@@ -608,17 +616,20 @@ def run(args, config, defaults, config_file):
         # Change to the output directory to run the server
         os.chdir(args.output_dir)
 
+        # ccp4cloud mode is viewed without a local server, so there's no need
+        # for the launcher script -- the index.html is self-contained.
+        if getattr(args, "ccp4cloud", False):
+            logger.info(
+                "ccp4cloud mode: local server disabled and model "
+                "visualisations column omitted"
+            )
+            return
+
         # Make a script to open the output HTML file in the default web browser
         output_open_html_script("open_output.py", port=PORT)
 
-        if args.no_server or getattr(args, "ccp4cloud", False):
-            if getattr(args, "ccp4cloud", False):
-                logger.info(
-                    "ccp4cloud mode: local server disabled and model "
-                    "visualisations column omitted"
-                )
-            else:
-                logger.info("Server disabled")
+        if args.no_server:
+            logger.info("Server disabled")
             logger.info(
                 "Run 'python open_output.py' in the output directory to \
 view the output pages"
