@@ -73,6 +73,61 @@ ELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQ
         )
 
 
+def test_af3_to_boltz_templates(test_data):
+    mmcif = "data_template\n_cell.length_a 1.0\n"
+    params = {
+        "name": "TemplateTest",
+        "modelSeeds": [1],
+        "sequences": [
+            {
+                "protein": {
+                    "id": "A",
+                    "sequence": "GMRES",
+                    "templates": [
+                        {"mmcif": mmcif, "queryIndices": [0], "templateIndices": [0]},
+                        {"mmcif": mmcif, "queryIndices": [0], "templateIndices": [0]},
+                    ],
+                }
+            },
+            {
+                "protein": {
+                    "id": ["B", "C"],
+                    "sequence": "YANEN",
+                    "templates": [{"mmcif": mmcif}],
+                }
+            },
+            {"protein": {"id": "D", "sequence": "KLLVV"}},
+        ],
+        "dialect": "alphafold3",
+        "version": 1,
+    }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        boltz_yaml = BoltzYaml(temp_dir)
+        yaml_string = boltz_yaml.json_to_yaml(params)
+        lines = yaml_string.split("\n")
+
+        # Templates are emitted as a top-level block
+        assert "templates:" in lines
+        template_lines = lines[lines.index("templates:") + 1:]
+
+        # One entry per template: two for chain A, one for chains B/C; chain D
+        # has no templates and so contributes nothing
+        cif_lines = [
+            line for line in template_lines if line.strip().startswith("- cif:")
+        ]
+        assert len(cif_lines) == 3
+
+        # Each cif path points at a written file
+        for line in cif_lines:
+            cif_path = Path(line.split("- cif:")[1].strip())
+            assert cif_path.exists()
+
+        # Chain ids are carried through, in both single and list form
+        assert f"{DELIM}  chain_id: A" in template_lines
+        assert f"{DELIM}  chain_id: [B, C]" in template_lines
+
+
 def test_boltz_output_yaml(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
         boltz_yaml = BoltzYaml(temp_dir)
