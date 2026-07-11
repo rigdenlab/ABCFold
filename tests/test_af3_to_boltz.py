@@ -123,9 +123,9 @@ def test_af3_to_boltz_templates(test_data):
             cif_path = Path(line.split("- cif:")[1].strip())
             assert cif_path.exists()
 
-        # Chain ids are carried through, in both single and list form
-        assert f"{DELIM}  chain_id: A" in template_lines
-        assert f"{DELIM}  chain_id: [B, C]" in template_lines
+        # Only a bare `cif:` is emitted -- Boltz best-matches the chain itself,
+        # so no chain_id/template_id lines are written
+        assert not any("chain_id" in line for line in template_lines)
 
 
 def test_boltz_output_yaml(test_data):

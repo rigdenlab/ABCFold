@@ -82,8 +82,13 @@ class BoltzYaml:
 
         Each entry is emitted as ``- cif: <path>`` with the chain id(s) it was
         generated for. Boltz aligns the CIF to the query and picks the best
-        matching chain; supplying ``chain_id`` just scopes it to the intended
-        chain(s). Returns an empty string when there are no templates.
+        matching chain. We deliberately emit only ``cif:`` (no ``chain_id`` /
+        ``template_id``): with just a path, Boltz aligns the template to the
+        query and finds the best matching chain itself. Supplying ``chain_id``
+        pushes Boltz into its explicit chain-matching path, which does bare
+        ``sequences[chain_id]`` / ``template_sequences[...]`` lookups and raises
+        KeyError if the ids don't line up with its internal chain naming.
+        Returns an empty string when there are no templates.
         """
         if not self.__template_entries:
             return ""
@@ -91,12 +96,6 @@ class BoltzYaml:
         yaml_string = self.add_non_indented_string("templates")
         for entry in self.__template_entries:
             yaml_string += f"{DELIM}- cif: {entry['cif']}\n"
-            chain_id = entry.get("chain_id")
-            if isinstance(chain_id, list):
-                ids = ", ".join(str(c) for c in chain_id)
-                yaml_string += f"{DELIM}  chain_id: [{ids}]\n"
-            elif chain_id is not None:
-                yaml_string += f"{DELIM}  chain_id: {chain_id}\n"
         return yaml_string
 
     def json_to_yaml(
