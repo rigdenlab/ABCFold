@@ -73,9 +73,57 @@ class BoltzYaml:
                 continue
             cif_file = tmpl_dir / f"template_{idx}.cif"
             if self.__create_files:
-                cif_file.write_text(mmcif)
+                self._normalise_template_cif(mmcif, cif_file)
             cif_paths.append(cif_file.resolve().as_posix())
         return cif_paths
+
+    def _normalise_template_cif(self, mmcif: str, out_file: Path) -> None:
+        """Rewrite an inline mmCIF so Boltz's parser can read it.
+
+        Boltz's ``parse_mmcif`` indexes gemmi ``structure.entities`` by subchain
+        id (``entities[subchain_id]``) and aligns modeled residues against each
+        polymer entity's ``full_sequence``. mmCIFs written by BioPython (our
+        custom / mmseqs templates) carry only ``_atom_site`` records -- no
+        ``_entity`` / ``_struct_asym`` -- so those lookups raise ``KeyError`` on
+        a chain id. gemmi's ``setup_entities()`` regenerates the entity/subchain
+        records from the atoms, and we backfill each polymer entity's sequence
+        from its modeled residues (setup_entities leaves it empty). This mirrors
+        the fix used for affinity scoring in ``affinity/boltzina_utils.py``.
+
+        Falls back to writing the mmCIF verbatim if it can't be parsed (e.g. an
+        empty/placeholder block), so a bad template never aborts YAML building.
+        """
+        try:
+            import gemmi
+
+            doc = gemmi.cif.read_string(mmcif)
+            st = gemmi.make_structure_from_block(doc[0])
+            if len(st) == 0:
+                raise ValueError("template mmCIF has no models")
+            st.setup_entities()
+
+            model0 = st[0]
+            for entity in st.entities:
+                if entity.entity_type.name != "Polymer" or entity.full_sequence:
+                    continue
+                if not entity.subchains:
+                    continue
+                first_subchain = entity.subchains[0]
+                seq = [
+                    residue.name
+                    for chain in model0
+                    for residue in chain
+                    if residue.subchain == first_subchain
+                ]
+                if seq:
+                    entity.full_sequence = seq
+
+            st.make_mmcif_document().write_file(str(out_file))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Could not normalise template CIF (%s); writing it unchanged", exc
+            )
+            Path(out_file).write_text(mmcif)
 
     def add_templates(self) -> str:
         """Build the top-level ``templates:`` block from collected entries.
