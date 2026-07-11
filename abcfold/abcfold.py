@@ -262,16 +262,11 @@ def run(args, config, defaults, config_file):
         if args.openfold3:
             from abcfold.openfold3.run_openfold3 import run_openfold
 
-            template_hits_path = None
-            if args.templates and args.mmseqs2:
-                template_hits_path = temp_dir.joinpath("all_chains.m8")
-
             openfold_success = run_openfold(
                 input_json=run_json,
                 output_dir=args.output_dir,
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
-                template_hits_path=template_hits_path,
                 input_ckpt=args.inference_ckpt_path,
                 config=rt_config
             )
@@ -320,7 +315,6 @@ def run(args, config, defaults, config_file):
             make_pae_plots=not getattr(args, "ccp4cloud", False),
         )
 
-        # Compile data to make output page
         programs_run = []
         cif_models = [
             cif_file
@@ -330,8 +324,6 @@ def run(args, config, defaults, config_file):
         indicies = get_gap_indicies(*cif_models)
         index_counter = 0
 
-        # Batched Boltz-2 affinity scoring of every predicted complex (one MSA,
-        # one inference pass). Runs only when a ligand SMILES/CCD is provided.
         affinity_scores: Dict[str, Dict[str, Any]] = {}
         if getattr(args, "ligand_smiles", None) or getattr(
             args, "ligand_ccd", None
@@ -339,8 +331,6 @@ def run(args, config, defaults, config_file):
             from abcfold.affinity.run_affinity import (extract_affinity_msa,
                                                        run_boltz_affinity)
 
-            # Reuse an MSA abcfold already built (mmseqs2 / user-provided)
-            # instead of re-querying the MSA server for affinity scoring.
             affinity_msa = extract_affinity_msa(
                 input_params, args.output_dir
             )
@@ -579,9 +569,6 @@ def run(args, config, defaults, config_file):
             .relative_to(args.output_dir.resolve())
             .as_posix(),
             "chain_data": chain_data,
-            # In ccp4cloud mode the page is viewed without a local server, so
-            # the model-visualisation links can't be served -- tell the front
-            # end to omit that column.
             "ccp4cloud": bool(getattr(args, "ccp4cloud", False)),
         }
         results_json = json.dumps(results_dict)
@@ -599,13 +586,11 @@ def run(args, config, defaults, config_file):
         else:
             programs = "Structure predictions for: " + programs_run[0]
 
-        # Create the index page
         HTML_OUT = args.output_dir.joinpath("index.html")
         html_out = Path(HTML_OUT).resolve()
         render_template(
             HTML_TEMPLATE,
             html_out,
-            # kwargs appear as variables in the template
             abcfold_html_dir=".feature_viewer",
             programs=programs,
             results_json=results_json,
@@ -613,11 +598,8 @@ def run(args, config, defaults, config_file):
         )
         logger.info(f"Output page written to {HTML_OUT}")
 
-        # Change to the output directory to run the server
         os.chdir(args.output_dir)
 
-        # ccp4cloud mode is viewed without a local server, so there's no need
-        # for the launcher script -- the index.html is self-contained.
         if getattr(args, "ccp4cloud", False):
             logger.info(
                 "ccp4cloud mode: local server disabled and model "
@@ -625,7 +607,6 @@ def run(args, config, defaults, config_file):
             )
             return
 
-        # Make a script to open the output HTML file in the default web browser
         output_open_html_script("open_output.py", port=PORT)
 
         if args.no_server:

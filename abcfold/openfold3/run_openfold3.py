@@ -19,7 +19,6 @@ def run_openfold(
     save_input: bool = False,
     test: bool = False,
     number_of_models: int = 5,
-    template_hits_path: Optional[Path] = None,
     input_ckpt: Optional[Union[str, Path]] = None,
 ) -> bool:
     """
@@ -33,7 +32,6 @@ def run_openfold(
         directory
         test (bool): If True, run the test command
         number_of_models (int): Number of models to generate
-        template_hits_path (Path): Path to the template hits m8 file
         input_ckpt (Union[str, Path]): Path to user input checkpoint file
 
     Returns:
@@ -85,7 +83,7 @@ def run_openfold(
             logger.info("Saving input yaml file and msa to the output directory")
             working_dir = output_dir
 
-        openfold_json = OpenfoldJson(working_dir, templates=template_hits_path)
+        openfold_json = OpenfoldJson(working_dir)
         openfold_json.json_to_json(input_json)
         runner_yaml = working_dir / "openfold3_runner.yml"
         openfold_json.write_yaml(runner_yaml)

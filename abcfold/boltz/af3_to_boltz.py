@@ -2,6 +2,7 @@ import json
 import logging
 import random
 import string
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -26,6 +27,7 @@ class BoltzYaml:
         self.__create_files = create_files
         self.__non_ligands: List[str] = []
         self.__id_buffer: dict = {}
+        self.__template_entries: List[dict] = []
 
     @property
     def chain_ids(self) -> List[Union[str, int]]:
@@ -49,6 +51,53 @@ class BoltzYaml:
 
         with open(file_path, "w") as f:
             f.write(msa)
+
+    def _write_template_cifs(self, templates: list) -> List[str]:
+        """Write inline mmCIF templates to .cif files for Boltz.
+
+        Args:
+            templates (list): AF3-style template entries, each carrying an
+                inline ``mmcif`` string.
+
+        Returns:
+            List[str]: Paths to the written .cif files, one per template with
+            an mmCIF payload (malformed/empty entries are skipped).
+        """
+        cif_paths: List[str] = []
+        tmpl_dir = Path(self.working_dir) / f"templates_{uuid.uuid4().hex}"
+        if self.__create_files:
+            tmpl_dir.mkdir(parents=True, exist_ok=True)
+        for idx, template in enumerate(templates):
+            mmcif = template.get("mmcif") if isinstance(template, dict) else None
+            if not mmcif:
+                continue
+            cif_file = tmpl_dir / f"template_{idx}.cif"
+            if self.__create_files:
+                cif_file.write_text(mmcif)
+            cif_paths.append(cif_file.resolve().as_posix())
+        return cif_paths
+
+    def add_templates(self) -> str:
+        """Build the top-level ``templates:`` block from collected entries.
+
+        Each entry is emitted as ``- cif: <path>`` with the chain id(s) it was
+        generated for. Boltz aligns the CIF to the query and picks the best
+        matching chain; supplying ``chain_id`` just scopes it to the intended
+        chain(s). Returns an empty string when there are no templates.
+        """
+        if not self.__template_entries:
+            return ""
+
+        yaml_string = self.add_non_indented_string("templates")
+        for entry in self.__template_entries:
+            yaml_string += f"{DELIM}- cif: {entry['cif']}\n"
+            chain_id = entry.get("chain_id")
+            if isinstance(chain_id, list):
+                ids = ", ".join(str(c) for c in chain_id)
+                yaml_string += f"{DELIM}  chain_id: [{ids}]\n"
+            elif chain_id is not None:
+                yaml_string += f"{DELIM}  chain_id: {chain_id}\n"
+        return yaml_string
 
     def json_to_yaml(
         self,
@@ -97,6 +146,10 @@ class BoltzYaml:
                 if "constraints" not in self.yaml_string and bonded_atom_string:
                     self.yaml_string += self.add_non_indented_string("constraints")
                 self.yaml_string += bonded_atom_string
+
+        # Templates are a top-level block; append after sequences/constraints
+        # once every protein chain has been processed.
+        self.yaml_string += self.add_templates()
 
         return self.yaml_string
 
@@ -336,6 +389,15 @@ class BoltzYaml:
 
         if "modifications" in sequence_dict and sequence_dict["modifications"]:
             yaml_string += self.add_modifications(sequence_dict["modifications"])
+
+        # Stash any templates (inline mmCIF) for this chain to emit in the
+        # top-level `templates:` block, bound to this chain's id(s).
+        templates = sequence_dict.get("templates")
+        if templates:
+            for cif_path in self._write_template_cifs(templates):
+                self.__template_entries.append(
+                    {"cif": cif_path, "chain_id": sequence_dict["id"]}
+                )
 
         return yaml_string
 
