@@ -228,6 +228,7 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 template_hits_path=template_hits_path,
+                mmseqs_database=args.mmseqs_database,
                 config=rt_config
             )
 

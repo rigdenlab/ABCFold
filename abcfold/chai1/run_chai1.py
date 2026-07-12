@@ -23,6 +23,7 @@ def run_chai(
     num_recycles: int = 10,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    mmseqs_database: Union[str, Path, None] = None,
 ) -> bool:
     """
     Run Chai-1 using the input JSON file
@@ -63,6 +64,27 @@ def run_chai(
         msa_dir = chai_fasta.working_dir
         out_constraints = chai_fasta.constraints
 
+        # Pre-populate PDB template CIFs (skip RCSB re-downloads) and inject any
+        # custom/inline templates as fabricated m8 hits served from a local
+        # store. Only meaningful when we have templates to hand.
+        template_cif_store = None
+        if not test:
+            import json
+
+            from abcfold.chai1.chai_templates import prepare_chai_templates
+
+            with open(input_json) as f:
+                input_params = json.load(f)
+
+            combined_m8, template_cif_store = prepare_chai_templates(
+                input_params,
+                work_dir=working_dir,
+                existing_m8=template_hits_path,
+                mmseqs_database=mmseqs_database,
+            )
+            if combined_m8 is not None:
+                template_hits_path = combined_m8
+
         for seed in chai_fasta.seeds:
             chai_output_dir = output_dir / f"chai_output_seed-{seed}"
 
@@ -78,6 +100,7 @@ def run_chai(
                     seed=seed,
                     use_templates_server=use_templates_server,
                     template_hits_path=template_hits_path,
+                    template_cif_store=template_cif_store,
                 )
                 if not test
                 else generate_chai_test_command()
@@ -114,6 +137,7 @@ def generate_chai_command(
     seed: int = 42,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    template_cif_store: Path | None = None,
 ) -> list:
     """
     Generate the Chai-1 command
@@ -165,6 +189,8 @@ Please install kalign to use templates with Chai-1."
             cmd += ["--use-templates-server"]
         if template_hits_path:
             cmd += ["--template-hits-path", str(template_hits_path)]
+        if template_cif_store:
+            cmd += ["--template-cif-store", str(template_cif_store)]
 
     cmd += [str(output_dir)]
 

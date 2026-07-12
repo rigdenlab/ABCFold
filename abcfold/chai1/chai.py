@@ -10,6 +10,7 @@
 """Command line interface."""
 
 import logging
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,38 @@ import typer
 from chai_lab.chai1 import run_inference
 
 logging.basicConfig(level=logging.INFO)
+
+
+def _install_template_store(store: Path) -> None:
+    """Serve template CIFs from a local store instead of downloading from RCSB.
+
+    chai-lab fetches each template as ``{PDBID}.cif.gz`` via
+    ``chai_lab.data.io.rcsb.download_cif_file`` (which skips the download when
+    the file already exists). We monkeypatch that function so that, when a
+    matching ``{PDBID}.cif.gz`` exists in ``store``, it is copied into Chai's
+    per-run cache folder and returned -- no network call. This both avoids
+    re-downloading PDB templates ABCFold already has and lets custom (non-PDB)
+    templates be served (their ids would 404 against RCSB). Anything not in the
+    store falls back to the original download behaviour.
+    """
+    import chai_lab.data.io.rcsb as rcsb
+
+    original = rcsb.download_cif_file
+
+    def _patched(pdb_id: str, directory: Path) -> Path:
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        outfile = directory / f"{pdb_id}.cif.gz"
+        if not outfile.exists():
+            local = store / f"{pdb_id}.cif.gz"
+            if local.exists():
+                shutil.copyfile(local, outfile)
+                logging.info("Using local template CIF for %s", pdb_id)
+                return outfile
+        return original(pdb_id, directory)
+
+    rcsb.download_cif_file = _patched
+
 
 CITATION = """
 @article{Chai-1-Technical-Report,
@@ -50,6 +83,7 @@ def run_inference_wrapper(
     constraint_path: Path | None = None,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    template_cif_store: Path | None = None,
     # Parameters controlling how we do inference
     recycle_msa_subsample: int = 0,
     num_trunk_recycles: int = 3,
@@ -60,6 +94,9 @@ def run_inference_wrapper(
     device: str | None = None,
     low_memory: bool = True,
 ):
+
+    if template_cif_store is not None and Path(template_cif_store).is_dir():
+        _install_template_store(Path(template_cif_store))
 
     result = run_inference(
         fasta_file=fasta_file,
