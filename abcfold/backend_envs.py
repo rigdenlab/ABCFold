@@ -74,6 +74,18 @@ class MicromambaEnv:
     def _run(self, args: list[str]):
         return subprocess.check_call([self.micromamba, *args])
 
+    def which(self, command: str) -> bool:
+        """Return True if `command` is on PATH inside the env."""
+        try:
+            subprocess.check_output(
+                [self.micromamba, "run", "-n", self.env_name, "which", command],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def env_exists(self) -> bool:
         out = subprocess.check_output(
             [self.micromamba, "env", "list"],
