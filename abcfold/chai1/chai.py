@@ -9,6 +9,7 @@
 
 """Command line interface."""
 
+import json
 import logging
 import shutil
 from pathlib import Path
@@ -18,6 +19,122 @@ import typer
 from chai_lab.chai1 import run_inference
 
 logging.basicConfig(level=logging.INFO)
+
+
+def _read_fasta_proteins(fasta_file: Path) -> dict:
+    """Return {chain_id: sequence} for the ``>protein|<id>`` records."""
+    seqs: dict = {}
+    chain = None
+    for line in Path(fasta_file).read_text().splitlines():
+        if line.startswith(">"):
+            parts = line[1:].split("|")
+            chain = parts[1] if len(parts) > 1 and parts[0] == "protein" else None
+        elif chain is not None and line.strip():
+            seqs[chain] = seqs.get(chain, "") + line.strip()
+    return seqs
+
+
+def _subject_span(query_seq: str, template_seq: str, kalign_fn):
+    """Template [start, end) that aligns to the query, via chai-lab's kalign.
+
+    chai-lab validates each hit by re-aligning the template slice to the query
+    with kalign and checking the subject span. We compute that span here with
+    the *same* kalign so the m8 we emit is consistent by construction. Returns
+    a 0-indexed half-open span into ``template_seq``, or None if no alignment.
+    """
+    alignment = kalign_fn(ref=query_seq, query=template_seq)
+    if alignment is None:
+        return None
+    t_idx = -1
+    first = last = None
+    # reference_aligned is the query; query_aligned is the template.
+    for q_ch, t_ch in zip(alignment.reference_aligned, alignment.query_aligned):
+        if t_ch != "-":
+            t_idx += 1
+            if q_ch != "-":  # template residue aligned to a query residue
+                if first is None:
+                    first = t_idx
+                last = t_idx
+    if first is None or last is None:
+        return None
+    return first, last + 1
+
+
+def _build_custom_m8(
+    store: Path, fasta_file: Path, existing_m8: Path | None, out_m8: Path
+):
+    """Assemble the Chai m8, adding kalign-derived rows for custom templates.
+
+    Reads the custom-template manifest staged by ABCFold, aligns each template
+    to its query chain(s) with chai-lab's kalign, and appends m8 rows whose
+    subject spans match that alignment (so chai-lab's TemplateHit validation
+    passes). Returns the m8 to use, or None if there's nothing to pass.
+    """
+    import gemmi
+
+    rows: list[str] = []
+    manifest_path = store / "custom_templates.json"
+    if manifest_path.is_file():
+        from chai_lab.tools.kalign import kalign_query_to_reference
+
+        manifest = json.loads(manifest_path.read_text())
+        queries = _read_fasta_proteins(fasta_file)
+        for synth_id, info in manifest.items():
+            cif_gz = store / f"{synth_id}.cif.gz"
+            if not cif_gz.is_file():
+                continue
+            try:
+                structure = gemmi.read_structure(str(cif_gz))
+                tchain = info["template_chain"]
+                tseq = (
+                    structure[0][tchain]
+                    .get_polymer()
+                    .make_one_letter_sequence()
+                    .replace("-", "")
+                )
+            except Exception as exc:  # noqa: BLE001
+                logging.warning("Custom template %s unreadable: %s", synth_id, exc)
+                continue
+            for qchain in info.get("query_chains", []):
+                qseq = queries.get(qchain)
+                if not qseq:
+                    continue
+                span = _subject_span(qseq, tseq, kalign_query_to_reference)
+                if span is None:
+                    logging.warning(
+                        "Custom template %s did not align to chain %s; skipping",
+                        synth_id,
+                        qchain,
+                    )
+                    continue
+                s_start, s_end = span
+                rows.append(
+                    "\t".join(
+                        [
+                            str(qchain),                 # query_id
+                            f"{synth_id}_{tchain}",      # subject_id
+                            "100.0",                     # pident
+                            str(s_end - s_start),        # length
+                            "0", "0",                    # mismatch, gapopen
+                            "1", str(len(qseq)),         # query start/end (unused)
+                            str(s_start + 1), str(s_end),  # subject start/end
+                            "1e-9", "100.0", "custom",   # evalue, bitscore, comment
+                        ]
+                    )
+                )
+        if rows:
+            logging.info("Added %d custom template hit(s) to the m8", len(rows))
+
+    lines: list[str] = []
+    if existing_m8 is not None and Path(existing_m8).is_file():
+        lines += [
+            ln for ln in Path(existing_m8).read_text().splitlines() if ln.strip()
+        ]
+    lines += rows
+    if not lines:
+        return None
+    out_m8.write_text("\n".join(lines) + "\n")
+    return out_m8
 
 
 def _install_template_store(store: Path) -> None:
@@ -96,7 +213,15 @@ def run_inference_wrapper(
 ):
 
     if template_cif_store is not None and Path(template_cif_store).is_dir():
-        _install_template_store(Path(template_cif_store))
+        store = Path(template_cif_store)
+        _install_template_store(store)
+        # Build the final m8 here (in the Chai env) so custom-template subject
+        # spans are computed with chai-lab's own kalign.
+        combined = _build_custom_m8(
+            store, fasta_file, template_hits_path, store / "chai_combined.m8"
+        )
+        if combined is not None:
+            template_hits_path = combined
 
     result = run_inference(
         fasta_file=fasta_file,

@@ -25,14 +25,12 @@ polymer chain -- the same fix used for Boltz/affinity template CIFs.
 """
 
 import gzip
+import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 logger = logging.getLogger("logger")
-
-# m8 columns, in order, as parsed by chai-lab's parse_m8_file.
-_M8_COLUMNS = 13
 
 
 def _normalise_and_gzip_cif(mmcif: str, out_gz: Path) -> Optional[str]:
@@ -119,45 +117,6 @@ def _copy_local_pdb_cifs(
     return count
 
 
-def _fabricate_m8_row(
-    query_id: str,
-    subject_id: str,
-    query_indices: List[int],
-    template_indices: List[int],
-) -> Optional[str]:
-    """Build a single tab-separated m8 row for a custom template hit.
-
-    Uses the query/template residue index mapping ABCFold already computed when
-    adding the template (``align_and_map``) to fill the alignment spans. Chai
-    re-aligns with kalign, so exact identity/e-value are not critical, but the
-    spans must be sane (Chai slices the template sequence with subject_start/end
-    and checks the query span). 1-indexed to match m8 convention (Chai converts
-    the *_start columns back to 0-indexed).
-    """
-    if not query_indices or not template_indices:
-        return None
-    q_start, q_end = min(query_indices) + 1, max(query_indices) + 1
-    s_start, s_end = min(template_indices) + 1, max(template_indices) + 1
-    length = max(q_end - q_start + 1, 1)
-    cols = [
-        query_id,        # query_id  (must match Chai chain entity_name)
-        subject_id,      # subject_id = {ID}_{chain}
-        "100.0",         # pident
-        str(length),     # length
-        "0",             # mismatch
-        "0",             # gapopen
-        str(q_start),    # query_start (1-indexed)
-        str(q_end),      # query_end
-        str(s_start),    # subject_start (1-indexed)
-        str(s_end),      # subject_end
-        "1e-9",          # evalue
-        "100.0",         # bitscore
-        "custom",        # comment
-    ]
-    assert len(cols) == _M8_COLUMNS
-    return "\t".join(cols)
-
-
 def prepare_chai_templates(
     input_params: dict,
     work_dir: Path,
@@ -196,8 +155,12 @@ def prepare_chai_templates(
                 prepopulated,
             )
 
-    # 2. Inject custom / inline templates as fabricated m8 hits.
-    custom_rows: List[str] = []
+    # 2. Stage custom / inline templates into the store, plus a manifest. The
+    #    m8 rows for these are built later inside the Chai env (chai.py), where
+    #    kalign is available: chai-lab validates each hit's subject span against
+    #    its own kalign alignment, so the span must be computed with kalign, not
+    #    fabricated from our own alignment.
+    manifest: dict = {}
     custom_idx = 0
     for seq in input_params.get("sequences", []):
         if "protein" not in seq:
@@ -218,37 +181,17 @@ def prepare_chai_templates(
             )
             if chain_name is None:
                 continue
-            # One hit per query chain this template applies to.
-            for prot_id in prot_ids:
-                row = _fabricate_m8_row(
-                    query_id=str(prot_id),
-                    subject_id=f"{synth_id}_{chain_name}",
-                    query_indices=template.get("queryIndices", []),
-                    template_indices=template.get("templateIndices", []),
-                )
-                if row:
-                    custom_rows.append(row)
-    if custom_rows:
-        logger.info(
-            "Prepared %d custom template hit(s) for Chai-1.", len(custom_rows)
-        )
+            manifest[synth_id] = {
+                "template_chain": chain_name,
+                "query_chains": [str(p) for p in prot_ids],
+            }
+    if manifest:
+        (store_dir / "custom_templates.json").write_text(json.dumps(manifest))
+        logger.info("Staged %d custom template(s) for Chai-1.", len(manifest))
 
-    # 3. Assemble the m8 Chai will read.
-    if not custom_rows and prepopulated == 0:
-        # Nothing to add; caller can just use the original m8 (or none).
-        return (Path(existing_m8) if existing_m8 else None), (
-            store_dir if prepopulated else None
-        )
-
-    combined_m8 = work_dir / "chai_templates_combined.m8"
-    lines: List[str] = []
-    if existing_m8 and Path(existing_m8).is_file():
-        lines.extend(
-            line
-            for line in Path(existing_m8).read_text().splitlines()
-            if line.strip()
-        )
-    lines.extend(custom_rows)
-    combined_m8.write_text("\n".join(lines) + "\n")
-
-    return combined_m8, store_dir
+    # 3. Nothing here rewrites the m8; the Chai env assembles the final m8 from
+    #    this store (pre-populated PDB hits + custom manifest). Return the
+    #    original mmseqs m8 (if any) and the store to serve/augment from.
+    if not manifest and prepopulated == 0:
+        return (Path(existing_m8) if existing_m8 else None), None
+    return (Path(existing_m8) if existing_m8 else None), store_dir

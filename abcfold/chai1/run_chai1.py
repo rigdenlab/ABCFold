@@ -184,7 +184,8 @@ def generate_chai_command(
         use_templates_server and template_hits_path
     ), "Cannot specify both templates server and path"
 
-    if not kalign_available and (use_templates_server or template_hits_path):
+    wants_templates = use_templates_server or template_hits_path or template_cif_store
+    if not kalign_available and wants_templates:
         logger.warning(
             "kalign not found in the Chai-1 environment, skipping template "
             "search. kalign is required for templates with Chai-1."
