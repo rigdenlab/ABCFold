@@ -127,9 +127,15 @@ def test_af3_to_boltz_templates(test_data):
         # so no chain_id/template_id lines are written
         assert not any("chain_id" in line for line in template_lines)
 
-        # Each template is enforced with a distance threshold (default 2.0)
-        assert f"{DELIM}  force: true" in template_lines
-        assert f"{DELIM}  threshold: 2.0" in template_lines
+        # By default templates are soft: no force/threshold is emitted
+        assert not any("force" in line for line in template_lines)
+        assert not any("threshold" in line for line in template_lines)
+
+        # Providing a threshold enforces the templates (force: true)
+        forced = BoltzYaml(temp_dir, template_threshold=3.0).json_to_yaml(params)
+        forced_lines = forced.split("\n")
+        assert f"{DELIM}  force: true" in forced_lines
+        assert f"{DELIM}  threshold: 3.0" in forced_lines
 
 
 def test_boltz_output_yaml(test_data):

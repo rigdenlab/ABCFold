@@ -20,7 +20,7 @@ class BoltzYaml:
         self,
         working_dir: Union[str, Path],
         create_files: bool = True,
-        template_threshold: float = 2.0,
+        template_threshold: Optional[float] = None,
     ):
         self.working_dir = working_dir
         self.yaml_string: str = ""
@@ -33,8 +33,9 @@ class BoltzYaml:
         self.__non_ligands: List[str] = []
         self.__id_buffer: dict = {}
         self.__template_entries: List[dict] = []
-        # Templates are enforced (force: true) with a distance restraint; the
-        # threshold (Angstroms) bounds how far the prediction may deviate.
+        # When set (Angstroms), templates are enforced (force: true) with a
+        # distance restraint bounding how far the prediction may deviate. When
+        # None, templates are used softly (Boltz default, no forcing).
         self.__template_threshold = template_threshold
 
     @property
@@ -145,9 +146,10 @@ class BoltzYaml:
         ``sequences[chain_id]`` / ``template_sequences[...]`` lookups and raises
         KeyError if the ids don't line up with its internal chain naming.
 
-        Each template is enforced (``force: true``) with a distance restraint
-        capped at ``template_threshold`` Angstroms. Returns an empty string when
-        there are no templates.
+        When ``template_threshold`` is set, each template is enforced
+        (``force: true``) with a distance restraint capped at that many
+        Angstroms; otherwise only ``cif:`` is emitted and Boltz uses the
+        template softly. Returns an empty string when there are no templates.
         """
         if not self.__template_entries:
             return ""
@@ -155,8 +157,11 @@ class BoltzYaml:
         yaml_string = self.add_non_indented_string("templates")
         for entry in self.__template_entries:
             yaml_string += f"{DELIM}- cif: {entry['cif']}\n"
-            yaml_string += f"{DELIM}  force: true\n"
-            yaml_string += f"{DELIM}  threshold: {self.__template_threshold}\n"
+            if self.__template_threshold is not None:
+                yaml_string += f"{DELIM}  force: true\n"
+                yaml_string += (
+                    f"{DELIM}  threshold: {self.__template_threshold}\n"
+                )
         return yaml_string
 
     def json_to_yaml(
