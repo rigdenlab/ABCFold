@@ -110,6 +110,14 @@ def prediction_argparse_util(parser):
         help="[optional] Number of recycles to use during inference (default: 10)",
     )
     parser.add_argument(
+        "--max_msa_seqs",
+        type=int,
+        default=None,
+        help=dedent("[optional] Limit every protein MSA to this many sequences. \
+        If omitted, the MSA depth is not limited. Reducing depth can let \
+        templates have more influence."),
+    )
+    parser.add_argument(
         "--ligand_smiles",
         default=None,
         help=dedent("[optional] Ligand SMILES for Boltz-2 affinity scoring of \

@@ -306,6 +306,58 @@ def make_dir(dir_path: Union[str, Path], overwrite: bool = False):
     return dir_path
 
 
+def limit_msa_depth(a3m: str, max_seqs: int) -> str:
+    """Return an a3m MSA truncated to its first ``max_seqs`` sequences.
+
+    The query (first record) is kept. Records may span multiple lines; a record
+    boundary is any line starting with ``>``. Returns the input unchanged when
+    ``max_seqs`` is falsy/non-positive.
+    """
+    if not a3m or not max_seqs or max_seqs < 1:
+        return a3m
+    kept_lines = []
+    seq_count = 0
+    for line in a3m.splitlines():
+        if line.startswith(">"):
+            seq_count += 1
+            if seq_count > max_seqs:
+                break
+        kept_lines.append(line)
+    trailing = "\n" if a3m.endswith("\n") else ""
+    return "\n".join(kept_lines) + trailing
+
+
+def limit_json_msa_depth(
+    input_json: Union[str, Path],
+    output_json: Union[str, Path],
+    max_seqs: int,
+) -> dict:
+    """Truncate every protein MSA in an AF3-style json to ``max_seqs`` seqs.
+
+    Handles inline ``unpairedMsa`` / ``pairedMsa`` and ``unpairedMsaPath`` (read,
+    truncated, then inlined). Writes the result to ``output_json`` and returns
+    the updated dict. Only overwrites ``input_json`` if the two paths match.
+    """
+    with open(input_json) as f:
+        data = json.load(f)
+    for seq in data.get("sequences", []):
+        prot = seq.get("protein")
+        if not isinstance(prot, dict):
+            continue
+        for key in ("unpairedMsa", "pairedMsa"):
+            if prot.get(key):
+                prot[key] = limit_msa_depth(prot[key], max_seqs)
+        msa_path = prot.get("unpairedMsaPath")
+        if msa_path and Path(msa_path).exists():
+            prot["unpairedMsa"] = limit_msa_depth(
+                Path(msa_path).read_text(), max_seqs
+            )
+            prot.pop("unpairedMsaPath", None)
+    with open(output_json, "w") as f:
+        json.dump(data, f)
+    return data
+
+
 def check_input_json(
     input_json: Union[str, Path],
     output_dir: Optional[Union[str, Path]] = None,

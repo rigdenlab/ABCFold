@@ -36,7 +36,8 @@ from abcfold.output.protenix import ProtenixOutput
 from abcfold.output.rosettafold3 import RosettafoldOutput
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
                                   make_dummy_m8_file, verify_config_file)
-from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
+from abcfold.scripts.abc_script_utils import (check_input_json,
+                                              limit_json_msa_depth, make_dir,
                                               make_dummy_af3_db, setup_logger)
 from abcfold.scripts.add_custom_template import add_custom_template
 from abcfold.scripts.add_mmseqs_msa import add_msa_to_json
@@ -156,6 +157,18 @@ def run(args, config, defaults, config_file):
                 to_file=True
             )
 
+        # Optionally cap the MSA depth. Write to a temp copy so we never mutate
+        # the user's original input json (run_json may point at it).
+        if args.max_msa_seqs:
+            limited_json = temp_dir.joinpath("msa_limited.json")
+            input_params = limit_json_msa_depth(
+                run_json, limited_json, args.max_msa_seqs
+            )
+            run_json = limited_json
+            logger.info(
+                "Limiting MSA depth to %d sequence(s)", args.max_msa_seqs
+            )
+
         successful_runs = []
         if args.alphafold3:
             af3_database = args.database_dir
@@ -192,6 +205,12 @@ def run(args, config, defaults, config_file):
                 ao = AlphafoldOutput(af3_out_dir, input_params, name)
                 outputs.append(ao)
                 run_json = ao.input_json
+                # AF3 rewrites the run json; re-apply the MSA cap so predictors
+                # run after AF3 (Boltz, Chai, ...) also see the reduced depth.
+                if args.max_msa_seqs:
+                    input_params = limit_json_msa_depth(
+                        run_json, run_json, args.max_msa_seqs
+                    )
             successful_runs.append(af3_success)
 
         if args.boltz:
