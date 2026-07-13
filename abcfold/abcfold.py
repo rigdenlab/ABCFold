@@ -203,6 +203,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                template_threshold=args.boltz_template_threshold,
                 config=rt_config
             )
 

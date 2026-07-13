@@ -127,6 +127,10 @@ def test_af3_to_boltz_templates(test_data):
         # so no chain_id/template_id lines are written
         assert not any("chain_id" in line for line in template_lines)
 
+        # Each template is enforced with a distance threshold (default 2.0)
+        assert f"{DELIM}  force: true" in template_lines
+        assert f"{DELIM}  threshold: 2.0" in template_lines
+
 
 def test_boltz_output_yaml(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:

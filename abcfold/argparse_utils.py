@@ -145,6 +145,14 @@ def boltz_argparse_util(parser):
         action="store_true",
         help="Run Boltz",
     )
+    parser.add_argument(
+        "--boltz_template_threshold",
+        type=float,
+        default=2.0,
+        help=dedent("[optional] Distance threshold (Angstroms) for Boltz \
+        templates. Templates are enforced (force: true) within this distance \
+        (default: 2.0)"),
+    )
     if "--save_input" not in parser._option_string_actions:
         parser.add_argument(
             "--save_input",

@@ -16,7 +16,12 @@ class BoltzYaml:
     Object to convert an AlphaFold3 json file to a boltzmann yaml file.
     """
 
-    def __init__(self, working_dir: Union[str, Path], create_files: bool = True):
+    def __init__(
+        self,
+        working_dir: Union[str, Path],
+        create_files: bool = True,
+        template_threshold: float = 2.0,
+    ):
         self.working_dir = working_dir
         self.yaml_string: str = ""
         self.msa_file: Optional[Union[str, Path]] = "null"
@@ -28,6 +33,9 @@ class BoltzYaml:
         self.__non_ligands: List[str] = []
         self.__id_buffer: dict = {}
         self.__template_entries: List[dict] = []
+        # Templates are enforced (force: true) with a distance restraint; the
+        # threshold (Angstroms) bounds how far the prediction may deviate.
+        self.__template_threshold = template_threshold
 
     @property
     def chain_ids(self) -> List[Union[str, int]]:
@@ -136,7 +144,10 @@ class BoltzYaml:
         pushes Boltz into its explicit chain-matching path, which does bare
         ``sequences[chain_id]`` / ``template_sequences[...]`` lookups and raises
         KeyError if the ids don't line up with its internal chain naming.
-        Returns an empty string when there are no templates.
+
+        Each template is enforced (``force: true``) with a distance restraint
+        capped at ``template_threshold`` Angstroms. Returns an empty string when
+        there are no templates.
         """
         if not self.__template_entries:
             return ""
@@ -144,6 +155,8 @@ class BoltzYaml:
         yaml_string = self.add_non_indented_string("templates")
         for entry in self.__template_entries:
             yaml_string += f"{DELIM}- cif: {entry['cif']}\n"
+            yaml_string += f"{DELIM}  force: true\n"
+            yaml_string += f"{DELIM}  threshold: {self.__template_threshold}\n"
         return yaml_string
 
     def json_to_yaml(
