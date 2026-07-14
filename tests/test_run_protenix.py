@@ -61,3 +61,43 @@ def test_generate_protenix_command(test_data):
         assert "42" in cmd
         assert "--use_msa" in cmd
         assert "True" in cmd
+        assert "--use_template" in cmd
+
+
+def test_generate_protenix_command_templates():
+    mmcif = "data_template\n_cell.length_a 1.0\n"
+    af3 = {
+        "name": "T",
+        "modelSeeds": [1],
+        "sequences": [
+            {
+                "protein": {
+                    "id": ["A"],
+                    "sequence": "GMRES",
+                    "templates": [
+                        {"mmcif": mmcif, "queryIndices": [0],
+                         "templateIndices": [0]}
+                    ],
+                }
+            }
+        ],
+        "dialect": "alphafold3",
+        "version": 1,
+    }
+    with tempfile.TemporaryDirectory() as temp_dir:
+        protenix_json = ProtenixJson(temp_dir)
+        protenix_json.json_to_json(af3)
+        protenix_json_path = Path(temp_dir) / "protenix_tmpl.json"
+        protenix_json.write_json(protenix_json_path)
+
+        cmd = generate_protenix_command(
+            input_json=protenix_json_path,
+            output_dir="/road/to/nowhere",
+            config={"protenix_model": "protenix-v2"},
+            number_of_models=1,
+            num_recycles=1,
+            seed=1,
+        )
+        # --use_template True is emitted when a chain carries templatesPath
+        idx = cmd.index("--use_template")
+        assert cmd[idx + 1] == "True"

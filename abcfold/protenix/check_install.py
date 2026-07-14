@@ -35,4 +35,9 @@ def ensure_protenix_env(config: dict) -> MicromambaEnv:
     env.ensure_package("typer")
     env.ensure_package("matplotlib")
 
+    # Protenix's template featuriser is constructed with a kalign binary path
+    if not env.which("kalign"):
+        logger.info("Installing kalign for Protenix template support")
+        env.conda_install(["kalign"], channels=["conda-forge", "bioconda"])
+
     return env
