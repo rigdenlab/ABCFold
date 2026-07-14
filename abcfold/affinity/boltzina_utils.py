@@ -1,33 +1,33 @@
-# This module collects the Boltzina-specific helper functions used by the
-# standalone ``abcfold/scripts/boltz_affinity.py`` entry point.
-#
-# Background
-# ----------
-# Boltzina (https://github.com/ohuelab/boltzina) scores a protein-ligand
-# complex with the Boltz-2 affinity head.  Upstream Boltzina *places* the
-# ligand itself with AutoDock Vina and then reuses a Boltz "processed"
-# work_dir (``processed/manifest.json`` + ``processed/constraints/*.npz``) to
-# run only the affinity module of Boltz.
-#
-# In ABCFold the ligand is already placed for us by the structure-prediction
-# back-ends (AlphaFold3, Chai-1, Protenix, Boltz, ...).  Each of those writes a
-# *complex* mmCIF that contains the protein together with the docked ligand.
-# We therefore drop the Vina docking stage entirely and feed the predicted
-# complex straight into the Boltz affinity scorer -- conceptually the same as
-# Boltzina's ``scoring_only`` path.
-#
-# The functions below cover everything that path needs:
-#   * structural auto-detection of the non-polymer ligand,
-#   * extraction of the protein sequence(s),
-#   * building an RDKit mol (with atom names) for the ligand,
-#   * building (or locating) the Boltz ``processed`` work_dir,
-#   * turning a complex mmCIF into a ``pre_affinity_*.npz`` structure file,
-#   * wiring up the per-record manifest / constraints,
-#   * collecting the affinity JSON results.
-#
-# Heavy Boltz / Boltzina / RDKit imports are performed lazily inside the
-# functions that need them, so this module can be imported (and syntax-checked)
-# outside the Boltz micromamba environment.
+"""Boltzina-specific helper functions for the Boltz-2 affinity scorer.
+
+These back the standalone ``abcfold/scripts/boltz_affinity.py`` entry point.
+
+Background
+----------
+Boltzina (https://github.com/ohuelab/boltzina) scores a protein-ligand
+complex with the Boltz-2 affinity head. Upstream Boltzina *places* the ligand
+itself with AutoDock Vina and then reuses a Boltz "processed" work_dir
+(``processed/manifest.json`` + ``processed/constraints/*.npz``) to run only the
+affinity module of Boltz.
+
+In ABCFold the ligand is already placed for us by the structure-prediction
+back-ends (AlphaFold3, Chai-1, Protenix, Boltz, ...). Each of those writes a
+*complex* mmCIF that contains the protein together with the docked ligand. We
+therefore drop the Vina docking stage entirely and feed the predicted complex
+straight into the Boltz affinity scorer -- conceptually the same as Boltzina's
+``scoring_only`` path.
+
+The functions below cover everything that path needs: structural
+auto-detection of the non-polymer ligand, extraction of the protein
+sequence(s), building an RDKit mol (with atom names) for the ligand, building
+(or locating) the Boltz ``processed`` work_dir, turning a complex mmCIF into a
+``pre_affinity_*.npz`` structure file, wiring up the per-record manifest /
+constraints, and collecting the affinity JSON results.
+
+Heavy Boltz / Boltzina / RDKit imports are performed lazily inside the
+functions that need them, so this module can be imported (and syntax-checked)
+outside the Boltz micromamba environment.
+"""
 
 import copy
 import inspect
@@ -70,8 +70,20 @@ COMMON_ADDITIVES = {
 # Version-robust calling of Boltz internals
 # --------------------------------------------------------------------------- #
 def _call_with_supported(func, **candidates):
-    """Call ``func`` passing only the candidate kwargs its signature accepts"""
+    """Call ``func`` passing only the candidate kwargs its signature accepts.
 
+    Args:
+        func: The callable to invoke.
+        **candidates: Pool of candidate keyword arguments (including common
+            aliases); only those matching ``func``'s signature are passed.
+
+    Returns:
+        Whatever ``func`` returns.
+
+    Raises:
+        TypeError: If ``func`` has a required argument none of the candidates
+            can supply.
+    """
     try:
         sig = inspect.signature(func)
     except (TypeError, ValueError):
@@ -112,7 +124,16 @@ def _call_with_supported(func, **candidates):
 # Boltz cache path (version-robust)
 # --------------------------------------------------------------------------- #
 def resolve_cache_path(cache_dir: Optional[Path] = None) -> Path:
-    """Return the Boltz cache directory"""
+    """Return the Boltz cache directory.
+
+    Args:
+        cache_dir: Explicit cache directory; if given it is used verbatim.
+            Otherwise the Boltz default, the ``BOLTZ_CACHE`` env var, or
+            ``~/.boltz`` is used (in that order).
+
+    Returns:
+        Path to the resolved Boltz cache directory.
+    """
     if cache_dir is not None:
         return Path(cache_dir).expanduser()
     try:
@@ -128,8 +149,11 @@ def resolve_cache_path(cache_dir: Optional[Path] = None) -> Path:
 
 
 def ensure_boltz_cache(cache_dir: Path) -> None:
-    """Make sure the Boltz molecule/CCD cache is downloaded"""
+    """Make sure the Boltz molecule/CCD cache is downloaded.
 
+    Args:
+        cache_dir: The Boltz cache directory to populate (created if missing).
+    """
     cache_dir = Path(cache_dir).expanduser()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -171,10 +195,6 @@ def detect_ligands(
     include_additives: bool = False,
 ) -> List[Dict[str, Any]]:
     """Structurally auto-detect non-polymer ligand residues in a model.
-
-    Unlike :meth:`CifFile.check_ligand`, this does *not* rely on the original
-    input config (``input_params``) being present -- it inspects the structure
-    directly, which is what we need for an arbitrary predicted complex.
 
     Args:
         model: A BioPython ``Model`` object (e.g. ``CifFile.model[0]``).
@@ -229,8 +249,14 @@ def detect_ligands(
 
 
 def smiles_heavy_atom_count(smiles: str) -> Optional[int]:
-    """Return the heavy-atom count of a SMILES string (None if unparseable)."""
+    """Return the heavy-atom count of a SMILES string.
 
+    Args:
+        smiles: The ligand SMILES string.
+
+    Returns:
+        The number of heavy atoms, or ``None`` if the SMILES can't be parsed.
+    """
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return None
@@ -244,11 +270,17 @@ def select_ligand(
 ) -> Dict[str, Any]:
     """Resolve which ligand to score.
 
-    ``ligand_chain`` restricts selection to one chain. When it isn't given and
-    ``smiles`` is provided, candidates are disambiguated by matching the SMILES
-    heavy-atom count -- this correctly picks the intended ligand over cofactors
-    (e.g. ATP) that the size heuristic would otherwise grab. Otherwise the
-    largest non-additive heteromolecule is returned.
+    Args:
+        model: The parsed structure model to inspect for ligands.
+        ligand_chain: Restrict selection to the ligand in this chain.
+        smiles: Ligand SMILES used to disambiguate candidates by heavy-atom
+            count when ``ligand_chain`` isn't given.
+
+    Returns:
+        The selected ligand candidate as a dict (chain id, resname, atoms, ...).
+
+    Raises:
+        ValueError: If no ligand is detected, or none matches ``ligand_chain``.
     """
     candidates = detect_ligands(model, include_additives=True)
     if not candidates:
@@ -310,8 +342,15 @@ def select_ligand(
 
 
 def extract_protein_sequences(model) -> Dict[str, str]:
-    """Return ``{chain_id: one_letter_sequence}`` for every polymer chain."""
+    """Return ``{chain_id: one_letter_sequence}`` for every polymer chain.
 
+    Args:
+        model: The parsed structure model to read protein chains from.
+
+    Returns:
+        A mapping of chain id to its one-letter amino-acid sequence (chains
+        with no standard residues are omitted).
+    """
     sequences: Dict[str, str] = {}
     for chain in model:
         residues = [
@@ -338,14 +377,17 @@ def write_ligand_pdb(
 ) -> Path:
     """Write the chosen ligand residue to a clean, strictly-columned PDB.
 
-    Prediction back-ends label ligands inconsistently (long resnames like
-    ``LIG0``, 4-character atom names, odd residue numbers), and BioPython's
-    ``PDBIO`` faithfully reproduces those quirks -- which then make
-    ``RDKit.MolFromPDBFile`` choke ("Problem with residue number ..."). Rather
-    than fight that, we emit the heavy atoms ourselves with fixed-width HETATM
-    records (safe resname ``LIG``, chain ``A``, resSeq ``1``, sequential
-    serials, explicit element column), so RDKit can always parse it. Atom names
-    -- which is what we need from the resulting mol -- are preserved.
+    Args:
+        model: BioPython model containing the ligand.
+        ligand: A ligand dict from :func:`detect_ligands` / :func:`select_ligand`.
+        out_pdb: Path to write the ligand PDB to.
+        safe_resname: The residue name to use in the output PDB (default "LIG").
+
+    Returns:
+        Path to the written PDB file.
+
+    Raises:
+        ValueError: If the ligand residue can't be found in the structure.
     """
     chain_id = ligand["chain_id"]
     resseq = ligand["resseq"]
@@ -407,7 +449,15 @@ def write_ligand_pdb(
 
 
 def canonical_atom_names(symbols) -> List[str]:
-    """Return short, unique, element-based atom names (C1, C2, N1, CL1, F1...)"""
+    """Return short, unique, element-based atom names (C1, C2, N1, CL1, F1...).
+
+    Args:
+        symbols: Iterable of element symbols (one per heavy atom, in order).
+
+    Returns:
+        A list of unique names, one per input symbol, formed as the
+        upper-cased element followed by a per-element counter.
+    """
     counts: Dict[str, int] = {}
     names = []
     for sym in symbols:
@@ -435,8 +485,11 @@ def ligand_to_mol(
     Returns:
         An RDKit ``Mol`` with a single conformer and per-atom ``name`` props,
         matching how Boltzina prepares ligand mols.
-    """
 
+    Raises:
+        ValueError: If RDKit can't read the ligand or bond orders can't be
+            assigned from the provided SMILES.
+    """
     cleanup = False
     if work_dir is None:
         work_dir = Path(tempfile.mkdtemp(prefix="boltzina_lig_"))
@@ -490,8 +543,17 @@ def write_extra_mols(
     base_extra_mols_dir: Path,
     ligand_name: str = "LIG",
 ) -> None:
-    """Pickle the ligand mol for each record id (Boltz ``extra_mols`` format)"""
+    """Pickle the ligand mol for each record id (Boltz ``extra_mols`` format).
 
+    Args:
+        mol: RDKit ``Mol`` for the ligand.
+        record_ids: List of record ids to write the mol for.
+        base_extra_mols_dir: Directory to write the mol pickles to.
+        ligand_name: Canonical name of the ligand (e.g. ``LIG``).
+
+    Returns:
+        None. Writes pickles to disk in the Boltz ``extra_mols`` layout.
+    """
     Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
     base_extra_mols_dir = Path(base_extra_mols_dir)
     base_extra_mols_dir.mkdir(parents=True, exist_ok=True)
@@ -511,7 +573,6 @@ def write_parse_mol(mol, ligand_name: str, parse_mols_dir: Path) -> Path:
     Returns:
         Path to the written mol pickle.
     """
-
     Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
     parse_mols_dir = Path(parse_mols_dir)
     parse_mols_dir.mkdir(parents=True, exist_ok=True)
@@ -531,14 +592,13 @@ def relabel_ligand_in_cif(
 
     Args:
         cif_in: Input mmCIF path.
-        old_resname: The residue name to replace (e.g. ``LIG0``
-        new_resname: The residue name to write (e.g. ``LIG``)
+        old_resname: The residue name to replace (e.g. ``LIG0``).
+        new_resname: The residue name to write (e.g. ``LIG``).
         cif_out: Output mmCIF path.
 
     Returns:
         Path to the rewritten mmCIF.
     """
-
     cif_in = Path(cif_in)
     cif_out = Path(cif_out)
     old = old_resname.strip()
@@ -635,7 +695,6 @@ def normalize_complex_cif(
     Returns:
         Path to the rewritten mmCIF.
     """
-
     st = gemmi.read_structure(str(cif_in))
     st.remove_waters()
 
@@ -723,6 +782,9 @@ def build_boltz_yaml(
 
     Returns:
         Path to the written Boltz YAML.
+
+    Raises:
+        ValueError: If neither ``ligand_smiles`` nor ``ligand_ccd`` is given.
     """
     if not ligand_smiles and not ligand_ccd:
         raise ValueError(
@@ -778,11 +840,14 @@ def build_processed_inputs(
         work_dir: Destination dir; ``work_dir/processed`` is created.
         cache_dir: Boltz cache (defaults to ``get_cache_path()``), holds CCD +
             mol cache used during processing.
+        use_msa_server: Query the MSA server for chains without a supplied MSA.
+        msa_server_url: Base URL of the MSA server to query.
+        msa_pairing_strategy: MSA pairing strategy passed to Boltz processing.
+        preprocessing_threads: Number of threads to use during input processing.
 
     Returns:
         ``work_dir`` (with a populated ``processed`` subdirectory).
     """
-
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -828,6 +893,17 @@ def build_processed_inputs(
 
 
 def load_manifest(work_dir: Path) -> dict:
+    """Load the Boltz ``processed/manifest.json`` from a work_dir.
+
+    Args:
+        work_dir: A Boltz work_dir containing ``processed/manifest.json``.
+
+    Returns:
+        The parsed manifest dict.
+
+    Raises:
+        FileNotFoundError: If no manifest exists under ``work_dir``.
+    """
     manifest_path = Path(work_dir) / "processed" / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(
@@ -847,7 +923,17 @@ def build_record_manifest(
     record_ids: List[str],
     out_manifest: Path,
 ) -> Path:
-    """Clone the base record into one record per ``record_ids`` entry."""
+    """Clone the base record into one record per ``record_ids`` entry.
+
+    Args:
+        base_manifest: The Boltz manifest dict (from ``load_manifest``).
+        base_record_id: The record id to clone (must exist in ``base_manifest``).
+        record_ids: List of record ids to create in the new manifest.
+        out_manifest: Path to write the new manifest JSON to.
+
+    Returns:
+        Path to the written manifest JSON.
+    """
     manifest = copy.deepcopy(base_manifest)
     matches = [r for r in manifest["records"] if r["id"] == base_record_id]
     if not matches:
@@ -874,7 +960,19 @@ def link_constraints(
     record_ids: List[str],
     target_constraints_dir: Path,
 ) -> None:
-    """Copy the base record's constraints npz to each scored record id."""
+    """Copy the base record's constraints npz to each scored record id.
+
+    Args:
+        source_work_dir: The Boltz work_dir containing the base record's
+            ``processed/constraints/{base_record_id}.npz``.
+        base_record_id: The record id to copy constraints from.
+        record_ids: List of record ids to copy constraints to.
+        target_constraints_dir: Directory to write the copied constraints to.
+
+    Returns:
+        None.  Writes ``{target_constraints_dir}/{record_id}.npz`` for each
+        record id.
+    """
     source = (
         Path(source_work_dir) / "processed" / "constraints" / f"{base_record_id}.npz"
     )
@@ -908,14 +1006,17 @@ def prepare_affinity_structure(
             (contains `pre_affinity_{record_id}.npz``).
         extra_mols_dir: Directory containing the ligand mol pickle
             (Boltz ``extra_mols`` format).
-        ccd: Optional Boltz CCD dict
-        override: If ``True``, re-parse and overwrite the existing pre-affinity file.
+        ccd: Optional Boltz CCD dict.
+        override: If ``True``, re-parse and overwrite any existing pre-affinity
+            file.
 
     Returns:
         Path to the directory containing the pre-affinity file, or ``None`` if
         parsing failed.
-    """
 
+    Raises:
+        RuntimeError: If the structure can't be parsed into Boltz inputs.
+    """
     pose_dir = Path(predictions_dir) / record_id
     pose_dir.mkdir(parents=True, exist_ok=True)
     output_path = pose_dir / f"pre_affinity_{record_id}.npz"
@@ -940,7 +1041,15 @@ def prepare_affinity_structure(
 
 
 def load_ccd(cache_dir: Optional[Path] = None, drop_name: Optional[str] = None) -> dict:
-    """Load the Boltz CCD pickle (optionally dropping a residue name)."""
+    """Load the Boltz CCD pickle (optionally dropping a residue name).
+
+    Args:
+        cache_dir: Boltz cache directory (defaults to ``get_cache_path()``).
+        drop_name: Optional residue name to remove from the CCD dict.
+
+    Returns:
+        The Boltz CCD dict, possibly with ``drop_name`` removed.
+    """
     cache_dir = resolve_cache_path(cache_dir)
     ccd_path = cache_dir / "ccd.pkl"
     if not ccd_path.exists():
@@ -960,7 +1069,17 @@ def extract_affinity_results(
     record_ids: List[str],
     extra: Optional[Dict[str, Any]] = None,
 ) -> List[dict]:
-    """Collect the ``affinity_{record_id}.json`` outputs into a list of dicts."""
+    """Collect the ``affinity_{record_id}.json`` outputs into a list of dicts.
+
+    Args:
+        predictions_dir: Base directory for the Boltz predictions
+            (contains `affinity_{record_id}.json``).
+        record_ids: List of record ids to collect results for.
+        extra: Optional dict of extra key/value pairs to add to each result.
+
+    Returns:
+        A list of dicts, one per record id, containing the affinity results.
+    """
     results: List[dict] = []
     for record_id in record_ids:
         affinity_file = (
