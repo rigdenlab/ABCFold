@@ -209,47 +209,6 @@ def test_protenix_output_msa(test_data):
 
         assert data == reference
 
-def test_protenix_templates(test_data):
-    mmcif = "data_template\n_cell.length_a 1.0\n"
-    templates = [
-        {"mmcif": mmcif, "queryIndices": [0, 1, 2],
-         "templateIndices": [0, 1, 2]}
-    ]
-    af3 = {
-        "name": "T",
-        "modelSeeds": [1],
-        "sequences": [
-            {"protein": {"id": ["A"], "sequence": "GMRES",
-                         "templates": templates}},
-            {"protein": {"id": ["B"], "sequence": "YANEN"}},  # no templates
-        ],
-        "dialect": "alphafold3",
-        "version": 1,
-    }
-    with tempfile.TemporaryDirectory() as temp_dir:
-        protenix_json = ProtenixJson(temp_dir)
-        data = protenix_json.json_to_json(af3)
-
-        chains = data["sequences"]
-        t_path = chains[0]["proteinChain"].get("templatesPath")
-        assert t_path is not None and Path(t_path).exists()
-
-        # The JSON template file is exactly the inline templates list Protenix's
-        # parse_json_templates expects: {mmcif, queryIndices, templateIndices}
-        written = json.loads(Path(t_path).read_text())
-        assert written == templates
-
-        # A chain without templates gets no templatesPath
-        assert "templatesPath" not in chains[1]["proteinChain"]
-
-        # A model that doesn't support templates emits no templatesPath and
-        # records that templates were skipped (so the caller can warn once)
-        no_tmpl = ProtenixJson(temp_dir, template_support=False)
-        data2 = no_tmpl.json_to_json(af3)
-        assert "templatesPath" not in data2["sequences"][0]["proteinChain"]
-        assert no_tmpl.templates_skipped is True
-
-
 def test_protenix_write_json(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
         protenix_json = ProtenixJson(temp_dir)

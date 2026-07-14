@@ -10,12 +10,6 @@ from abcfold.protenix.check_install import ensure_protenix_env
 
 logger = logging.getLogger("logger")
 
-TEMPLATE_SUPPORTED_MODELS = {
-    "protenix-v2",
-    "protenix_base_default_v1.0.0",
-    "protenix_base_20250630_v1.0.0",
-}
-
 
 def run_protenix(
     input_json: Union[str, Path],
@@ -59,19 +53,8 @@ def run_protenix(
             logger.info("Saving input json file and msa to the output directory")
             working_dir = output_dir
 
-        template_support = (
-            config["protenix_model"] in TEMPLATE_SUPPORTED_MODELS
-        )
-        protenix_json = ProtenixJson(
-            working_dir, template_support=template_support
-        )
+        protenix_json = ProtenixJson(working_dir)
         protenix_json.json_to_json(input_json)
-        if protenix_json.templates_skipped:
-            logger.warning(
-                "The selected Protenix model (%s) does not support templates; "
-                "skipping template features.",
-                config["protenix_model"],
-            )
 
         for seed in protenix_json.seeds:
             out_file = working_dir.joinpath(f"{input_json.stem}_seed-{seed}.json")
@@ -138,9 +121,8 @@ def generate_protenix_command(
         list: The Protenix command
     """
 
-    # Determine if MSA and/or templates are present in the input JSON
+    # Determine if MSA is present in the input JSON
     use_msa = False
-    use_template = False
     with open(str(input_json), "r") as f:
         data = json.load(f)
     for key, value in data[0].items():
@@ -149,8 +131,7 @@ def generate_protenix_command(
                 if "proteinChain" in entry:
                     if "msa" in entry["proteinChain"]:
                         use_msa = True
-                    if "templatesPath" in entry["proteinChain"]:
-                        use_template = True
+                        break
 
     return [
         "python",
@@ -170,8 +151,6 @@ def generate_protenix_command(
         str(seed),
         "--use_msa",
         str(use_msa),
-        "--use_template",
-        str(use_template),
         "--need_atom_confidence",
         "True"
     ]

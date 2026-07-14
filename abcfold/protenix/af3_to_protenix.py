@@ -25,19 +25,12 @@ class ProtenixJson:
     Object to convert an AlphaFold3 json file to a Protenix JSON file.
     """
 
-    def __init__(
-        self,
-        working_dir: Union[str, Path],
-        create_files: bool = True,
-        template_support: bool = True,
-    ):
+    def __init__(self, working_dir: Union[str, Path], create_files: bool = True):
         self.working_dir = working_dir
         self.seeds: list = [42]
         self.__ids: Dict = {}
         self.__id_counter: int = 1
         self.__create_files = create_files
-        self.__template_support = template_support
-        self.templates_skipped = False
         self.protenix_dict: Dict = {}
 
     @property
@@ -163,20 +156,6 @@ class ProtenixJson:
                 "precomputed_msa_dir": msa_dir.as_posix(),
                 "pairing_db": "uniref100"
             }
-
-        templates = seq_dict.get("templates")
-        if templates and self.__create_files:
-            if self.__template_support:
-                templates_path = (
-                    Path(self.working_dir) / f"{random_string}_templates.json"
-                )
-                with open(templates_path, "w") as f:
-                    json.dump(templates, f)
-                protein_chain["templatesPath"] = (
-                    templates_path.resolve().as_posix()
-                )
-            else:
-                self.templates_skipped = True
 
         return {
             "proteinChain": protein_chain
