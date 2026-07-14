@@ -30,6 +30,7 @@
 # outside the Boltz micromamba environment.
 
 import copy
+import inspect
 import json
 import logging
 import os
@@ -38,6 +39,15 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import gemmi
+from Bio.PDB.Polypeptide import is_aa
+from Bio.SeqUtils import seq1
+from boltz import main as bm
+from boltz.main import check_inputs, process_inputs
+from boltzina.data.parse.mmcif import parse_mmcif
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 logger = logging.getLogger("logger")
 
@@ -60,14 +70,7 @@ COMMON_ADDITIVES = {
 # Version-robust calling of Boltz internals
 # --------------------------------------------------------------------------- #
 def _call_with_supported(func, **candidates):
-    """Call ``func`` passing only the candidate kwargs its signature accepts.
-
-    Boltz's processing helpers have churned across releases (renamed/added
-    arguments, positional-only params). We introspect the real signature and
-    forward only the names it declares, so the same code works across versions
-    without hard-coding a single signature.
-    """
-    import inspect
+    """Call ``func`` passing only the candidate kwargs its signature accepts"""
 
     try:
         sig = inspect.signature(func)
@@ -109,16 +112,7 @@ def _call_with_supported(func, **candidates):
 # Boltz cache path (version-robust)
 # --------------------------------------------------------------------------- #
 def resolve_cache_path(cache_dir: Optional[Path] = None) -> Path:
-    """Return the Boltz cache directory (holds ``ccd.pkl`` and ``mols/``).
-
-    ``boltz.main.get_cache_path`` has moved/disappeared across Boltz versions,
-    so we resolve defensively rather than relying on that symbol:
-
-      1. an explicit ``cache_dir`` argument,
-      2. ``boltz.main.get_cache_path`` if it happens to exist,
-      3. the ``BOLTZ_CACHE`` environment variable (used by the Boltz CLI),
-      4. the default ``~/.boltz``.
-    """
+    """Return the Boltz cache directory"""
     if cache_dir is not None:
         return Path(cache_dir).expanduser()
     try:
@@ -134,15 +128,8 @@ def resolve_cache_path(cache_dir: Optional[Path] = None) -> Path:
 
 
 def ensure_boltz_cache(cache_dir: Path) -> None:
-    """Make sure the Boltz molecule/CCD cache is downloaded.
+    """Make sure the Boltz molecule/CCD cache is downloaded"""
 
-    The ``boltz predict`` CLI downloads ``ccd.pkl`` / ``mols/`` / weights into
-    the cache on first use. We call ``process_inputs`` directly and so bypass
-    that step -- which surfaces later as ``CCD component ALA not found!`` when
-    ``load_canonicals`` cannot find the canonical residue mols. Here we invoke
-    Boltz's own downloader (name varies by version) to populate the cache. It is
-    idempotent: anything already present is skipped.
-    """
     cache_dir = Path(cache_dir).expanduser()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -150,8 +137,6 @@ def ensure_boltz_cache(cache_dir: Path) -> None:
     mol_dir = cache_dir / "mols"
     if mol_dir.exists() and any(mol_dir.iterdir()):
         return
-
-    from boltz import main as bm
 
     for fn_name in ("download_boltz2", "download_boltz1", "download"):
         fn = getattr(bm, fn_name, None)
@@ -178,8 +163,6 @@ def ensure_boltz_cache(cache_dir: Path) -> None:
 # Ligand auto-detection / structure inspection
 # --------------------------------------------------------------------------- #
 def _is_amino_acid(resname: str) -> bool:
-    from Bio.PDB.Polypeptide import is_aa
-
     return is_aa(resname, standard=False)
 
 
@@ -247,7 +230,6 @@ def detect_ligands(
 
 def smiles_heavy_atom_count(smiles: str) -> Optional[int]:
     """Return the heavy-atom count of a SMILES string (None if unparseable)."""
-    from rdkit import Chem
 
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -329,7 +311,6 @@ def select_ligand(
 
 def extract_protein_sequences(model) -> Dict[str, str]:
     """Return ``{chain_id: one_letter_sequence}`` for every polymer chain."""
-    from Bio.SeqUtils import seq1
 
     sequences: Dict[str, str] = {}
     for chain in model:
@@ -426,13 +407,7 @@ def write_ligand_pdb(
 
 
 def canonical_atom_names(symbols) -> List[str]:
-    """Return short, unique, element-based atom names (C1, C2, N1, CL1, F1...).
-
-    Predictors use atom names that vary and can exceed PDB's / Boltz's 4-char
-    limit (e.g. Chai's ``CL1_1``), which then get truncated inconsistently
-    between the structure and the ligand mol. Renaming both to these canonical
-    names -- in the same atom order -- keeps them consistent and <=4 chars.
-    """
+    """Return short, unique, element-based atom names (C1, C2, N1, CL1, F1...)"""
     counts: Dict[str, int] = {}
     names = []
     for sym in symbols:
@@ -461,8 +436,6 @@ def ligand_to_mol(
         An RDKit ``Mol`` with a single conformer and per-atom ``name`` props,
         matching how Boltzina prepares ligand mols.
     """
-    from rdkit import Chem
-    from rdkit.Chem import AllChem
 
     cleanup = False
     if work_dir is None:
@@ -517,12 +490,7 @@ def write_extra_mols(
     base_extra_mols_dir: Path,
     ligand_name: str = "LIG",
 ) -> None:
-    """Pickle the ligand mol for each record id (Boltz ``extra_mols`` format).
-
-    Boltz expects one ``{record_id}.pkl`` per record, each a
-    ``{ligand_name: rdkit_mol}`` dict, located in the processed ``mols`` dir.
-    """
-    from rdkit import Chem
+    """Pickle the ligand mol for each record id (Boltz ``extra_mols`` format)"""
 
     Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
     base_extra_mols_dir = Path(base_extra_mols_dir)
@@ -535,13 +503,14 @@ def write_extra_mols(
 def write_parse_mol(mol, ligand_name: str, parse_mols_dir: Path) -> Path:
     """Write the mol in the layout ``parse_mmcif`` expects.
 
-    ``parse_mmcif(..., moldir=...)`` looks up a non-CCD residue by name, loading
-    ``{moldir}/{resname}.pkl`` as a *bare* RDKit mol (note: a single mol, not a
-    ``{name: mol}`` dict -- that dict layout is what the affinity *datamodule*
-    consumes via :func:`write_extra_mols`). The two layouts are different and
-    both are required.
+    Args:
+        mol: RDKit ``Mol`` for the ligand.
+        ligand_name: Canonical name of the ligand (e.g. ``LIG``).
+        parse_mols_dir: Directory to write the mol pickle to.
+
+    Returns:
+        Path to the written mol pickle.
     """
-    from rdkit import Chem
 
     Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
     parse_mols_dir = Path(parse_mols_dir)
@@ -560,13 +529,16 @@ def relabel_ligand_in_cif(
 ) -> Path:
     """Rename a ligand residue inside an mmCIF's ``_atom_site`` loop.
 
-    ``parse_mmcif`` matches the CIF ligand to its mol by residue name, so the
-    CIF ligand name must equal the canonical ligand name used for the mol
-    pickles and the manifest. Prediction back-ends label ligands arbitrarily
-    (e.g. ``LIG0``), so we rewrite just the component-id column(s) of the
-    ``_atom_site`` loop for rows whose comp_id == ``old_resname``. All other
-    content is preserved verbatim.
+    Args:
+        cif_in: Input mmCIF path.
+        old_resname: The residue name to replace (e.g. ``LIG0``
+        new_resname: The residue name to write (e.g. ``LIG``)
+        cif_out: Output mmCIF path.
+
+    Returns:
+        Path to the rewritten mmCIF.
     """
+
     cif_in = Path(cif_in)
     cif_out = Path(cif_out)
     old = old_resname.strip()
@@ -652,27 +624,17 @@ def normalize_complex_cif(
 ) -> Path:
     """Normalise a predicted complex CIF for boltzina's ``parse_mmcif``.
 
-    boltzina's parser reads gemmi ``structure.entities`` and indexes them by
-    subchain id (``entities[subchain_id]``). Many prediction back-ends (e.g.
-    OpenFold) emit CIFs without proper ``_entity``/``_struct_asym`` records, so
-    those entities are missing and the parser raises ``KeyError`` on a chain id.
-    Upstream Boltzina sidesteps this by routing structures through ``maxit``;
-    we instead use gemmi's ``setup_entities()`` to regenerate the entity /
-    subchain records from the atom records (idempotent when they already
-    exist), and rewrite a clean mmCIF.
+    Args:
+        cif_in: Input mmCIF path (predicted complex).
+        cif_out: Output mmCIF path (normalised).
+        ligand_chain: Optional chain id of the ligand to rename (if given).
+        old_resname: Optional residue name to rename (e.g. ``LIG0``
+        new_resname: Optional residue name to write (e.g. ``LIG``)
+        remove_residues: Optional list of ``(chain_id, resseq)`` tuples
 
-    ``remove_residues`` is a list of ``(chain_id, resseq)`` tuples for other
-    ligands/cofactors to delete: ``parse_mmcif`` parses the *whole* complex and
-    needs a mol for every non-CCD residue, so any non-selected ligand must be
-    stripped. Removing them also makes the parsed structure match the manifest,
-    which only describes the protein plus the single scored ligand. Waters are
-    always removed.
-
-    Optionally renames the selected ligand residue (restricted to
-    ``ligand_chain`` when given) to ``new_resname`` in the same pass, so the CIF
-    ligand name matches the mol pickles and manifest.
+    Returns:
+        Path to the rewritten mmCIF.
     """
-    import gemmi
 
     st = gemmi.read_structure(str(cif_in))
     st.remove_waters()
@@ -715,14 +677,7 @@ def normalize_complex_cif(
                     for atom, name in zip(heavy, new_names):
                         atom.name = name
 
-    # Regenerate entity / subchain records so every subchain maps to an entity.
     st.setup_entities()
-
-    # gemmi's setup_entities() assigns entity types + subchains but leaves
-    # `full_sequence` empty. boltzina's parse_polymer aligns the modeled
-    # residues against `entity.full_sequence`, so an empty sequence yields zero
-    # matches (or an index overrun). Populate each polymer entity's sequence
-    # from its first subchain's modeled residues.
     model0 = st[0]
     for entity in st.entities:
         if entity.entity_type.name != "Polymer" or entity.full_sequence:
@@ -758,11 +713,16 @@ def build_boltz_yaml(
 ) -> Path:
     """Write a minimal Boltz-2 YAML for the complex, flagging affinity.
 
-    The ligand is given its own chain and marked as the affinity binder. Either
-    ``ligand_smiles`` or ``ligand_ccd`` must be supplied so Boltz can build the
-    ligand topology when processing inputs. If ``msa`` (an .a3m path) is given,
-    it is attached to every protein chain so Boltz reuses it instead of querying
-    the MSA server.
+    Args:
+        sequences: ``{chain_id: one_letter_sequence}`` for every protein chain.
+        ligand_name: Canonical name of the ligand (e.g. ``LIG``).
+        ligand_smiles: Optional SMILES for the ligand (used to build the topology).
+        ligand_ccd: Optional CCD name for the ligand (used to build the topology).
+        msa: Optional path to an .a3m MSA file to attach to every protein chain.
+        out_yaml: Optional path to write the YAML to. Defaults to a temp file.
+
+    Returns:
+        Path to the written Boltz YAML.
     """
     if not ligand_smiles and not ligand_ccd:
         raise ValueError(
@@ -813,15 +773,6 @@ def build_processed_inputs(
 ) -> Path:
     """Build a Boltz ``processed`` work_dir from a YAML config.
 
-    This is the "build it internally" path. It reuses Boltz-2's own input
-    processing so the resulting ``manifest.json`` / ``constraints`` are exactly
-    what the affinity module expects.
-
-    NB: this requires the Boltz micromamba environment (boltz==2.2.1) and, for
-    MSA generation, network access to the MSA server (unless an MSA is already
-    available). This is the single integration point most likely to need
-    tweaking against a specific Boltz build, so it is deliberately isolated.
-
     Args:
         yaml_path: Boltz YAML produced by :func:`build_boltz_yaml`.
         work_dir: Destination dir; ``work_dir/processed`` is created.
@@ -831,7 +782,6 @@ def build_processed_inputs(
     Returns:
         ``work_dir`` (with a populated ``processed`` subdirectory).
     """
-    from boltz.main import check_inputs, process_inputs
 
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -951,11 +901,20 @@ def prepare_affinity_structure(
 ) -> Optional[Path]:
     """Parse a complex mmCIF into a Boltz ``pre_affinity_{record_id}.npz``.
 
-    This mirrors Boltzina's ``_prepare_structure``: it parses the
-    protein+ligand mmCIF and dumps the serialized ``StructureV2`` that the
-    affinity data module loads.
+    Args:
+        complex_cif: Path to the predicted complex mmCIF.
+        record_id: Unique record id for this complex (used in the output path).
+        predictions_dir: Base directory for the Boltz predictions
+            (contains `pre_affinity_{record_id}.npz``).
+        extra_mols_dir: Directory containing the ligand mol pickle
+            (Boltz ``extra_mols`` format).
+        ccd: Optional Boltz CCD dict
+        override: If ``True``, re-parse and overwrite the existing pre-affinity file.
+
+    Returns:
+        Path to the directory containing the pre-affinity file, or ``None`` if
+        parsing failed.
     """
-    from boltzina.data.parse.mmcif import parse_mmcif
 
     pose_dir = Path(predictions_dir) / record_id
     pose_dir.mkdir(parents=True, exist_ok=True)

@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+import pandas as pd
+
 logger = logging.getLogger("logger")
 
 
@@ -22,11 +24,12 @@ def extract_affinity_msa(
 ) -> Optional[str]:
     """Return an .a3m path to reuse for affinity scoring, or None to fetch.
 
-    Reuses the MSA ABCFold already built (mmseqs2, or a user-supplied
-    ``unpairedMsa`` / ``unpairedMsaPath`` in the input) so the affinity step
-    doesn't re-query the MSA server. Only done for a *single* protein sequence:
-    one alignment can't be shared across different chains in a heteromer, and
-    ``--msa`` applies it to all protein chains.
+    Args:
+        input_params: The input JSON dict for the run.
+        output_dir: The ABCFold output directory where the affinity subdir is.
+
+    Returns:
+        Path to an .a3m MSA file to reuse for affinity scoring, or None
     """
     proteins = [
         s["protein"]
@@ -114,8 +117,6 @@ def run_boltz_affinity(
     if not results_csv.exists():
         logger.warning("No affinity results were produced at %s", results_csv)
         return {}
-
-    import pandas as pd
 
     df = pd.read_csv(results_csv)
     scores: Dict[str, dict] = {}
