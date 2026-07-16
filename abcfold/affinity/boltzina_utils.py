@@ -24,12 +24,13 @@ sequence(s), building an RDKit mol (with atom names) for the ligand, building
 ``pre_affinity_*.npz`` structure file, wiring up the per-record manifest /
 constraints, and collecting the affinity JSON results.
 
-Heavy Boltz / Boltzina / RDKit imports are performed lazily inside the
-functions that need them, so this module can be imported (and syntax-checked)
-outside the Boltz micromamba environment.
+Heavy Boltz / Boltzina / RDKit imports are deferred to first use (inside the
+functions that need them, or via ``_DeferredImport``), so this module can be
+imported (and syntax-checked) outside the Boltz micromamba environment.
 """
 
 import copy
+import importlib
 import inspect
 import json
 import logging
@@ -43,13 +44,34 @@ from typing import Any, Dict, List, Optional
 import gemmi
 from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
-from boltz import main as bm
-from boltz.main import check_inputs, process_inputs
-from boltzina.data.parse.mmcif import parse_mmcif
-from rdkit import Chem
-from rdkit.Chem import AllChem
 
 logger = logging.getLogger("logger")
+
+
+class _DeferredImport:
+    """Proxy that imports a module on first attribute access.
+
+    Keeps a heavy optional dependency (rdkit -- only available in the Boltz
+    micromamba env, not the ABCFold base env) out of import time. Function
+    bodies use ``Chem.X`` / ``AllChem.X`` unchanged; the real import only fires
+    the first time one of those attributes is actually touched.
+    """
+
+    def __init__(self, module_name: str) -> None:
+        self.__dict__["_module_name"] = module_name
+        self.__dict__["_module"] = None
+
+    def __getattr__(self, attr: str) -> Any:
+        if self.__dict__["_module"] is None:
+            self.__dict__["_module"] = importlib.import_module(
+                self.__dict__["_module_name"]
+            )
+        return getattr(self.__dict__["_module"], attr)
+
+
+# rdkit is imported on first use, not at import time (see _DeferredImport).
+Chem = _DeferredImport("rdkit.Chem")
+AllChem = _DeferredImport("rdkit.Chem.AllChem")
 
 # Residue names we never treat as a scorable ligand.
 WATER_RESNAMES = {"HOH", "WAT", "DOD", "H2O"}
@@ -154,6 +176,8 @@ def ensure_boltz_cache(cache_dir: Path) -> None:
     Args:
         cache_dir: The Boltz cache directory to populate (created if missing).
     """
+    from boltz import main as bm
+
     cache_dir = Path(cache_dir).expanduser()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -545,14 +569,14 @@ def write_extra_mols(
 ) -> None:
     """Pickle the ligand mol for each record id (Boltz ``extra_mols`` format).
 
+    Writes ``{base_extra_mols_dir}/{record_id}.pkl`` for each record id, each
+    containing a dict ``{ligand_name: mol}``.
+
     Args:
         mol: RDKit ``Mol`` for the ligand.
         record_ids: List of record ids to write the mol for.
         base_extra_mols_dir: Directory to write the mol pickles to.
         ligand_name: Canonical name of the ligand (e.g. ``LIG``).
-
-    Returns:
-        None. Writes pickles to disk in the Boltz ``extra_mols`` layout.
     """
     Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
     base_extra_mols_dir = Path(base_extra_mols_dir)
@@ -848,6 +872,8 @@ def build_processed_inputs(
     Returns:
         ``work_dir`` (with a populated ``processed`` subdirectory).
     """
+    from boltz.main import check_inputs, process_inputs
+
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1017,6 +1043,8 @@ def prepare_affinity_structure(
     Raises:
         RuntimeError: If the structure can't be parsed into Boltz inputs.
     """
+    from boltzina.data.parse.mmcif import parse_mmcif
+
     pose_dir = Path(predictions_dir) / record_id
     pose_dir.mkdir(parents=True, exist_ok=True)
     output_path = pose_dir / f"pre_affinity_{record_id}.npz"

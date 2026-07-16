@@ -306,7 +306,7 @@ def make_dir(dir_path: Union[str, Path], overwrite: bool = False):
     return dir_path
 
 
-def limit_msa_depth(a3m: str, max_seqs: int) -> str:
+def limit_msa_depth(a3m: str, max_seqs: Optional[int]) -> str:
     """Return an a3m MSA truncated to its first ``max_seqs`` sequences.
 
     The query (first record) is kept. Records may span multiple lines; a record

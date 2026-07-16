@@ -399,7 +399,9 @@ def get_gap_indicies(*cif_objs) -> List[np.ndarray]:
     """
     indicies: list = []
 
-    if len(cif_objs) == 1:
+    # Nothing to align with fewer than two models (0 or 1); avoid indexing an
+    # empty chain_lengths list below.
+    if len(cif_objs) <= 1:
         return indicies
     chain_lengths = [
         cif.chain_lengths(mode="residues", ligand_atoms=True) for cif in cif_objs

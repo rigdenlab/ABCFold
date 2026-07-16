@@ -65,7 +65,8 @@ def run_boltz_affinity(
         model_paths: Predicted complex structures (CIF/PDB), all the same
             protein + ligand.
         output_dir: Where to put the ``affinity/`` working dir and results CSV.
-        smiles / ccd: Ligand chemistry (one is required to score).
+        smiles: Ligand SMILES (one of ``smiles``/``ccd`` is required to score).
+        ccd: Ligand CCD code (alternative to ``smiles``).
         ligand_chain: Optional override for which chain holds the ligand.
         msa: Optional precomputed ``.a3m`` reused across all models.
 
