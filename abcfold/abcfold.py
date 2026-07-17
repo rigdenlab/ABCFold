@@ -36,7 +36,8 @@ from abcfold.output.protenix import ProtenixOutput
 from abcfold.output.rosettafold3 import RosettafoldOutput
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
                                   make_dummy_m8_file, verify_config_file)
-from abcfold.scripts.abc_script_utils import (check_input_json, make_dir,
+from abcfold.scripts.abc_script_utils import (check_input_json,
+                                              limit_json_msa_depth, make_dir,
                                               make_dummy_af3_db, setup_logger)
 from abcfold.scripts.add_custom_template import add_custom_template
 from abcfold.scripts.add_mmseqs_msa import add_msa_to_json
@@ -75,8 +76,10 @@ def run(args, config, defaults, config_file):
     if args.mmseqs2:
         logger.info("MMSeqs2 Selected, all other MSAs will be ignored")
 
-    make_dir(args.output_dir, overwrite=args.override)
-    make_dir(args.output_dir.joinpath(PLOTS_DIR))
+    # A dry run only sets up environments/weights, so skip creating output dirs.
+    if not getattr(args, "dry_run", False):
+        make_dir(args.output_dir, overwrite=args.override)
+        make_dir(args.output_dir.joinpath(PLOTS_DIR))
 
     updated_config = False
     if args.model_params is not None and args.model_params != defaults["model_params"]:
@@ -96,6 +99,12 @@ def run(args, config, defaults, config_file):
     rt_config = {}
     for section in config.sections():
         rt_config.update(dict(config.items(section)))
+
+    if getattr(args, "dry_run", False):
+        from abcfold.dry_run import setup_environments
+
+        setup_environments(args, rt_config)
+        return
 
     args = raise_argument_errors(args)
     # Ensure that the input json file is valid
@@ -148,6 +157,18 @@ def run(args, config, defaults, config_file):
                 to_file=True
             )
 
+        # Optionally cap the MSA depth. Write to a temp copy so we never mutate
+        # the user's original input json (run_json may point at it).
+        if args.max_msa_seqs:
+            limited_json = temp_dir.joinpath("msa_limited.json")
+            input_params = limit_json_msa_depth(
+                run_json, limited_json, args.max_msa_seqs
+            )
+            run_json = limited_json
+            logger.info(
+                "Limiting MSA depth to %d sequence(s)", args.max_msa_seqs
+            )
+
         successful_runs = []
         if args.alphafold3:
             af3_database = args.database_dir
@@ -184,6 +205,12 @@ def run(args, config, defaults, config_file):
                 ao = AlphafoldOutput(af3_out_dir, input_params, name)
                 outputs.append(ao)
                 run_json = ao.input_json
+                # AF3 rewrites the run json; re-apply the MSA cap so predictors
+                # run after AF3 (Boltz, Chai, ...) also see the reduced depth.
+                if args.max_msa_seqs:
+                    input_params = limit_json_msa_depth(
+                        run_json, run_json, args.max_msa_seqs
+                    )
             successful_runs.append(af3_success)
 
         if args.boltz:
@@ -195,6 +222,7 @@ def run(args, config, defaults, config_file):
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
+                template_threshold=args.boltz_template_threshold,
                 config=rt_config
             )
 
@@ -220,6 +248,7 @@ def run(args, config, defaults, config_file):
                 number_of_models=args.number_of_models,
                 num_recycles=args.num_recycles,
                 template_hits_path=template_hits_path,
+                mmseqs_database=args.mmseqs_database,
                 config=rt_config
             )
 
@@ -254,16 +283,11 @@ def run(args, config, defaults, config_file):
         if args.openfold3:
             from abcfold.openfold3.run_openfold3 import run_openfold
 
-            template_hits_path = None
-            if args.templates and args.mmseqs2:
-                template_hits_path = temp_dir.joinpath("all_chains.m8")
-
             openfold_success = run_openfold(
                 input_json=run_json,
                 output_dir=args.output_dir,
                 save_input=args.save_input,
                 number_of_models=args.number_of_models,
-                template_hits_path=template_hits_path,
                 input_ckpt=args.inference_ckpt_path,
                 config=rt_config
             )
@@ -306,9 +330,12 @@ def run(args, config, defaults, config_file):
             logger.error("No models were generated")
             return
 
-        plot_dict = plots(outputs, args.output_dir.joinpath(PLOTS_DIR))
+        plot_dict = plots(
+            outputs,
+            args.output_dir.joinpath(PLOTS_DIR),
+            make_pae_plots=not getattr(args, "ccp4cloud", False),
+        )
 
-        # Compile data to make output page
         programs_run = []
         cif_models = [
             cif_file
@@ -317,6 +344,25 @@ def run(args, config, defaults, config_file):
         ]
         indicies = get_gap_indicies(*cif_models)
         index_counter = 0
+
+        affinity_scores: Dict[str, Dict[str, Any]] = {}
+        if getattr(args, "ligand_smiles", None) or getattr(
+            args, "ligand_ccd", None
+        ):
+            from abcfold.affinity.run_affinity import (extract_affinity_msa,
+                                                       run_boltz_affinity)
+
+            affinity_msa = extract_affinity_msa(
+                input_params, args.output_dir
+            )
+            affinity_scores = run_boltz_affinity(
+                [cif.pathway for cif in cif_models],
+                args.output_dir,
+                smiles=args.ligand_smiles,
+                ccd=args.ligand_ccd,
+                ligand_chain=getattr(args, "ligand_chain", None),
+                msa=affinity_msa,
+            )
 
         alphafold_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
 
@@ -343,6 +389,7 @@ def run(args, config, defaults, config_file):
                             pae,
                             score_file,
                             args.output_dir,
+                            affinity_scores=affinity_scores,
                         )
                         alphafold_models["models"].append(model_data)
 
@@ -369,7 +416,8 @@ def run(args, config, defaults, config_file):
                             plddt,
                             pae,
                             score_file,
-                            args.output_dir
+                            args.output_dir,
+                            affinity_scores=affinity_scores,
                         )
                         boltz_models["models"].append(model_data)
 
@@ -398,6 +446,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             chai_models["models"].append(model_data)
 
@@ -426,6 +475,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             openfold_models["models"].append(model_data)
 
@@ -454,6 +504,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             protenix_models["models"].append(model_data)
 
@@ -482,6 +533,7 @@ def run(args, config, defaults, config_file):
                                 pae,
                                 score_file,
                                 args.output_dir,
+                                affinity_scores=affinity_scores,
                             )
                             rosettafold_models["models"].append(model_data)
 
@@ -538,6 +590,7 @@ def run(args, config, defaults, config_file):
             .relative_to(args.output_dir.resolve())
             .as_posix(),
             "chain_data": chain_data,
+            "ccp4cloud": bool(getattr(args, "ccp4cloud", False)),
         }
         results_json = json.dumps(results_dict)
 
@@ -554,13 +607,11 @@ def run(args, config, defaults, config_file):
         else:
             programs = "Structure predictions for: " + programs_run[0]
 
-        # Create the index page
         HTML_OUT = args.output_dir.joinpath("index.html")
         html_out = Path(HTML_OUT).resolve()
         render_template(
             HTML_TEMPLATE,
             html_out,
-            # kwargs appear as variables in the template
             abcfold_html_dir=".feature_viewer",
             programs=programs,
             results_json=results_json,
@@ -568,10 +619,15 @@ def run(args, config, defaults, config_file):
         )
         logger.info(f"Output page written to {HTML_OUT}")
 
-        # Change to the output directory to run the server
         os.chdir(args.output_dir)
 
-        # Make a script to open the output HTML file in the default web browser
+        if getattr(args, "ccp4cloud", False):
+            logger.info(
+                "ccp4cloud mode: local server disabled and model "
+                "visualisations column omitted"
+            )
+            return
+
         output_open_html_script("open_output.py", port=PORT)
 
         if args.no_server:

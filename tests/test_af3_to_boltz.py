@@ -73,6 +73,71 @@ ELAMIGRLFAQDAELYADIIMDKSENLAVIETLKQTYDEALTFFENNDRQGFIDAFHKVRDWFGDYSEQFLKESRQLLQQ
         )
 
 
+def test_af3_to_boltz_templates(test_data):
+    mmcif = "data_template\n_cell.length_a 1.0\n"
+    params = {
+        "name": "TemplateTest",
+        "modelSeeds": [1],
+        "sequences": [
+            {
+                "protein": {
+                    "id": "A",
+                    "sequence": "GMRES",
+                    "templates": [
+                        {"mmcif": mmcif, "queryIndices": [0], "templateIndices": [0]},
+                        {"mmcif": mmcif, "queryIndices": [0], "templateIndices": [0]},
+                    ],
+                }
+            },
+            {
+                "protein": {
+                    "id": ["B", "C"],
+                    "sequence": "YANEN",
+                    "templates": [{"mmcif": mmcif}],
+                }
+            },
+            {"protein": {"id": "D", "sequence": "KLLVV"}},
+        ],
+        "dialect": "alphafold3",
+        "version": 1,
+    }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        boltz_yaml = BoltzYaml(temp_dir)
+        yaml_string = boltz_yaml.json_to_yaml(params)
+        lines = yaml_string.split("\n")
+
+        # Templates are emitted as a top-level block
+        assert "templates:" in lines
+        template_lines = lines[lines.index("templates:") + 1:]
+
+        # One entry per template: two for chain A, one for chains B/C; chain D
+        # has no templates and so contributes nothing
+        cif_lines = [
+            line for line in template_lines if line.strip().startswith("- cif:")
+        ]
+        assert len(cif_lines) == 3
+
+        # Each cif path points at a written file
+        for line in cif_lines:
+            cif_path = Path(line.split("- cif:")[1].strip())
+            assert cif_path.exists()
+
+        # Only a bare `cif:` is emitted -- Boltz best-matches the chain itself,
+        # so no chain_id/template_id lines are written
+        assert not any("chain_id" in line for line in template_lines)
+
+        # By default templates are soft: no force/threshold is emitted
+        assert not any("force" in line for line in template_lines)
+        assert not any("threshold" in line for line in template_lines)
+
+        # Providing a threshold enforces the templates (force: true)
+        forced = BoltzYaml(temp_dir, template_threshold=3.0).json_to_yaml(params)
+        forced_lines = forced.split("\n")
+        assert f"{DELIM}  force: true" in forced_lines
+        assert f"{DELIM}  threshold: 3.0" in forced_lines
+
+
 def test_boltz_output_yaml(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
         boltz_yaml = BoltzYaml(temp_dir)

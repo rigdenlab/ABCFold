@@ -109,6 +109,40 @@ def prediction_argparse_util(parser):
         default=10,
         help="[optional] Number of recycles to use during inference (default: 10)",
     )
+    parser.add_argument(
+        "--max_msa_seqs",
+        type=int,
+        default=None,
+        help=dedent("[optional] Limit every protein MSA to this many sequences. \
+        If omitted, the MSA depth is not limited. Reducing depth can let \
+        templates have more influence."),
+    )
+    parser.add_argument(
+        "--ligand_smiles",
+        default=None,
+        help=dedent("[optional] Ligand SMILES for Boltz-2 affinity scoring of \
+        the predicted complexes. Enables affinity scoring."),
+    )
+    parser.add_argument(
+        "--ligand_ccd",
+        default=None,
+        help=dedent("[optional] Ligand CCD code for Boltz-2 affinity scoring \
+        (alternative to --ligand_smiles)."),
+    )
+    parser.add_argument(
+        "--ligand_chain",
+        default=None,
+        help=dedent("[optional] Restrict affinity scoring to the ligand in \
+        this chain (otherwise auto-detected)."),
+    )
+    parser.add_argument(
+        "--dry_run",
+        action="store_true",
+        help=dedent("[optional] Set up the selected predictors only: create the \
+        micromamba environments, download model weights, and run each tool's \
+        --help smoke test, then exit without running any inference. Requires no \
+        GPU -- useful for priming a central install (e.g. via Ansible)."),
+    )
     return parser
 
 
@@ -118,6 +152,13 @@ def boltz_argparse_util(parser):
         "--boltz",
         action="store_true",
         help="Run Boltz",
+    )
+    parser.add_argument(
+        "--boltz_template_threshold",
+        type=float,
+        default=None,
+        help=dedent("[optional] Enforce Boltz templates (force: true) within \
+        this distance threshold (Angstroms)."),
     )
     if "--save_input" not in parser._option_string_actions:
         parser.add_argument(
@@ -234,6 +275,14 @@ def visuals_argparse_util(parser):
         action="store_true",
         help=dedent("[optional] Do not start a local server to view the results, the \
         output page is still generated and is accessible in the output directory"),
+    )
+
+    parser.add_argument(
+        "--ccp4cloud",
+        action="store_true",
+        help=dedent("[optional] Produce an output page for services where a local \
+        server can't be run (e.g. CCP4 Cloud): omits the model visualisations \
+        column and does not start a local server"),
     )
     return parser
 

@@ -30,6 +30,63 @@ Vue.component('abc-table', {
         }
         return {
             abc_models: this.$root.abc_models,
+            // ccp4cloud mode is viewed without a local server, so the model
+            // visualisation links can't be served -- hide that column.
+            ccp4cloud: (typeof abc_data !== 'undefined' && !!abc_data.ccp4cloud),
+            // Column definitions in display order. Columns with no data across
+            // any model are hidden (see visibleColumns). type: 'link' renders a
+            // link, 'decimal' formats a number, 'scores' is an expandable list
+            // of per-interface values.
+            columns: [
+                { key: 'model_id', label: 'Model Name', type: 'link',
+                  title: 'The name of the model' },
+                { key: 'model_source', label: 'Model Source',
+                  title: 'The source of the model' },
+                { key: 'avg_plddt', label: 'Average pLDDT', type: 'decimal',
+                  decimals: 2,
+                  title: 'The average pLDDT score of the model' },
+                { key: 'ptm_score', label: 'pTM score',
+                  title: 'The pTM score of the model' },
+                { key: 'iptm_score', label: 'ipTM score',
+                  title: 'The ipTM score of the model' },
+                { key: 'ipsae_score', label: 'ipSAE', type: 'scores',
+                  title: 'The best ipSAE (interaction prediction Score from '
+                       + 'Aligned Errors) d0res_asym score for each interface' },
+                { key: 'reactifptm_score', label: 'reactifPTM', type: 'scores',
+                  title: 'The best reactifPTM (interface pTM over residues in '
+                       + 'contact) for each interface' },
+                { key: 'affinity_pred_value',
+                  label: 'Boltz-2 affinity', type: 'decimal',
+                  decimals: 3,
+                  title: 'Predicted binding affinity as log10 IC50 in µM '
+                       + '(lower = stronger binder), calculated with Boltzina '
+                       + '(Boltz-2 affinity head)' },
+                { key: 'affinity_probability_binary',
+                  label: 'Boltz-2 binder prob.',
+                  type: 'decimal', decimals: 3,
+                  title: 'Predicted probability the ligand is a binder (0-1), '
+                       + 'calculated with Boltzina (Boltz-2 affinity head)' },
+                { key: 'residue_clashes', label: 'Residue Clashes',
+                  title: 'The number of possible residue clashes found in the '
+                       + 'model - lower is better' },
+                { key: 'atom_clashes', label: 'Atom Clashes',
+                  title: 'The number of possible atom clashes found in the '
+                       + 'model - lower is better' },
+            ],
+        }
+    },
+    computed: {
+        // Only show columns where at least one model has a value, so runs
+        // without a complex (no ipTM/ipSAE/reactifPTM) or without a ligand
+        // (no affinity) don't render empty columns.
+        visibleColumns() {
+            const models = Object.values(this.abc_models || {});
+            return this.columns.filter((col) =>
+                models.some((m) => {
+                    const v = m[col.key];
+                    return v !== null && v !== undefined && v !== '';
+                })
+            );
         }
     },
     mounted() {
@@ -50,6 +107,34 @@ Vue.component('abc-table', {
         }
       },
       methods: {
+        // Split a comma-separated score string ("AB:0.9,AC:0.8") into items.
+        scoreItems(val) {
+            if (val === null || val === undefined || val === '') return [];
+            return String(val).split(',').filter((s) => s.length);
+        },
+        // The highest-scoring item, shown as the collapsed summary.
+        bestScore(val) {
+            const items = this.scoreItems(val);
+            let best = '';
+            let bestv = -Infinity;
+            for (const it of items) {
+                const p = it.split(':');
+                const v = parseFloat(p[p.length - 1]);
+                if (!isNaN(v) && v > bestv) { bestv = v; best = it; }
+            }
+            return best || (items[0] || '');
+        },
+        fmtDecimal(val, decimals) {
+            if (val === null || val === undefined || val === '') return '';
+            const n = Number(val);
+            return isNaN(n) ? val : n.toFixed(decimals || 2);
+        },
+        sortCol(idx) {
+            if (typeof sortTableAndFeatures === 'function') {
+                sortTableAndFeatures('abc_table', sequence, ft1,
+                                     ABC_rowFeatureMap, '#div1', idx);
+            }
+        },
         getButtonClass(modelSource) {
             switch (modelSource) {
                 case 'AlphaFold3':
@@ -74,36 +159,34 @@ Vue.component('abc-table', {
         <table id="abc_table">
             <thead>
                 <tr>
-                    <th title="The name of the model"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 0)">Model Name</th>
-                    <th title="The source of the model"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 1)">Model Source</th>
-                    <th title="The average pLDDT score of the model"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 2)">Average pLDDT</th>
-                    <th title="The pTM score of the model"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 3)">pTM score</th>
-                    <th title="The ipTM score of the model"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 4)">ipTM score</th>
-                    <th title="The best ipSAE(interaction prediction Score from Aligned Errors) d0res_asym score for each interface"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1',  5)">ipSAE</th>
-                    <th title="The number of possible residue clashes found in the model - lower is better"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 6)">Residue Clashes</th>
-                     <th title="The number of possible atom clashes found in the model - lower is better"
-                        onclick="sortTableAndFeatures('abc_table', sequence, ft1, ABC_rowFeatureMap, '#div1', 7)">Atom Clashes</th>
-                    <th title="Link to a visualisation of the model and it's corresponding PAE plot">Model visualisations</th>
+                    <th v-for="(col, idx) in visibleColumns" :key="col.key"
+                        :title="col.title" @click="sortCol(idx)">{{ col.label }}</th>
+                    <th v-if="!ccp4cloud" title="Link to a visualisation of the model and its corresponding PAE plot">Model visualisations</th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="abcmodel in abc_models" :data-feature-name="abcmodel.model_id">
-                    <td><a v-bind:href="abcmodel.model_path" target="_blank">{{ abcmodel.model_id }}</a></td>
-                    <td>{{ abcmodel.model_source }}</td>
-                    <td>{{ abcmodel.avg_plddt | decimalPlaces }}</td>
-                    <td>{{ abcmodel.ptm_score }}</td>
-                    <td>{{ abcmodel.iptm_score }}</td>
-                    <td>{{ abcmodel.ipsae_score }}</td>
-                    <td>{{ abcmodel.residue_clashes }}</td>
-                    <td>{{ abcmodel.atom_clashes }}</td>
-                    <td><a v-bind:href="abcmodel.pae_path" target="_blank"><button :class="getButtonClass(abcmodel.model_source)">Click for PAE Plot</button></a></td>
+                    <td v-for="col in visibleColumns" :key="col.key">
+                        <template v-if="col.type === 'link'">
+                            <a v-if="!ccp4cloud" v-bind:href="abcmodel.model_path" target="_blank">{{ abcmodel[col.key] }}</a>
+                            <template v-else>{{ abcmodel[col.key] }}</template>
+                        </template>
+                        <template v-else-if="col.type === 'decimal'">
+                            {{ fmtDecimal(abcmodel[col.key], col.decimals) }}
+                        </template>
+                        <template v-else-if="col.type === 'scores' && scoreItems(abcmodel[col.key]).length > 3">
+                            <details class="score-cell">
+                                <summary>{{ bestScore(abcmodel[col.key]) }} <span class="score-more">(+{{ scoreItems(abcmodel[col.key]).length - 1 }} more)</span></summary>
+                                <div class="score-list">
+                                    <div v-for="item in scoreItems(abcmodel[col.key])" :key="item">{{ item }}</div>
+                                </div>
+                            </details>
+                        </template>
+                        <template v-else>
+                            {{ abcmodel[col.key] }}
+                        </template>
+                    </td>
+                    <td v-if="!ccp4cloud"><a v-bind:href="abcmodel.pae_path" target="_blank"><button :class="getButtonClass(abcmodel.model_source)">Click for PAE Plot</button></a></td>
                 </tr>
             </tbody>
         </table>

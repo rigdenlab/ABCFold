@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abcfold"
-version = "1.1.4"
+version = "1.1.5"
 description = "Tool to run & compare AlphaFold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3"
 readme = "README.md"
 license = { text = "BSD License" }
@@ -34,7 +34,8 @@ dependencies = [
     "plotly",
     "jinja2",
     "pyarrow==19.0.1",
-
+    "reactifptm",
+    "gemmi",
 ]
 
 [project.urls]
@@ -43,6 +44,7 @@ homepage = "https://github.com/rigdenlab/ABCFold"
 [tool.setuptools]
 packages = [
     "abcfold",
+    "abcfold.affinity",
     "abcfold.alphafold3",
     "abcfold.boltz",
     "abcfold.chai1",
@@ -74,6 +76,7 @@ abcfold = "abcfold.abcfold:main"
 mmseqs2msa = "abcfold.scripts.add_mmseqs_msa:main"
 custom_templates = "abcfold.scripts.add_custom_template:main"
 ipsae = "abcfold.scripts.ipsae:main"
+boltz_affinity = "abcfold.scripts.boltz_affinity:main"
 
 [tool.flake8]
 max-line-length = 88
@@ -91,4 +94,8 @@ check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = ["abcfold.scripts.ipsae", "abcfold.scripts.add_mmseqs2_msa", "abcfold.tests.conftest"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["abcfold.affinity.*", "abcfold.scripts.boltz_affinity"]
 ignore_errors = true

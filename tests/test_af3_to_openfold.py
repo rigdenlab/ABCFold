@@ -205,6 +205,69 @@ def test_openfold_output_msa(test_data):
         assert data == reference
 
 
+def test_af3_to_openfold_templates(test_data):
+    mmcif = "data_template\n_cell.length_a 1.0\n"
+    params = {
+        "name": "TemplateTest",
+        "modelSeeds": [1],
+        "sequences": [
+            {
+                "protein": {
+                    "id": ["A", "B"],
+                    "sequence": "GMRES",
+                    "templates": [{"mmcif": mmcif}, {"mmcif": mmcif}],
+                }
+            },
+            {"protein": {"id": "C", "sequence": "YANEN"}},
+        ],
+        "dialect": "alphafold3",
+        "version": 1,
+    }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        openfold_json = OpenfoldJson(temp_dir)
+
+        data = openfold_json.json_to_json(params)
+        chains = data["queries"]["TemplateTest"]["chains"]
+        cif_paths = chains[0]["template_cif_paths"]
+
+        # Template CIF directory has a random path, so check the files exist
+        # then give them a placeholder value for comparison
+        assert len(cif_paths) == 2
+        assert all(Path(p).exists() for p in cif_paths)
+        chains[0]["template_cif_paths"] = ["TEMPLATE_CIF"]
+
+        # A chain without templates gets no template_cif_paths key
+        assert "template_cif_paths" not in chains[1]
+
+        reference = {
+            "queries": {
+                "TemplateTest": {
+                    "chains": [
+                        {
+                            "molecule_type": "protein",
+                            "chain_ids": ["A", "B"],
+                            "sequence": "GMRES",
+                            "template_cif_paths": ["TEMPLATE_CIF"],
+                        },
+                        {
+                            "molecule_type": "protein",
+                            "chain_ids": "C",
+                            "sequence": "YANEN",
+                        },
+                    ]
+                }
+            }
+        }
+
+        assert data == reference
+
+        # The runner yaml enables templates when any chain has them
+        out_file = Path(temp_dir) / "runner.yml"
+        yaml_string = openfold_json.write_yaml(out_file).split("\n")
+        assert "  use_templates: true" in yaml_string
+
+
 def test_openfold_write_json(test_data):
     with tempfile.TemporaryDirectory() as temp_dir:
         openfold_json = OpenfoldJson(temp_dir)

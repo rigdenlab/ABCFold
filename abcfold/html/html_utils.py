@@ -1,4 +1,7 @@
+import contextlib
 import http.server
+import io
+import json
 import logging
 import textwrap
 from itertools import groupby
@@ -20,6 +23,11 @@ from abcfold.output.rosettafold3 import RosettafoldOutput
 from abcfold.plots.pae_plot import create_pae_plots
 from abcfold.plots.plddt_plot import plot_plddt
 from abcfold.scripts.ipsae import Ipsae
+
+try:
+    from reactifptm import Reactifptm
+except ImportError:  # pragma: no cover - optional dependency
+    Reactifptm = None
 
 PORT = 8000
 logger = logging.getLogger("logger")
@@ -111,7 +119,8 @@ def get_model_data(model,
                    plddt_scores,
                    pae_obj,
                    score_file,
-                   output_dir):
+                   output_dir,
+                   affinity_scores=None):
     """
     Get the model data for the output page
 
@@ -122,9 +131,17 @@ def get_model_data(model,
         score_file (str): Path to the file containing model scores
         pae_obj (ConfidenceJsonFile): Obj containing PAE data
         output_dir (Path): Path to the output directory
+        affinity_scores (dict): Optional {resolved_model_path: affinity row}
+            from the batched Boltz-2 affinity run.
     """
     regions = get_plddt_regions(plddt_scores)
     ptm_score, iptm_score = parse_scores(score_file)
+    # ipTM is only defined for multi-chain complexes. Non-AF3 predictors report
+    # 0.0 for single-chain (monomer) predictions rather than omitting it, which
+    # keeps a meaningless all-zero column visible. Normalise to None for
+    # monomers so the front end hides the column (matching AF3's behaviour).
+    if sum(1 for _ in model.get_chains()) < 2:
+        iptm_score = None
     full_model_path = Path(model.pathway)
     model_path = full_model_path.relative_to(output_dir).as_posix()
 
@@ -152,6 +169,54 @@ def get_model_data(model,
                          verbose=False,
                          output_csv=ipsae_out)
 
+    # reactifPTM: interface pTM restricted to residues in contact (like ipsae,
+    # a pure-PAE/structure metric). Best per unordered chain pair.
+    reactifptm_score = []
+    if Reactifptm is not None:
+        try:
+            # Feed reactifptm the *processed* AF3-style PAE ABCFold already
+            # built (ipsae.pae_data: converted matrix + token_chain_ids/
+            # token_res_ids), not the raw per-predictor PAE file. The raw file
+            # varies by predictor (e.g. Boltz .npz) and can't always be reloaded
+            # or aligned by reactifptm; the AF3 json is the format it expects.
+            # reactifptm also prints progress / "Results saved to:" to stdout;
+            # swallow it so only ABCFold's own log messages show.
+            with contextlib.redirect_stdout(io.StringIO()):
+                pae_json = (
+                    full_model_path.parent
+                    / f"{Path(model_path).stem}_pae_af3.json"
+                )
+                with open(pae_json, "w") as fh:
+                    json.dump(ipsae.pae_data, fh)
+                try:
+                    reactif = Reactifptm(pae_json, full_model_path)
+                    reactif.compute_reactifptm()
+                    for pair, v in (reactif.reactifptm_pairwise_max or {}).items():
+                        # reactifptm keys chain pairs "A-B"; ipSAE uses "AB".
+                        # Drop the dash so both columns label interfaces alike.
+                        pair_label = str(pair).replace("-", "")
+                        reactifptm_score.append(f"{pair_label}:{np.round(v, 4)}")
+                    reactif.save_results(
+                        full_model_path.parent
+                        / f"{Path(model_path).stem}_reactifptm.json"
+                    )
+                finally:
+                    pae_json.unlink(missing_ok=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reactifPTM failed for %s: %s", model.name, exc)
+
+    # Boltz-2 affinity, looked up from the batched pre-computed results.
+    affinity = (affinity_scores or {}).get(str(full_model_path.resolve()), {})
+
+    # PAE plots may be skipped (e.g. ccp4cloud mode), in which case there's no
+    # entry for this model in plot_dict -- leave pae_path unset.
+    pae_plot = plot_dict.get(model.pathway.as_posix())
+    pae_path = (
+        Path(pae_plot).relative_to(output_dir).as_posix()
+        if pae_plot is not None
+        else None
+    )
+
     model_data = {
         "model_id": model.name,
         "model_source": method,
@@ -162,11 +227,16 @@ def get_model_data(model,
         "ptm_score": ptm_score,
         "iptm_score": iptm_score,
         "ipsae_score": ",".join(ipsae_score),
+        "reactifptm_score": ",".join(reactifptm_score),
+        "affinity_pred_value": affinity.get("affinity_pred_value"),
+        "affinity_probability_binary": affinity.get(
+            "affinity_probability_binary"
+        ),
         "residue_clashes": model.clashes_residues,
         "atom_clashes": model.clashes,
-        "pae_path": Path(plot_dict[model.pathway.as_posix()])
-        .relative_to(output_dir)
-        .as_posix(),
+        # None when PAE plots weren't generated (e.g. ccp4cloud mode); the
+        # front end omits the visualisations column in that case.
+        "pae_path": pae_path,
     }
     return model_data
 
@@ -181,15 +251,19 @@ class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-def plots(outputs: list, output_dir: Path):
+def plots(outputs: list, output_dir: Path, make_pae_plots: bool = True):
     """
     Generate plots for the output of the different programs
 
     Args:
         outputs (list): List of output objects
+        make_pae_plots (bool): Generate the per-model PAE viewer pages. Skipped
+            in ccp4cloud mode, where they aren't displayed and can't be served.
 
     """
-    pathway_plots = create_pae_plots(outputs, output_dir=output_dir)
+    pathway_plots = (
+        create_pae_plots(outputs, output_dir=output_dir) if make_pae_plots else {}
+    )
     plddt_plot_input: Dict[str, list] = get_all_cif_files(outputs)
 
     plot_plddt(plddt_plot_input, output_name=output_dir.joinpath("plddt_plot.html"))

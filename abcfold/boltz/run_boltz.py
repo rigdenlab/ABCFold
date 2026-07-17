@@ -2,7 +2,7 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from abcfold.boltz.af3_to_boltz import BoltzYaml
 from abcfold.boltz.check_install import ensure_boltz_env
@@ -18,6 +18,7 @@ def run_boltz(
     test: bool = False,
     number_of_models: int = 5,
     num_recycles: int = 10,
+    template_threshold: Optional[float] = None,
 ) -> bool:
     """
     Run Boltz using the input JSON file
@@ -52,7 +53,7 @@ def run_boltz(
             logger.info("Saving input yaml file and msa to the output directory")
             working_dir = output_dir
 
-        boltz_yaml = BoltzYaml(working_dir)
+        boltz_yaml = BoltzYaml(working_dir, template_threshold=template_threshold)
         boltz_yaml.json_to_yaml(input_json)
 
         for seed in boltz_yaml.seeds:

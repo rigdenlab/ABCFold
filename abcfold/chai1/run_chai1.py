@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -23,6 +22,7 @@ def run_chai(
     num_recycles: int = 10,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    mmseqs_database: Union[str, Path, None] = None,
 ) -> bool:
     """
     Run Chai-1 using the input JSON file
@@ -48,6 +48,7 @@ def run_chai(
 
     logger.debug("Checking if Chai-1 is installed")
     env = ensure_chai_env(config=config)
+    kalign_available = env.which("kalign")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
@@ -62,6 +63,27 @@ def run_chai(
         out_fasta = chai_fasta.fasta
         msa_dir = chai_fasta.working_dir
         out_constraints = chai_fasta.constraints
+
+        # Pre-populate PDB template CIFs (skip RCSB re-downloads) and inject any
+        # custom/inline templates as fabricated m8 hits served from a local
+        # store. Only meaningful when we have templates to hand.
+        template_cif_store = None
+        if not test:
+            import json
+
+            from abcfold.chai1.chai_templates import prepare_chai_templates
+
+            with open(input_json) as f:
+                input_params = json.load(f)
+
+            combined_m8, template_cif_store = prepare_chai_templates(
+                input_params,
+                work_dir=working_dir,
+                existing_m8=template_hits_path,
+                mmseqs_database=mmseqs_database,
+            )
+            if combined_m8 is not None:
+                template_hits_path = combined_m8
 
         for seed in chai_fasta.seeds:
             chai_output_dir = output_dir / f"chai_output_seed-{seed}"
@@ -78,6 +100,8 @@ def run_chai(
                     seed=seed,
                     use_templates_server=use_templates_server,
                     template_hits_path=template_hits_path,
+                    template_cif_store=template_cif_store,
+                    kalign_available=kalign_available,
                 )
                 if not test
                 else generate_chai_test_command()
@@ -114,6 +138,8 @@ def generate_chai_command(
     seed: int = 42,
     use_templates_server: bool = False,
     template_hits_path: Path | None = None,
+    template_cif_store: Path | None = None,
+    kalign_available: bool = True,
 ) -> list:
     """
     Generate the Chai-1 command
@@ -128,6 +154,9 @@ def generate_chai_command(
         seed (int): Seed for the random number generator
         use_templates_server (bool): If True, use templates from the server
         template_hits_path (Path): Path to the template hits m8 file
+        template_cif_store (Path): Directory of local template CIFs to serve
+        kalign_available (bool): Whether kalign is installed in the Chai env
+            (templates need it)
 
     Returns:
         list: The Chai-1 command
@@ -155,16 +184,19 @@ def generate_chai_command(
         use_templates_server and template_hits_path
     ), "Cannot specify both templates server and path"
 
-    if shutil.which("kalign") is None and (use_templates_server or template_hits_path):
+    wants_templates = use_templates_server or template_hits_path or template_cif_store
+    if not kalign_available and wants_templates:
         logger.warning(
-            "kalign not found, skipping template search kalign is required. \
-Please install kalign to use templates with Chai-1."
+            "kalign not found in the Chai-1 environment, skipping template "
+            "search. kalign is required for templates with Chai-1."
         )
     else:
         if use_templates_server:
             cmd += ["--use-templates-server"]
         if template_hits_path:
             cmd += ["--template-hits-path", str(template_hits_path)]
+        if template_cif_store:
+            cmd += ["--template-cif-store", str(template_cif_store)]
 
     cmd += [str(output_dir)]
 

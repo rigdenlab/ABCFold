@@ -6,7 +6,11 @@ from abcfold.output.file_handlers import CifFile, ConfidenceJsonFile
 from abcfold.output.utils import Af3Pae
 from abcfold.scripts.abc_script_utils import (align_and_map, check_input_json,
                                               extract_sequence_from_mmcif,
-                                              get_chains, get_mmcif)
+                                              get_chains, get_mmcif,
+                                              limit_json_msa_depth,
+                                              limit_msa_depth)
+
+_A3M = ">query\nMKVLA\n>h1\nMKVLA\n>h2\nMKVLG\n>h3\nMRVLA\n>h4\nMKVLA\n"
 
 
 def test_get_chains(test_data):
@@ -115,3 +119,62 @@ def test_af3_pae_reorder(test_data):
         )
 
     cif.reorder_chains(["A", "B", "C", "D"])
+
+
+def test_limit_msa_depth_truncates():
+    out = limit_msa_depth(_A3M, 3)
+    assert out.count(">") == 3
+    assert out.startswith(">query")  # query is always kept
+
+    # multi-line sequence records are kept intact
+    multiline = ">q\nMKV\nLLL\n>h1\nMKA\nLLL\n>h2\nMRV\nLLL\n"
+    trimmed = limit_msa_depth(multiline, 2)
+    assert trimmed.count(">") == 2
+    assert "MKA\nLLL" in trimmed
+
+
+def test_limit_msa_depth_no_limit():
+    assert limit_msa_depth(_A3M, None) == _A3M
+    assert limit_msa_depth(_A3M, 0) == _A3M
+    assert limit_msa_depth(_A3M, 99).count(">") == 5  # more than available
+
+
+def test_limit_json_msa_depth_inline():
+    params = {
+        "sequences": [
+            {"protein": {"id": "A", "sequence": "MKVLA", "unpairedMsa": _A3M}},
+            {"ligand": {"id": "L", "smiles": "CCO"}},
+        ]
+    }
+    with tempfile.TemporaryDirectory() as td:
+        inp, out = Path(td) / "in.json", Path(td) / "out.json"
+        inp.write_text(json.dumps(params))
+        data = limit_json_msa_depth(inp, out, 2)
+
+        assert data["sequences"][0]["protein"]["unpairedMsa"].count(">") == 2
+        # original file untouched (different output path)
+        orig = json.loads(inp.read_text())
+        assert orig["sequences"][0]["protein"]["unpairedMsa"].count(">") == 5
+        # written file matches the returned dict
+        written = json.loads(out.read_text())
+        assert written["sequences"][0]["protein"]["unpairedMsa"].count(">") == 2
+
+
+def test_limit_json_msa_depth_from_path():
+    with tempfile.TemporaryDirectory() as td:
+        a3m_file = Path(td) / "msa.a3m"
+        a3m_file.write_text(_A3M)
+        params = {
+            "sequences": [
+                {"protein": {"id": "A", "sequence": "MKVLA",
+                             "unpairedMsaPath": str(a3m_file)}},
+            ]
+        }
+        inp, out = Path(td) / "in.json", Path(td) / "out.json"
+        inp.write_text(json.dumps(params))
+        data = limit_json_msa_depth(inp, out, 2)
+
+        prot = data["sequences"][0]["protein"]
+        # path is read, truncated, and inlined
+        assert prot["unpairedMsa"].count(">") == 2
+        assert "unpairedMsaPath" not in prot

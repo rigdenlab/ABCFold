@@ -117,6 +117,46 @@ However, there you may wish to use the following flags to add run time options s
 #### OpenFold3 arguments
 - `--inference_ckpt_path` [optional] Path for model checkpoint to be used for inference. If not specified, will attempt to find or download parameters in ~/.openfold3/
 
+#### Boltz-2 affinity scoring
+
+ABCFold can score the binding affinity of a protein–ligand complex using the Boltz-2 affinity head (via Boltzina). Affinity scoring is **off by default** and is enabled by passing the ligand chemistry on the command line with either `--ligand_smiles` or `--ligand_ccd`. When enabled, every predicted complex is scored in a single batched pass — this includes the models from *all* of the sources you ran (AlphaFold3, Boltz, Chai-1, etc.), not just Boltz — and two extra columns appear in the results table:
+
+- **Boltz-2 affinity**: predicted binding affinity as log<sub>10</sub>(IC50) in µM; lower values indicate a stronger binder.
+- **Boltz-2 binder prob.**: predicted probability (0–1) that the ligand is a binder.
+
+**Input requirements**
+
+- Your input JSON must contain the ligand as a `ligand` entity (using `smiles` or `ccdCodes`) so that the predicted models actually include the ligand to be scored.
+- Pass the *same* ligand chemistry on the command line with `--ligand_smiles` (a SMILES string) **or** `--ligand_ccd` (a CCD code) — provide only one. This tells the affinity head which ligand chemistry to score.
+- If your input contains more than one ligand, use `--ligand_chain` to choose which chain to score; otherwise the ligand is auto-detected.
+- Affinity scoring runs in the internal Boltz environment and, like a normal Boltz run, requires a GPU.
+
+Example input JSON containing a ligand entity:
+
+```json
+{
+  "name": "2PV7",
+  "modelSeeds": [1],
+  "sequences": [
+    { "protein": { "id": ["A", "B"], "sequence": "GMRESYANENQFGFKTINSD..." } },
+    { "ligand":  { "id": "E", "smiles": "CC(=O)OC1C[NH+]2CCC1CC2" } }
+  ],
+  "dialect": "alphafold3",
+  "version": 1
+}
+```
+
+Example run (score the ligand across all predicted models):
+
+```bash
+abcfold <input_json> <output_dir> -abc --mmseqs2 --ligand_smiles "CC(=O)OC1C[NH+]2CCC1CC2"
+```
+
+Affinity arguments:
+- `--ligand_smiles`: [optional] Ligand SMILES to score with the Boltz-2 affinity head. Providing this (or `--ligand_ccd`) enables affinity scoring.
+- `--ligand_ccd`: [optional] Ligand CCD code to score (alternative to `--ligand_smiles`).
+- `--ligand_chain`: [optional] Restrict affinity scoring to the ligand in this chain. If omitted, the ligand is auto-detected.
+
 #### Template arguments
 - `--templates`: Flag to enable a template search
 - `--num_templates`: [optional] The number of templates to use (default: 20)

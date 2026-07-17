@@ -30,10 +30,13 @@ def ensure_chai_env(config: dict) -> MicromambaEnv:
                 installed,
                 CHAI_VERSION,
             )
-        env.conda_install(["kalign2"], channels=["conda-forge", "bioconda"])
         env.pip_install([f"chai_lab=={CHAI_VERSION}"])
     else:
         logger.info("chai_lab is already up-to-date (%s)", CHAI_VERSION)
+
+    if not env.which("kalign"):
+        logger.info("Installing kalign for Chai-1 template search")
+        env.conda_install(["kalign"], channels=["conda-forge", "bioconda"])
 
     installed_pandera = env.get_installed_version("pandera")
     if installed_pandera != PANDERA_VERSION:

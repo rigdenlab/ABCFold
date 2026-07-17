@@ -2,6 +2,7 @@ import json
 import logging
 import random
 import string
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -15,7 +16,12 @@ class BoltzYaml:
     Object to convert an AlphaFold3 json file to a boltzmann yaml file.
     """
 
-    def __init__(self, working_dir: Union[str, Path], create_files: bool = True):
+    def __init__(
+        self,
+        working_dir: Union[str, Path],
+        create_files: bool = True,
+        template_threshold: Optional[float] = None,
+    ):
         self.working_dir = working_dir
         self.yaml_string: str = ""
         self.msa_file: Optional[Union[str, Path]] = "null"
@@ -26,6 +32,11 @@ class BoltzYaml:
         self.__create_files = create_files
         self.__non_ligands: List[str] = []
         self.__id_buffer: dict = {}
+        self.__template_entries: List[dict] = []
+        # When set (Angstroms), templates are enforced (force: true) with a
+        # distance restraint bounding how far the prediction may deviate. When
+        # None, templates are used softly (Boltz default, no forcing).
+        self.__template_threshold = template_threshold
 
     @property
     def chain_ids(self) -> List[Union[str, int]]:
@@ -49,6 +60,109 @@ class BoltzYaml:
 
         with open(file_path, "w") as f:
             f.write(msa)
+
+    def _write_template_cifs(self, templates: list) -> List[str]:
+        """Write inline mmCIF templates to .cif files for Boltz.
+
+        Args:
+            templates (list): AF3-style template entries, each carrying an
+                inline ``mmcif`` string.
+
+        Returns:
+            List[str]: Paths to the written .cif files, one per template with
+            an mmCIF payload (malformed/empty entries are skipped).
+        """
+        cif_paths: List[str] = []
+        tmpl_dir = Path(self.working_dir) / f"templates_{uuid.uuid4().hex}"
+        if self.__create_files:
+            tmpl_dir.mkdir(parents=True, exist_ok=True)
+        for idx, template in enumerate(templates):
+            mmcif = template.get("mmcif") if isinstance(template, dict) else None
+            if not mmcif:
+                continue
+            cif_file = tmpl_dir / f"template_{idx}.cif"
+            if self.__create_files:
+                self._normalise_template_cif(mmcif, cif_file)
+            cif_paths.append(cif_file.resolve().as_posix())
+        return cif_paths
+
+    def _normalise_template_cif(self, mmcif: str, out_file: Path) -> None:
+        """Rewrite an inline mmCIF so Boltz's parser can read it.
+
+        Boltz's ``parse_mmcif`` indexes gemmi ``structure.entities`` by subchain
+        id (``entities[subchain_id]``) and aligns modeled residues against each
+        polymer entity's ``full_sequence``. mmCIFs written by BioPython (our
+        custom / mmseqs templates) carry only ``_atom_site`` records -- no
+        ``_entity`` / ``_struct_asym`` -- so those lookups raise ``KeyError`` on
+        a chain id. gemmi's ``setup_entities()`` regenerates the entity/subchain
+        records from the atoms, and we backfill each polymer entity's sequence
+        from its modeled residues (setup_entities leaves it empty). This mirrors
+        the fix used for affinity scoring in ``affinity/boltzina_utils.py``.
+
+        Falls back to writing the mmCIF verbatim if it can't be parsed (e.g. an
+        empty/placeholder block), so a bad template never aborts YAML building.
+        """
+        try:
+            import gemmi
+
+            doc = gemmi.cif.read_string(mmcif)
+            st = gemmi.make_structure_from_block(doc[0])
+            if len(st) == 0:
+                raise ValueError("template mmCIF has no models")
+            st.setup_entities()
+
+            model0 = st[0]
+            for entity in st.entities:
+                if entity.entity_type.name != "Polymer" or entity.full_sequence:
+                    continue
+                if not entity.subchains:
+                    continue
+                first_subchain = entity.subchains[0]
+                seq = [
+                    residue.name
+                    for chain in model0
+                    for residue in chain
+                    if residue.subchain == first_subchain
+                ]
+                if seq:
+                    entity.full_sequence = seq
+
+            st.make_mmcif_document().write_file(str(out_file))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Could not normalise template CIF (%s); writing it unchanged", exc
+            )
+            Path(out_file).write_text(mmcif)
+
+    def add_templates(self) -> str:
+        """Build the top-level ``templates:`` block from collected entries.
+
+        Each entry is emitted as ``- cif: <path>`` with the chain id(s) it was
+        generated for. Boltz aligns the CIF to the query and picks the best
+        matching chain. We deliberately emit only ``cif:`` (no ``chain_id`` /
+        ``template_id``): with just a path, Boltz aligns the template to the
+        query and finds the best matching chain itself. Supplying ``chain_id``
+        pushes Boltz into its explicit chain-matching path, which does bare
+        ``sequences[chain_id]`` / ``template_sequences[...]`` lookups and raises
+        KeyError if the ids don't line up with its internal chain naming.
+
+        When ``template_threshold`` is set, each template is enforced
+        (``force: true``) with a distance restraint capped at that many
+        Angstroms; otherwise only ``cif:`` is emitted and Boltz uses the
+        template softly. Returns an empty string when there are no templates.
+        """
+        if not self.__template_entries:
+            return ""
+
+        yaml_string = self.add_non_indented_string("templates")
+        for entry in self.__template_entries:
+            yaml_string += f"{DELIM}- cif: {entry['cif']}\n"
+            if self.__template_threshold is not None:
+                yaml_string += f"{DELIM}  force: true\n"
+                yaml_string += (
+                    f"{DELIM}  threshold: {self.__template_threshold}\n"
+                )
+        return yaml_string
 
     def json_to_yaml(
         self,
@@ -97,6 +211,10 @@ class BoltzYaml:
                 if "constraints" not in self.yaml_string and bonded_atom_string:
                     self.yaml_string += self.add_non_indented_string("constraints")
                 self.yaml_string += bonded_atom_string
+
+        # Templates are a top-level block; append after sequences/constraints
+        # once every protein chain has been processed.
+        self.yaml_string += self.add_templates()
 
         return self.yaml_string
 
@@ -336,6 +454,15 @@ class BoltzYaml:
 
         if "modifications" in sequence_dict and sequence_dict["modifications"]:
             yaml_string += self.add_modifications(sequence_dict["modifications"])
+
+        # Stash any templates (inline mmCIF) for this chain to emit in the
+        # top-level `templates:` block, bound to this chain's id(s).
+        templates = sequence_dict.get("templates")
+        if templates:
+            for cif_path in self._write_template_cifs(templates):
+                self.__template_entries.append(
+                    {"cif": cif_path, "chain_id": sequence_dict["id"]}
+                )
 
         return yaml_string
 
