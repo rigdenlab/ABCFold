@@ -309,9 +309,13 @@ def make_dir(dir_path: Union[str, Path], overwrite: bool = False):
 def limit_msa_depth(a3m: str, max_seqs: Optional[int]) -> str:
     """Return an a3m MSA truncated to its first ``max_seqs`` sequences.
 
-    The query (first record) is kept. Records may span multiple lines; a record
-    boundary is any line starting with ``>``. Returns the input unchanged when
-    ``max_seqs`` is falsy/non-positive.
+    Args:
+        a3m: The input a3m MSA string.
+        max_seqs: The maximum number of sequences to keep. If None or < 1
+            return the original a3m.
+
+    Returns:
+        The truncated a3m MSA string.
     """
     if not a3m or not max_seqs or max_seqs < 1:
         return a3m
@@ -334,9 +338,13 @@ def limit_json_msa_depth(
 ) -> dict:
     """Truncate every protein MSA in an AF3-style json to ``max_seqs`` seqs.
 
-    Handles inline ``unpairedMsa`` / ``pairedMsa`` and ``unpairedMsaPath`` (read,
-    truncated, then inlined). Writes the result to ``output_json`` and returns
-    the updated dict. Only overwrites ``input_json`` if the two paths match.
+    Args:
+        input_json: Path to the input json file.
+        output_json: Path to the output json file.
+        max_seqs: The maximum number of sequences to keep in each MSA.
+
+    Returns:
+        The modified json dict.
     """
     with open(input_json) as f:
         data = json.load(f)
