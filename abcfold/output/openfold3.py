@@ -1,12 +1,19 @@
 import logging
+import re
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from abcfold.output.file_handlers import (CifFile, ConfidenceJsonFile,
                                           FileTypes, NpzFile)
 from abcfold.output.utils import Af3Pae
 
 logger = logging.getLogger("logger")
+
+# OpenFold 3 predicts every seed in a single run and lays its own output out
+# as <output_dir>/<query_name>/seed_<N>/... . This matches that internal
+# per-seed directory name so we can recover which seed a given output file
+# belongs to, regardless of which external directory it was found under.
+SEED_DIR_PATTERN = re.compile(r"^seed_(\d+)$")
 
 
 class OpenfoldOutput:
@@ -80,7 +87,11 @@ class OpenfoldOutput:
 
         new_output_dirs = []
         for output_dir in self.output_dirs:
-            if output_dir.name.startswith("openfold_results_"):
+            # "openfold_results" is the current (single multi-seed run)
+            # directory name; "openfold_results_seed-<N>" is kept for
+            # compatibility with output directories from older abcfold
+            # versions that ran OpenFold 3 once per seed.
+            if output_dir.name.startswith("openfold_results"):
                 new_path = new_parent / output_dir.name
                 output_dir.rename(new_path)
                 new_output_dirs.append(new_path)
@@ -109,6 +120,23 @@ class OpenfoldOutput:
             for seed in self.seeds
         }
 
+    @staticmethod
+    def _seed_from_path(path: Path) -> Optional[str]:
+        """
+        Look for OpenFold 3's own ``seed_<N>`` directory component anywhere
+        in a file's path (e.g. ``.../<query_name>/seed_133/...``) and
+        normalise it to this codebase's ``seed-<N>`` convention.
+
+        Returns None if no such component is found (e.g. output from an
+        older single-seed-per-run layout), so callers can fall back to
+        deriving the seed from the containing run directory instead.
+        """
+        for part in path.parts:
+            match = SEED_DIR_PATTERN.match(part)
+            if match:
+                return f"seed-{match.group(1)}"
+        return None
+
     def process_openfold_output(self):
         """
         Function to process the output of a OpenFold 3 run
@@ -116,9 +144,7 @@ class OpenfoldOutput:
 
         file_groups: dict[str, dict[int, list]] = {}
         for pathway in self.output_dirs:
-            seed = pathway.name.split("_")[-1]
-            if seed not in file_groups:
-                file_groups[seed] = {}
+            fallback_seed = pathway.name.split("_")[-1]
 
             for output in pathway.rglob("*"):
                 number = None
@@ -127,6 +153,10 @@ class OpenfoldOutput:
                     continue
                 # OpenFold numbering starts at 1, -1 for consistency.
                 number = int(number_str) - 1
+
+                seed = self._seed_from_path(output) or fallback_seed
+                if seed not in file_groups:
+                    file_groups[seed] = {}
 
                 file_type = output.suffix[1:]
 

@@ -85,43 +85,43 @@ def run_openfold(
 
         openfold_json = OpenfoldJson(working_dir)
         openfold_json.json_to_json(input_json)
+
+        out_file = working_dir.joinpath(f"{input_json.stem}.json")
+        openfold_json.write_json(out_file)
+
         runner_yaml = working_dir / "openfold3_runner.yml"
         openfold_json.write_yaml(runner_yaml)
 
-        for seed in openfold_json.seeds:
-            out_file = working_dir.joinpath(f"{input_json.stem}_seed-{seed}.json")
-
-            openfold_json.write_json(out_file)
-            logger.info("Running OpenFold 3 using seed: %s", seed)
-            openfold_out_dir = output_dir / f"openfold_results_seed-{seed}"
-            cmd = (
-                generate_openfold_command(
-                    out_file,
-                    openfold_out_dir,
-                    runner_yaml,
-                    openfold_ckpt,
-                    number_of_models
-                )
-                if not test
-                else generate_openfold_test_command()
+        logger.info("Running OpenFold 3 using seeds: %s", openfold_json.seeds)
+        openfold_out_dir = output_dir / "openfold_results"
+        cmd = (
+            generate_openfold_command(
+                out_file,
+                openfold_out_dir,
+                runner_yaml,
+                openfold_ckpt,
+                number_of_models
             )
+            if not test
+            else generate_openfold_test_command()
+        )
 
-            try:
-                env.run(cmd)
-            except subprocess.CalledProcessError as e:
-                stderr = e.stderr or ""
-                if stderr:
-                    if working_dir.exists():
-                        output_err_file = working_dir / "openfold_error.log"
-                    else:
-                        output_err_file = working_dir.parent / "openfold_error.log"
-                    output_err_file.write_text(stderr)
-                    logger.error(
-                        "OpenFold 3 run failed. Error log is in %s", output_err_file
-                    )
+        try:
+            env.run(cmd)
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr or ""
+            if stderr:
+                if working_dir.exists():
+                    output_err_file = working_dir / "openfold_error.log"
                 else:
-                    logger.error("OpenFold 3 run failed")
-                return False
+                    output_err_file = working_dir.parent / "openfold_error.log"
+                output_err_file.write_text(stderr)
+                logger.error(
+                    "OpenFold 3 run failed. Error log is in %s", output_err_file
+                )
+            else:
+                logger.error("OpenFold 3 run failed")
+            return False
 
     logger.info("OpenFold 3 run complete")
     logger.info("Output files are in %s", output_dir)
