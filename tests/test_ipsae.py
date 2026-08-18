@@ -11,7 +11,6 @@ def test_af3_ipsae(output_objs):
         af3_file,
         af3_pae_file,
         pae_cutoff=10.0,
-        pae_format="alphafold3",
         distance_cutoff=5.0
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
@@ -47,7 +46,6 @@ def test_boltz_ipsae(output_objs):
         boltz_file,
         boltz_pae_file,
         pae_cutoff=10.0,
-        pae_format="alphafold3",
         distance_cutoff=5.0
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
@@ -83,7 +81,6 @@ def test_chai_ipsae(output_objs):
         chai_file,
         chai_pae_file,
         pae_cutoff=10.0,
-        pae_format="alphafold3",
         distance_cutoff=5.0
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
@@ -119,7 +116,6 @@ def test_protenix_ipsae(output_objs):
         protenix_file,
         protenix_pae_file,
         pae_cutoff=10.0,
-        pae_format="alphafold3",
         distance_cutoff=5.0
     )
     scores = ipsae_calculator.main(verbose=False, output_csv=None)
