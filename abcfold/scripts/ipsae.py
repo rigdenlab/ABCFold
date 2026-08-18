@@ -28,12 +28,10 @@ class Ipsae():
                  input_model,
                  pae_file,
                  pae_cutoff=5,
-                 pae_format="alphafold3",
                  distance_cutoff=10):
         self.input_model = input_model
         self.pae_file = pae_file
         self.pae_cutoff = pae_cutoff
-        self.pae_format = pae_format
         self.distance_cutoff = distance_cutoff
 
         # Read structure + PAE data
@@ -106,26 +104,68 @@ class Ipsae():
             self._chain_ids = sorted(set(self.chain_res_map))
         return self._chain_ids
 
+    def parse_pae_file(self, pae_path):
+        """
+        Parse a PAE matrix from one of several supported file formats
+        (npz/npy/json/pkl), auto-detecting how the matrix is stored so
+        callers don't need to tell us which tool produced it.
+
+        Returns a ``(pae_matrix, af3_data)`` tuple. ``af3_data`` is the
+        original dict when the source already carries AlphaFold3-style
+        per-token chain/residue ids (e.g. an AlphaFold3 ``*_full_data_*
+        .json`` or any file already normalised into that shape) -- this
+        lets ``process_input`` reorder tokens to match the structure.
+        For every other format, ``af3_data`` is ``None`` and the matrix
+        is assumed to already be ordered the same way as the model
+        structure.
+        """
+        suffix = Path(pae_path).suffix[1:]
+        if suffix == FileTypes.NPZ.value:
+            file_ = NpzFile(pae_path)
+        elif suffix == FileTypes.NPY.value:
+            file_ = NpyFile(pae_path)
+        elif suffix == FileTypes.JSON.value:
+            file_ = ConfidenceJsonFile(pae_path)
+        elif suffix == FileTypes.PKL.value:
+            file_ = PklFile(pae_path)
+        else:
+            raise ValueError(
+                f"Unsupported PAE file format '.{suffix}' for {pae_path}."
+            )
+        return self._extract_pae_matrix(file_.data, pae_path)
+
+    @staticmethod
+    def _extract_pae_matrix(data, source="<data>"):
+        """
+        Pull a raw PAE matrix out of already-loaded file data, regardless of
+        which predictor produced it. See ``parse_pae_file`` for the return
+        shape.
+        """
+        if isinstance(data, list):
+            data = data[0]
+
+        if isinstance(data, np.ndarray):
+            return np.asarray(data), None
+
+        if isinstance(data, dict):
+            if "token_chain_ids" in data and "pae" in data:
+                # Already in (or convertible to) AlphaFold3's per-token
+                # layout -- keep the full dict so process_input can align
+                # chain/residue ordering against the structure.
+                return np.asarray(data["pae"]), data
+            if "token_pair_pae" in data:
+                return np.asarray(data["token_pair_pae"]), None
+            if "predicted_aligned_error" in data:
+                return np.asarray(data["predicted_aligned_error"]), None
+            if "pae" in data:
+                return np.asarray(data["pae"]), None
+
+        raise ValueError(f"PAE matrix not found in file: {source}")
+
     def process_input(self):
         """
         Process input files and setup data types
         """
-
-        if isinstance(self.pae_file, ConfidenceJsonFile):
-            file_ = self.pae_file
-        else:
-            # Find PAE data format
-            suffix = Path(self.pae_file).suffix[1:]
-            if suffix == FileTypes.NPZ.value:
-                file_ = NpzFile(self.pae_file)
-            elif suffix == FileTypes.NPY.value:
-                file_ = NpyFile(self.pae_file)
-            elif suffix == FileTypes.JSON.value:
-                file_ = ConfidenceJsonFile(self.pae_file)
-            elif suffix == FileTypes.PKL.value:
-                file_ = PklFile(self.pae_file)
-            else:
-                raise ValueError(f"Unsupported PAE file type: {suffix}")
 
         self.struct.input_params = {"sequences": []}
         for chain in self.struct.get_chains():
@@ -142,49 +182,18 @@ class Ipsae():
                 seq_data = {"ligand": {"id": [chain.id]}}
             self.struct.input_params["sequences"].append(seq_data)
 
-        # Get PAE data for different formats
-        if self.pae_format == "alphafold2":
-            self.pae_data = Af3Pae.from_alphafold2(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "alphafold3":
-            self.pae_data = Af3Pae.from_alphafold3(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "alphapulldown":
-            self.pae_data = Af3Pae.from_alphapulldown(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "boltz":
-            self.pae_data = Af3Pae.from_boltz(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "chai":
-            self.pae_data = Af3Pae.from_chai1(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "colabfold":
-            self.pae_data = Af3Pae.from_colabfold(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "openfold3":
-            self.pae_data = Af3Pae.from_openfold3(
-                file_.data,
-                self.struct,
-            ).scores
-        elif self.pae_format == "protenix":
-            self.pae_data = Af3Pae.from_protenix(
-                file_.data,
-                self.struct,
-            ).scores
+        # Load the PAE matrix, auto-detecting its source format.
+        if isinstance(self.pae_file, ConfidenceJsonFile):
+            pae_matrix, af3_data = self._extract_pae_matrix(
+                self.pae_file.data, self.pae_file
+            )
         else:
-            raise ValueError(f"Unsupported PAE format: {self.pae_format}")
+            pae_matrix, af3_data = self.parse_pae_file(self.pae_file)
+
+        if af3_data is not None:
+            self.pae_data = Af3Pae.from_alphafold3(af3_data, self.struct).scores
+        else:
+            self.pae_data = Af3Pae.from_matrix(pae_matrix, self.struct).scores
 
         # Extract pLDDTs
         if "plddt" in self.pae_data:
@@ -207,9 +216,22 @@ class Ipsae():
         else:
             self.pae_matrix = None
 
-        if self.pae_format in ["alphafold3", "boltz", "chai"]:
+        # Some formats include extra (e.g. non-CA/C1) atoms in the matrix.
+        # Rather than hard-coding which predictor needs this, mask down to
+        # the standard per-residue tokens whenever the matrix is larger
+        # than the structure's residue count.
+        if self.pae_matrix is not None and self.pae_matrix.shape[0] != self.nres:
             token_mask = self.get_token_mask()
-            self.pae_matrix = self.pae_matrix[np.ix_(token_mask, token_mask)]
+            if token_mask.sum() == self.nres:
+                self.pae_matrix = self.pae_matrix[np.ix_(token_mask, token_mask)]
+            else:
+                raise ValueError(
+                    "PAE matrix size "
+                    f"({self.pae_matrix.shape[0]}) does not match the number "
+                    f"of residues in the structure ({self.nres}), and "
+                    "masking to standard residue atoms did not reconcile "
+                    f"the difference (mask selects {int(token_mask.sum())})."
+                )
 
         return
 
@@ -641,16 +663,14 @@ def main():
     )
 
     parser.add_argument("input_model", help="Path to input structure (PDB/mmCIF)")
-    parser.add_argument("pae_file", help="Path to PAE file (npz/npy/json)")
+    parser.add_argument(
+        "pae_file",
+        help="Path to PAE file (npz/npy/json/pkl). The source format "
+             "(AlphaFold2/3, Boltz, Chai, ColabFold, OpenFold3, Protenix, "
+             "AlphaPulldown, ...) is detected automatically."
+    )
     parser.add_argument("--pae_cutoff", type=float, default=10.0,
                         help="PAE cutoff used in some scores (default: 10.0)")
-    parser.add_argument("--pae_format",
-                        choices=[
-                            "alphafold2", "alphafold3", "alphapulldown", "boltz",
-                            "chai", "colabfold", "openfold3", "protenix"
-                        ],
-                        default="alphafold3",
-                        help="Format of the PAE file (default: alphafold3)")
     parser.add_argument("--distance_cutoff", type=float, default=10.0,
                         help="Cβ distance cutoff in Ångström (default: 10.0)")
     parser.add_argument("--quiet", "-q", action="store_true",
@@ -675,7 +695,6 @@ def main():
         args.input_model,
         args.pae_file,
         args.pae_cutoff,
-        args.pae_format,
         args.distance_cutoff
     )
 
