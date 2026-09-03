@@ -3,10 +3,11 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from abcfold.protenix.af3_to_protenix import ProtenixJson
-from abcfold.protenix.check_install import ensure_protenix_env
+from abcfold.protenix.check_install import (ensure_protenix_checkpoint,
+                                            ensure_protenix_env)
 
 logger = logging.getLogger("logger")
 
@@ -47,6 +48,18 @@ def run_protenix(
     logger.debug("Checking if protenix is installed")
     env = ensure_protenix_env(config=config)
 
+    protenix_weight_dir = config.get("protenix_weights")
+    if protenix_weight_dir is not None and protenix_weight_dir != "None":
+        checkpoint_dir = Path(protenix_weight_dir)
+    else:
+        checkpoint_dir = Path.home().joinpath("checkpoint")
+
+    try:
+        ensure_protenix_checkpoint(checkpoint_dir, config["protenix_model"])
+    except RuntimeError as e:
+        logger.error(str(e))
+        return False
+
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
         if save_input:
@@ -70,6 +83,7 @@ def run_protenix(
                     number_of_models,
                     num_recycles,
                     seed=seed,
+                    checkpoint_dir=checkpoint_dir,
                 )
                 if not test
                 else generate_protenix_test_command()
@@ -104,6 +118,7 @@ def generate_protenix_command(
     number_of_models: int,
     num_recycles: int,
     seed: int,
+    checkpoint_dir: Optional[Union[str, Path]] = None,
 ) -> list:
     """
     Generate the Protenix command
@@ -116,6 +131,9 @@ def generate_protenix_command(
         num_recycles (int): Number of recycles
         seed (int): Random seed
         config (dict): Configuration dictionary
+        checkpoint_dir (Union[str, Path]): Directory containing the Protenix
+            checkpoint, passed through as --load_checkpoint_dir. If not given,
+            protenix falls back to its own default (~/checkpoint).
 
     Returns:
         list: The Protenix command
@@ -133,7 +151,7 @@ def generate_protenix_command(
                         use_msa = True
                         break
 
-    return [
+    cmd = [
         "python",
         "-m",
         "runner.inference",
@@ -154,6 +172,11 @@ def generate_protenix_command(
         "--need_atom_confidence",
         "True"
     ]
+
+    if checkpoint_dir is not None:
+        cmd += ["--load_checkpoint_dir", str(checkpoint_dir)]
+
+    return cmd
 
 
 def generate_protenix_test_command() -> list:
