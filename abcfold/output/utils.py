@@ -568,10 +568,10 @@ def verify_config_file(abc_config, default_config_file):
         None
     """
 
-    config_a = configparser.SafeConfigParser()
+    config_a = configparser.ConfigParser()
     config_a.read(str(abc_config))
 
-    config_b = configparser.SafeConfigParser()
+    config_b = configparser.ConfigParser()
     config_b.read(str(default_config_file))
 
     for section in config_b.sections():

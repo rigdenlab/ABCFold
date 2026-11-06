@@ -21,6 +21,9 @@ from abcfold.argparse_utils import (alphafold_argparse_util,
                                     protenix_argparse_util,
                                     raise_argument_errors,
                                     rosettafold_argparse_util,
+                                    intellifold_argparse_util,
+                                    opendde_argparse_util,
+                                    esmfold2_argparse_util,
                                     visuals_argparse_util)
 from abcfold.html.html_utils import (PORT, NoCacheHTTPRequestHandler,
                                      get_all_cif_files, get_model_data,
@@ -34,6 +37,9 @@ from abcfold.output.file_handlers import superpose_models
 from abcfold.output.openfold3 import OpenfoldOutput
 from abcfold.output.protenix import ProtenixOutput
 from abcfold.output.rosettafold3 import RosettafoldOutput
+from abcfold.output.intellifold import IntellifoldOutput
+from abcfold.output.opendde import OpenDDEOutput
+from abcfold.output.esmfold2 import Esmfold2Output
 from abcfold.output.utils import (get_gap_indicies, insert_none_by_minus_one,
                                   make_dummy_m8_file, verify_config_file)
 from abcfold.scripts.abc_script_utils import (check_input_json,
@@ -91,6 +97,13 @@ def run(args, config, defaults, config_file):
     af3_sif = args.af3_sif_path
     if af3_sif is not None and af3_sif != defaults.get("af3_sif_path"):
         config.set("Sif_paths", "af3_sif_path", af3_sif)
+        updated_config = True
+    intellifold_weights = getattr(args, "intellifold_weights", None)
+    if (
+        intellifold_weights is not None
+        and intellifold_weights != defaults.get("intellifold_weights")
+    ):
+        config.set("Weights", "intellifold_weights", intellifold_weights)
         updated_config = True
     if updated_config:
         with open(config_file, "w") as f:
@@ -322,6 +335,70 @@ def run(args, config, defaults, config_file):
 
             successful_runs.append(rosettafold_success)
 
+        if args.intellifold:
+            from abcfold.intellifold.run_intellifold import run_intellifold
+
+            intellifold_success = run_intellifold(
+                input_json=run_json,
+                output_dir=args.output_dir,
+                save_input=args.save_input,
+                number_of_models=args.number_of_models,
+                config=rt_config
+            )
+
+            if intellifold_success:
+                intellifold_output_dirs = list(
+                    args.output_dir.glob("intellifold_results*")
+                )
+                io_ = IntellifoldOutput(
+                    intellifold_output_dirs, input_params, name, args.save_input
+                )
+                outputs.append(io_)
+
+            successful_runs.append(intellifold_success)
+
+        if args.opendde:
+            from abcfold.opendde.run_opendde import run_opendde
+
+            opendde_success = run_opendde(
+                input_json=run_json,
+                output_dir=args.output_dir,
+                save_input=args.save_input,
+                number_of_models=args.number_of_models,
+                config=rt_config
+            )
+
+            if opendde_success:
+                opendde_output_dirs = list(args.output_dir.glob("opendde_results*"))
+                do = OpenDDEOutput(
+                    opendde_output_dirs, input_params, name, args.save_input
+                )
+                outputs.append(do)
+
+            successful_runs.append(opendde_success)
+
+        if args.esmfold2:
+            from abcfold.esmfold2.run_esmfold2 import run_esmfold2
+
+            esmfold2_success = run_esmfold2(
+                input_json=run_json,
+                output_dir=args.output_dir,
+                save_input=args.save_input,
+                number_of_models=args.number_of_models,
+                config=rt_config
+            )
+
+            if esmfold2_success:
+                esmfold2_output_dirs = list(
+                    args.output_dir.glob("esmfold2_results*")
+                )
+                eo = Esmfold2Output(
+                    esmfold2_output_dirs, input_params, name, args.save_input
+                )
+                outputs.append(eo)
+
+            successful_runs.append(esmfold2_success)
+
         if args.no_visuals:
             logger.info("Visuals disabled")
             return
@@ -537,13 +614,53 @@ def run(args, config, defaults, config_file):
                             )
                             rosettafold_models["models"].append(model_data)
 
+        # Backends added after RosettaFold3 all expose the same seed/sample
+        # output shape, so they are collected in one pass.
+        extra_models: Dict[str, List[Dict[str, Any]]] = {"models": []}
+        extra_runs = []
+        if args.intellifold and intellifold_success:
+            extra_runs.append((io_, "IntelliFold"))
+        if args.opendde and opendde_success:
+            extra_runs.append((do, "OpenDDE"))
+        if args.esmfold2 and esmfold2_success:
+            extra_runs.append((eo, "ESMFold2"))
+
+        for run_output, program in extra_runs:
+            programs_run.append(program)
+            for seed in run_output.output.keys():
+                for idx in run_output.output[seed].keys():
+                    if idx < 0:
+                        continue
+                    model = run_output.output[seed][idx]["cif"]
+                    model.check_clashes()
+                    score_file = run_output.output[seed][idx]["scores"]
+                    plddt = model.residue_plddts
+                    pae = run_output.output[seed][idx]["af3_pae"]
+                    if len(indicies) > 0:
+                        plddt = insert_none_by_minus_one(
+                            indicies[index_counter], plddt
+                        )
+                    index_counter += 1
+                    model_data = get_model_data(
+                        model,
+                        plot_dict,
+                        program,
+                        plddt,
+                        pae,
+                        score_file,
+                        args.output_dir,
+                        affinity_scores=affinity_scores,
+                    )
+                    extra_models["models"].append(model_data)
+
         combined_models = (
             alphafold_models["models"] +
             boltz_models["models"] +
             chai_models["models"] +
             openfold_models["models"] +
             protenix_models["models"] +
-            rosettafold_models["models"]
+            rosettafold_models["models"] +
+            extra_models["models"]
         )
 
         # Make the output directory for the models
@@ -563,6 +680,12 @@ def run(args, config, defaults, config_file):
                 output_name = "protenix_model_" + model["model_id"][-1] + ".cif"
             elif model["model_source"] == "RosettaFold3":
                 output_name = "rosettafold_model_" + model["model_id"][-1] + ".cif"
+            elif model["model_source"] == "IntelliFold":
+                output_name = "intellifold_model_" + model["model_id"][-1] + ".cif"
+            elif model["model_source"] == "OpenDDE":
+                output_name = "opendde_model_" + model["model_id"][-1] + ".cif"
+            elif model["model_source"] == "ESMFold2":
+                output_name = "esmfold2_model_" + model["model_id"][-1] + ".cif"
             shutil.copy(
                 cif_file,
                 args.output_dir.joinpath("output_models").joinpath(output_name),
@@ -698,6 +821,9 @@ def main():
     parser = openfold_argparse_util(parser)
     parser = protenix_argparse_util(parser)
     parser = rosettafold_argparse_util(parser)
+    parser = intellifold_argparse_util(parser)
+    parser = opendde_argparse_util(parser)
+    parser = esmfold2_argparse_util(parser)
     parser = mmseqs2_argparse_util(parser)
     parser = custom_template_argpase_util(parser)
     parser = prediction_argparse_util(parser)
