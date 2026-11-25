@@ -236,6 +236,42 @@ class CifFile(FileBase):
         return self.__ligand_plddts
 
     @property
+    def average_ligand_plddt(self) -> Optional[float]:
+        """
+        The average pLDDT score across all ligand atoms, or None if no ligand
+        is specified in the input.
+        """
+        return self.get_average_ligand_plddt()
+
+    def get_average_ligand_plddt(
+        self, ligand_chain: Optional[str] = None
+    ) -> Optional[float]:
+        """
+        Get the average pLDDT score across ligand atoms in the model.
+
+        Args:
+            ligand_chain (Optional[str]): Optional chain ID restricting the
+                average to a specific ligand chain (matching ``--ligand_chain``
+                for Boltz-2 affinity scoring).
+
+        Returns:
+            Optional[float]: Mean ligand atom pLDDT, or None if no ligand is
+                specified in ``input_params`` (or no matching atoms exist).
+        """
+        per_ligand = self.ligand_plddts
+        if not per_ligand:
+            return None
+        if ligand_chain is not None:
+            scores = per_ligand.get(ligand_chain, [])
+        else:
+            scores = [
+                score for chain_scores in per_ligand.values() for score in chain_scores
+            ]
+        if not scores:
+            return None
+        return float(np.mean(scores))
+
+    @property
     def h_score(self):
         """
         The H score for the model

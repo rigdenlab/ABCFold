@@ -7,7 +7,7 @@ import textwrap
 from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, FrozenSet, List, Tuple, Union
+from typing import Dict, FrozenSet, List, Optional, Tuple, Union
 
 import numpy as np
 from Bio.SeqUtils import seq1
@@ -120,7 +120,8 @@ def get_model_data(model,
                    pae_obj,
                    score_file,
                    output_dir,
-                   affinity_scores=None):
+                   affinity_scores=None,
+                   ligand_chain: Optional[str] = None):
     """
     Get the model data for the output page
 
@@ -133,6 +134,8 @@ def get_model_data(model,
         output_dir (Path): Path to the output directory
         affinity_scores (dict): Optional {resolved_model_path: affinity row}
             from the batched Boltz-2 affinity run.
+        ligand_chain (Optional[str]): Optional chain ID restricting ligand
+            pLDDT to a single ligand chain.
     """
     regions = get_plddt_regions(plddt_scores)
     ptm_score, iptm_score = parse_scores(score_file)
@@ -207,6 +210,12 @@ def get_model_data(model,
 
     # Boltz-2 affinity, looked up from the batched pre-computed results.
     affinity = (affinity_scores or {}).get(str(full_model_path.resolve()), {})
+    resolved_ligand_chain = ligand_chain or affinity.get("ligand_chain")
+    ligand_plddt = model.get_average_ligand_plddt(
+        ligand_chain=resolved_ligand_chain
+    )
+    if ligand_plddt is None and resolved_ligand_chain is not None:
+        ligand_plddt = model.get_average_ligand_plddt()
 
     # PAE plots may be skipped (e.g. ccp4cloud mode), in which case there's no
     # entry for this model in plot_dict -- leave pae_path unset.
@@ -228,6 +237,7 @@ def get_model_data(model,
         "iptm_score": iptm_score,
         "ipsae_score": ",".join(ipsae_score),
         "reactifptm_score": ",".join(reactifptm_score),
+        "ligand_plddt": ligand_plddt,
         "affinity_pred_value": affinity.get("affinity_pred_value"),
         "affinity_probability_binary": affinity.get(
             "affinity_probability_binary"

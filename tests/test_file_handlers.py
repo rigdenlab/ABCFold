@@ -5,7 +5,7 @@ from typing import List, Union
 
 import pytest
 
-from abcfold.html.html_utils import get_plddt_regions
+from abcfold.html.html_utils import get_model_data, get_plddt_regions
 from abcfold.output import file_handlers
 
 
@@ -191,3 +191,80 @@ def test_superpose_models(test_data):
         ]
 
         assert ref_superposed_atoms == superposed_atoms
+
+
+def test_ligand_plddt_with_and_without_ligand(test_data):
+    import json
+
+    test_cif = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+        "seed-1_sample-0/model.cif"
+    )
+    test_pae = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+        "seed-1_sample-0/confidences.json"
+    )
+    test_summary = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+        "seed-1_sample-0/summary_confidences.json"
+    )
+    input_params_path = Path(test_data.test_alphafold3_6BJ9_).joinpath(
+        "6bj9_data.json"
+    )
+    with open(input_params_path, "r") as f:
+        input_params_with_lig = json.load(f)
+
+    # 1. Input with ligands (chains C and D in 6BJ9) -> numeric ligand_plddt
+    cif_with_lig = file_handlers.CifFile(test_cif, input_params_with_lig)
+    assert set(cif_with_lig.ligand_plddts.keys()) == {"C", "D"}
+    assert cif_with_lig.average_ligand_plddt is not None
+    c_only = cif_with_lig.get_average_ligand_plddt(ligand_chain="C")
+    d_only = cif_with_lig.get_average_ligand_plddt(ligand_chain="D")
+    assert c_only is not None and d_only is not None
+    assert cif_with_lig.get_average_ligand_plddt(ligand_chain="Z") is None
+
+    # 2. Input without any ligand -> None (so summary table hides column)
+    protein_only_params = {
+        "name": "6BJ9_prot_only",
+        "sequences": [
+            s for s in input_params_with_lig["sequences"] if "ligand" not in s
+        ],
+    }
+    cif_no_lig = file_handlers.CifFile(test_cif, protein_only_params)
+    assert cif_no_lig.ligand_plddts == {}
+    assert cif_no_lig.average_ligand_plddt is None
+
+    # 3. Verify get_model_data populates ligand_plddt iff ligand in input
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp_dir = Path(tmp_str)
+        cif_copy = tmp_dir / "model.cif"
+        shutil.copyfile(test_cif, cif_copy)
+        pae_obj = file_handlers.ConfidenceJsonFile(test_pae)
+        score_obj = file_handlers.ConfidenceJsonFile(test_summary)
+
+        m_with = file_handlers.CifFile(cif_copy, input_params_with_lig)
+        data_with = get_model_data(
+            m_with, {}, "AlphaFold3", m_with.residue_plddts,
+            pae_obj, score_obj, tmp_dir,
+        )
+        assert data_with["ligand_plddt"] == pytest.approx(
+            cif_with_lig.average_ligand_plddt
+        )
+
+        # Auto-selected ligand_chain from affinity_scores restricts to chain C
+        aff = {
+            str(cif_copy.resolve()): {
+                "affinity_pred_value": -1.5,
+                "affinity_probability_binary": 0.85,
+                "ligand_chain": "C",
+            }
+        }
+        data_chain_c = get_model_data(
+            m_with, {}, "AlphaFold3", m_with.residue_plddts,
+            pae_obj, score_obj, tmp_dir, affinity_scores=aff,
+        )
+        assert data_chain_c["ligand_plddt"] == pytest.approx(c_only)
+
+        m_without = file_handlers.CifFile(cif_copy, protein_only_params)
+        data_without = get_model_data(
+            m_without, {}, "AlphaFold3", m_without.residue_plddts,
+            pae_obj, score_obj, tmp_dir,
+        )
+        assert data_without["ligand_plddt"] is None
