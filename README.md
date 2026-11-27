@@ -4,7 +4,7 @@
 ![Coverage](https://raw.githubusercontent.com/rigdenlab/ABCFold/refs/heads/main/.blob/coverage.svg)
 
 
-Scripts to run AlphaFold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3 with MMseqs2 Multiple sequence alignments (MSAs) and custom templates.
+Scripts to run AlphaFold3, Boltz, Chai-1, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE and ESMFold2 with MMseqs2 Multiple sequence alignments (MSAs) and custom templates.
 
 ## Table of Contents
 - [Installation](#installation)
@@ -26,7 +26,7 @@ micromamba activate abcfold
 > **Environment note**
 >
 > - Your main Python environment can be Conda, micromamba, or virtualenv.
-> - `abcfold` will automatically create **internal micromamba environments** to run Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3 safely, therefore a micromamba installation is required.
+> - `abcfold` will automatically create **internal micromamba environments** to run Boltz, Chai-1, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE and ESMFold2 safely, therefore a micromamba installation is required.
 > - This prevents package conflicts with your main environment and ensures reproducible results.
 
 
@@ -57,7 +57,7 @@ python -m pre_commit install
 
 ### Running ABCfold
 
-ABCFold will run Alphafold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3 consecutively. The program takes an input of a JSON in the Alphafold3 format (For full instruction on how to format this, click [here](https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md)). An example JSON is shown below:
+ABCFold will run Alphafold3, Boltz, Chai-1, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE and ESMFold2 consecutively. The program takes an input of a JSON in the Alphafold3 format (For full instruction on how to format this, click [here](https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md)). An example JSON is shown below:
 
 ```json
 {
@@ -76,7 +76,7 @@ ABCFold will run Alphafold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3
 }
 ```
 
-Please make sure you have AlphaFold3 installed on your system (Instructions [here](https://github.com/google-deepmind/alphafold3/blob/main/docs/installation.md)) and have procured the model parameters. Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3 are installed upon runtime.
+Please make sure you have AlphaFold3 installed on your system (Instructions [here](https://github.com/google-deepmind/alphafold3/blob/main/docs/installation.md)) and have procured the model parameters. Boltz, Chai-1, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE and ESMFold2 are installed upon runtime.
 
 For the majority of jobs, ABCFold can be run as follows:
 ```bash
@@ -100,7 +100,7 @@ However, there you may wish to use the following flags to add run time options s
 #### Main arguments
 - `<input_json>`: Path to the input AlphaFold3 JSON file.
 - `<output_dir>`: Path to the output directory.
-- `-a`, `-b`, `-c`, `-o`, `-p`, `-r` (`--alphafold3`, `--boltz`,`--chai1`, `--openfold3`, `--protenix`, `--rosettafold3`): Flags to run Alphafold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3 respectively. If none of these flags are provided, Alphafold3 will be run by default.
+- `-a`, `-b`, `-c`, `-o`, `-p`, `-r`, `-i`, `-d`, `-e` (`--alphafold3`, `--boltz`,`--chai1`, `--openfold3`, `--protenix`, `--rosettafold3`, `--intellifold`, `--opendde`, `--esmfold2`): Flags to run Alphafold3, Boltz, Chai-1, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE and ESMFold2 respectively. If none of these flags are provided, Alphafold3 will be run by default.
 - `--mmseqs2`: [optional] Flag to use MMseqs2 MSAs and templates (if specified).
 - `--mmseqs_database`: [optional] The path to the database used by a local copy of MMSeqs2, provided mmseqs is installed, the inclusion of this flag allows MMseqs2 to be run locally.
 - `--override`: [optional] Flag to override the existing output directory.
@@ -116,6 +116,9 @@ However, there you may wish to use the following flags to add run time options s
 
 #### OpenFold3 arguments
 - `--inference_ckpt_path` [optional] Path for model checkpoint to be used for inference. If not specified, will attempt to find or download parameters in ~/.openfold3/
+
+#### IntelliFold arguments
+- `--intellifold_weights` [optional] Directory holding the IntelliFold weights. If not specified, parameters are downloaded to ~/.intellifold/model_v2/
 
 #### Boltz-2 affinity scoring
 
@@ -186,7 +189,7 @@ abcfold <input_json>  <output_dir> -abcopr --mmseqs2 --custom_template custom_a.
 ```
 ### Output
 
-ABCFold will output the AlphaFold, Boltz, Chai, OpenFold3, Protenix and RosettaFold3 models in the `<output_dir>`, it will also produce an output page containing a results table and informative [PAE viewer](https://gitlab.gwdg.de/general-microbiology/pae-viewer). This is opened automatically in your default browser unless the `--no_server` or `--no_visuals` flags are used.
+ABCFold will output the AlphaFold, Boltz, Chai, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE and ESMFold2 models in the `<output_dir>`, it will also produce an output page containing a results table and informative [PAE viewer](https://gitlab.gwdg.de/general-microbiology/pae-viewer). This is opened automatically in your default browser unless the `--no_server` or `--no_visuals` flags are used.
 
 Unless the `--no_visuals` flag is used, you can then open the output pages by running:
 
@@ -210,7 +213,7 @@ you will find `open_output.py` in your `<output_dir>`. This needs to be run from
 Below are scripts for adding MMseqs2 MSAs and custom templates to AlphaFold3 input JSON files.
 
 > [!WARNING]
-> These scripts will only modify the input JSON files, I.E. they will NOT run AlphaFold3, Boltz, Chai-1, OpenFold3, Protenix and RosettaFold3.
+> These scripts will only modify the input JSON files, I.E. they will NOT run AlphaFold3, Boltz, Chai-1, OpenFold3, Protenix, RosettaFold3, IntelliFold, OpenDDE or ESMFold2.
 
 ### Adding MMseqs2 MSAs and templates
 
@@ -368,6 +371,10 @@ Additionally, Boltz currently lack the ability to create linked-ligands and ther
 #### OpenFold3 limitations
 
 Currently OpenFold3 is unable to create bonded-pairs or alter the number of recycles. Therefore these options will be ignored if provided.
+
+#### IntelliFold, OpenDDE and ESMFold2 limitations
+
+All three take MSAs but no templates, so a template search is not passed on to them. `--num_recycles` is also ignored: IntelliFold and OpenDDE keep their own defaults and ESMFold2 is run with a fixed 20 loops. ESMFold2 has no command line interface, so ABCFold drives its Python API from inside the isolated environment and writes the AlphaFold3 style confidence files itself; it reports no ranking score of its own, so ABCFold derives one as `0.8 * ipTM + 0.2 * pTM` to keep the results table comparable.
 
 
 ## Contributing

@@ -217,6 +217,42 @@ def rosettafold_argparse_util(parser):
     return parser
 
 
+def intellifold_argparse_util(parser):
+    parser.add_argument(
+        "-i",
+        "--intellifold",
+        action="store_true",
+        help="Run IntelliFold",
+    )
+    parser.add_argument(
+        "--intellifold_weights",
+        help=dedent("[optional] Directory holding the IntelliFold weights. \
+    If not specified, parameters are downloaded to ~/.intellifold/model_v2/"),
+        default=None,
+    )
+    return parser
+
+
+def opendde_argparse_util(parser):
+    parser.add_argument(
+        "-d",
+        "--opendde",
+        action="store_true",
+        help="Run OpenDDE",
+    )
+    return parser
+
+
+def esmfold2_argparse_util(parser):
+    parser.add_argument(
+        "-e",
+        "--esmfold2",
+        action="store_true",
+        help="Run ESMFold2",
+    )
+    return parser
+
+
 def alphafold_argparse_util(parser):
     parser.add_argument(
         "--database",
@@ -295,10 +331,14 @@ def raise_argument_errors(args):
         and not args.protenix
         and not args.openfold3
         and not args.rosettafold3
+        and not args.intellifold
+        and not args.opendde
+        and not args.esmfold2
     ):
         logger.info(
-            dedent("None of AlphaFold3, Boltz, Chai-1, Protenix, OpenFold3 or  \
-            RosettaFold3 selected. Running AlphaFold3 by default")
+            dedent("None of AlphaFold3, Boltz, Chai-1, Protenix, OpenFold3, \
+            RosettaFold3, IntelliFold, OpenDDE or ESMFold2 selected. \
+            Running AlphaFold3 by default")
         )
         args.alphafold3 = True
 
