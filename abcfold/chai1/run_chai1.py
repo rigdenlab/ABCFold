@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Union
 
 from abcfold.chai1.af3_to_chai import ChaiFasta
-from abcfold.chai1.check_install import ensure_chai_env
+from abcfold.chai1.check_install import (ensure_chai_env,
+                                         resolve_chai_downloads_dir)
 
 logger = logging.getLogger("logger")
 os.environ["DISABLE_PANDERA_IMPORT_WARNING"] = "True"
@@ -42,6 +43,11 @@ def run_chai(
     Returns:
         Bool: True if the Chai-1 run was successful, False otherwise
 
+    Notes:
+        Chai-1's weights/ESM embeddings/conformer cache directory is
+        controlled via the 'chai_weights' config option (falling back to
+        ~/.chai1), set as the CHAI_DOWNLOADS_DIR environment variable before
+        Chai-1 runs, since Chai-1 has no CLI flag for this.
     """
     input_json = Path(input_json)
     output_dir = Path(output_dir)
@@ -49,6 +55,13 @@ def run_chai(
     logger.debug("Checking if Chai-1 is installed")
     env = ensure_chai_env(config=config)
     kalign_available = env.which("kalign")
+
+    # Can't input chai-1's weights as a cmd line option so we set the
+    # CHAI_DOWNLOADS_DIR env var to the resolved path before running
+    chai_downloads_dir = resolve_chai_downloads_dir(config)
+    chai_downloads_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["CHAI_DOWNLOADS_DIR"] = str(chai_downloads_dir)
+    logger.info("Chai-1 will use weights/downloads from %s", chai_downloads_dir)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)

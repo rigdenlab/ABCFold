@@ -238,3 +238,106 @@ def test_protenix_write_json(test_data):
 
 
         assert written_data == reference
+
+
+def test_af3_to_protenix_templates(test_data):
+    import re
+
+    minimal_cif = Path(test_data.test_6BJ9A_cif).read_text()
+    # Extract a short sequence from the CIF using gemmi so query/template match
+    import gemmi
+
+    doc = gemmi.cif.read_string(minimal_cif)
+    st = gemmi.make_structure_from_block(doc[0])
+    st.setup_entities()
+    chain0 = st[0][0]
+    res_names = [r.name for r in chain0 if r.entity_type.name == "Polymer"]
+    tmpl_seq = gemmi.one_letter_code(res_names)
+
+    # Query has a gap at pos 0 and a skipped residue at template pos 3
+    query_seq = "A" + tmpl_seq[:3] + tmpl_seq[4:10]
+    q_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    t_idx = [0, 1, 2, 4, 5, 6, 7, 8, 9]
+
+    af3_dict = {
+        "name": "tmpl_test",
+        "modelSeeds": [42],
+        "sequences": [
+            {
+                "protein": {
+                    "id": ["A"],
+                    "sequence": query_seq,
+                    "templates": [
+                        {
+                            # Real PDB mmCIF (6BJ9) should preserve its PDB code
+                            "mmcif": minimal_cif,
+                            "queryIndices": q_idx,
+                            "templateIndices": t_idx,
+                        },
+                        {
+                            # Custom mmCIF without a 4-char PDB id gets x000
+                            "mmcif": minimal_cif.replace("data_6BJ9", "data_custom")
+                            .replace("6BJ9", "CUSTOM"),
+                            "queryIndices": q_idx,
+                            "templateIndices": t_idx,
+                        },
+                    ],
+                }
+            }
+        ],
+    }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pj = ProtenixJson(temp_dir)
+        data = pj.json_to_json(af3_dict)
+
+        pchain = data["sequences"][0]["proteinChain"]
+        assert "templatesPath" in pchain
+        a3m_path = Path(pchain["templatesPath"])
+        assert a3m_path.exists()
+        assert pj.template_mmcif_dir is not None
+        assert (pj.template_mmcif_dir / "6bj9.cif").exists()
+        assert (pj.template_mmcif_dir / "x000.cif").exists()
+        from Bio.PDB.MMCIF2Dict import MMCIF2Dict
+        cc_dict = MMCIF2Dict(str(pj.template_mmcif_dir / "6bj9.cif"))
+        assert "_chem_comp.type" in cc_dict
+        assert all("peptide" in t for t in cc_dict["_chem_comp.type"])
+        assert pj.release_dates_path is not None
+        rel_dates = json.loads(pj.release_dates_path.read_text())
+        assert "6bj9" in rel_dates
+        assert rel_dates["x000"]["release_date"] == "2000-01-01"
+        assert pj.obsolete_pdbs_path is not None
+        assert json.loads(pj.obsolete_pdbs_path.read_text()) == {}
+
+        # Verify the A3M matches Protenix's HmmsearchA3MParser and
+        # get_pdb_id_and_chain regexes and indexing
+        lines = a3m_path.read_text().strip().splitlines()
+        assert len(lines) == 4
+        header, aligned, custom_header, _ = lines
+        assert "mol:protein" in header
+        pattern = r"^>?([a-z0-9]+)_(\w+)/([0-9]+)-([0-9]+).*protein length:([0-9]+) *(.*)$"
+        m = re.match(pattern, header)
+        assert m is not None
+        assert m[1] == "6bj9"
+        assert re.match(r"([a-zA-Z\d]{4})_([a-zA-Z0-9.]+)", f"{m[1]}_{m[2]}") is not None
+        assert int(m[3]) == 1
+        assert int(m[4]) == 10
+        assert int(m[5]) == len(tmpl_seq)
+
+        m_custom = re.match(pattern, custom_header)
+        assert m_custom is not None
+        assert m_custom[1] == "x000"
+
+        # Trace HmmsearchA3MParser._get_indices(aligned, start - 1)
+        indices = []
+        counter = int(m[3]) - 1
+        for ch in aligned:
+            if ch == "-":
+                indices.append(-1)
+            elif ch.islower():
+                counter += 1
+            else:
+                indices.append(counter)
+                counter += 1
+        assert len(indices) == len(query_seq)
+        assert indices == [-1] + t_idx

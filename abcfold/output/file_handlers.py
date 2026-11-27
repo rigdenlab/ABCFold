@@ -11,6 +11,7 @@ import numpy as np
 from Bio.PDB import MMCIFIO, Chain, MMCIFParser, Model
 from Bio.PDB.Atom import Atom
 from Bio.PDB.kdtrees import KDTree
+from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 from Bio.PDB.Polypeptide import is_aa
 from Bio.PDB.Residue import Residue
 from Bio.PDB.Superimposer import Superimposer
@@ -234,6 +235,58 @@ class CifFile(FileBase):
         """
         self.__ligand_plddts = self.get_plddt_per_ligand()
         return self.__ligand_plddts
+
+    def get_average_ligand_plddts(self) -> Dict[str, float]:
+        """
+        Get the mean pLDDT score for each ligand chain in the model.
+
+        Returns:
+            Dict[str, float]: Mapping of ligand chain ID to mean pLDDT score,
+            or an empty dict if no ligands are specified in input_params
+        """
+        per_ligand = self.ligand_plddts
+        if not per_ligand:
+            return {}
+        return {
+            chain_id: float(np.mean(scores))
+            for chain_id, scores in per_ligand.items()
+            if scores
+        }
+
+    @property
+    def average_ligand_plddt(self) -> Optional[float]:
+        """
+        The average pLDDT score across all ligand atoms, or None if no ligand
+        is specified in the input.
+        """
+        return self.get_average_ligand_plddt()
+
+    def get_average_ligand_plddt(
+        self, ligand_chain: Optional[str] = None
+    ) -> Optional[float]:
+        """
+        Get the average pLDDT score across ligand atoms in the model.
+
+        Args:
+            ligand_chain (Optional[str]): Optional chain ID restricting the
+                average to a specific ligand chain
+
+        Returns:
+            Optional[float]: Mean ligand atom pLDDT, or None if no ligand is
+            specified in input_params
+        """
+        per_ligand = self.ligand_plddts
+        if not per_ligand:
+            return None
+        if ligand_chain is not None:
+            scores = per_ligand.get(ligand_chain, [])
+        else:
+            scores = [
+                score for chain_scores in per_ligand.values() for score in chain_scores
+            ]
+        if not scores:
+            return None
+        return float(np.mean(scores))
 
     @property
     def h_score(self):
@@ -775,60 +828,41 @@ for reordering"
     def _fix_openfold_mmcif(infile: Union[str, Path],
                             outfile: Union[str, Path]) -> None:
         """
-        Convert OpenFold3-style mmCIF into a BioPython-compatible mmCIF.
+        Convert an OpenFold3 mmCIF file into a BioPython-compatible mmCIF file.
+
+        Args:
+            infile (Union[str, Path]): Path to the input OpenFold3 mmCIF file
+            outfile (Union[str, Path]): Path to write the fixed mmCIF file
+
+        Returns:
+            None
         """
-        with open(infile) as fin, open(outfile, "w") as fout:
-            # OpenFold3 mmCIF are missing some required headers, and their ATOM/HETATM
-            # files contain a question mark in the middle that BioPython doesn't like
-            # Therefore we need to reformat the lines
+        mmcif_dict = MMCIF2Dict(str(infile))
+        groups = mmcif_dict.get("_atom_site.group_PDB", [])
+        n_atoms = len(groups)
 
-            fout.write(
-                "data_structure\n"
-                "loop_\n"
-                "_atom_site.group_PDB\n"
-                "_atom_site.type_symbol\n"
-                "_atom_site.label_atom_id\n"
-                "_atom_site.label_alt_id\n"
-                "_atom_site.label_comp_id\n"
-                "_atom_site.label_asym_id\n"
-                "_atom_site.label_entity_id\n"
-                "_atom_site.label_seq_id\n"
-                "_atom_site.pdbx_PDB_ins_code\n"
-                "_atom_site.auth_seq_id\n"
-                "_atom_site.auth_comp_id\n"
-                "_atom_site.auth_asym_id\n"
-                "_atom_site.auth_atom_id\n"
-                "_atom_site.B_iso_or_equiv\n"
-                "_atom_site.Cartn_x\n"
-                "_atom_site.Cartn_y\n"
-                "_atom_site.Cartn_z\n"
-                "_atom_site.pdbx_PDB_model_num\n"
-                "_atom_site.id\n"
-                "_atom_site.occupancy\n"
-            )
+        # BioPython's MMCIFParser requires _atom_site.occupancy
+        if "_atom_site.occupancy" not in mmcif_dict:
+            mmcif_dict["_atom_site.occupancy"] = ["1.0"] * n_atoms
 
-            for line in fin:
-                if line.startswith("ATOM"):
-                    fields = line.split()
-                    fout.write(
-                        f"{fields[0]}   {fields[1]} {fields[2]}   {fields[3]} "
-                        f"{fields[4]} {fields[5]} {fields[6]} {fields[7]} "
-                        f"{fields[8]} {fields[9]} {fields[10]} {fields[11]} "
-                        f"{fields[12]}   {fields[13]} {fields[15]}      "
-                        f"{fields[16]}    {fields[17]}    {fields[18]} "
-                        f"{fields[19]} 1.0\n"
-                    )
-                elif line.startswith("HETATM"):
-                    fields = line.split()
-                    fout.write(
-                        f"{fields[0]} {fields[1]} {fields[2]} {fields[3]} "
-                        f"{fields[4]} {fields[5]} 2 1   . 1   {fields[10]} {fields[11]}"
-                        f" {fields[12]} {fields[13]}  {fields[15]}     "
-                        f"{fields[16]}     {fields[17]}    {fields[18]} "
-                        f"{fields[19]} 1.0\n"
-                    )
-                else:
-                    continue
+        # OpenFold3 writes '.' / '?' for HETATM seq_id / ins_code, which
+        # causes BioPython's MMCIFParser to skip HETATM residues
+        label_seq = mmcif_dict.get("_atom_site.label_seq_id")
+        auth_seq = mmcif_dict.get("_atom_site.auth_seq_id")
+        ins_code = mmcif_dict.get("_atom_site.pdbx_PDB_ins_code")
+
+        for i, group in enumerate(groups):
+            if group == "HETATM":
+                if label_seq is not None and label_seq[i] in (".", "?"):
+                    label_seq[i] = "1"
+                if auth_seq is not None and auth_seq[i] in (".", "?"):
+                    auth_seq[i] = "1"
+                if ins_code is not None and ins_code[i] == "?":
+                    ins_code[i] = "."
+
+        io = MMCIFIO()
+        io.set_dict(mmcif_dict)
+        io.save(str(outfile))
 
     @classmethod
     def from_openfold(cls,

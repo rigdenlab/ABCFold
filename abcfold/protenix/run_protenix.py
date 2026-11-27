@@ -3,10 +3,11 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from abcfold.protenix.af3_to_protenix import ProtenixJson
-from abcfold.protenix.check_install import ensure_protenix_env
+from abcfold.protenix.check_install import (ensure_protenix_checkpoint,
+                                            ensure_protenix_env)
 
 logger = logging.getLogger("logger")
 
@@ -47,6 +48,18 @@ def run_protenix(
     logger.debug("Checking if protenix is installed")
     env = ensure_protenix_env(config=config)
 
+    protenix_weight_dir = config.get("protenix_weights")
+    if protenix_weight_dir is not None and protenix_weight_dir != "None":
+        checkpoint_dir = Path(protenix_weight_dir)
+    else:
+        checkpoint_dir = Path.home().joinpath("checkpoint")
+
+    try:
+        ensure_protenix_checkpoint(checkpoint_dir, config["protenix_model"])
+    except RuntimeError as e:
+        logger.error(str(e))
+        return False
+
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = Path(temp_dir)
         if save_input:
@@ -70,6 +83,10 @@ def run_protenix(
                     number_of_models,
                     num_recycles,
                     seed=seed,
+                    checkpoint_dir=checkpoint_dir,
+                    template_mmcif_dir=protenix_json.template_mmcif_dir,
+                    release_dates_path=protenix_json.release_dates_path,
+                    obsolete_pdbs_path=protenix_json.obsolete_pdbs_path,
                 )
                 if not test
                 else generate_protenix_test_command()
@@ -104,6 +121,10 @@ def generate_protenix_command(
     number_of_models: int,
     num_recycles: int,
     seed: int,
+    checkpoint_dir: Optional[Union[str, Path]] = None,
+    template_mmcif_dir: Optional[Union[str, Path]] = None,
+    release_dates_path: Optional[Union[str, Path]] = None,
+    obsolete_pdbs_path: Optional[Union[str, Path]] = None,
 ) -> list:
     """
     Generate the Protenix command
@@ -115,14 +136,22 @@ def generate_protenix_command(
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of recycles
         seed (int): Random seed
-        config (dict): Configuration dictionary
+        checkpoint_dir (Optional[Union[str, Path]]): Directory containing the
+            Protenix checkpoint, passed through as --load_checkpoint_dir
+        template_mmcif_dir (Optional[Union[str, Path]]): Directory containing
+            staged template mmCIF files when templates are present
+        release_dates_path (Optional[Union[str, Path]]): Path to JSON mapping
+            staged template IDs to release dates
+        obsolete_pdbs_path (Optional[Union[str, Path]]): Path to JSON mapping
+            obsolete PDB IDs
 
     Returns:
         list: The Protenix command
     """
 
-    # Determine if MSA is present in the input JSON
+    # Determine if MSA and/or templates are present in the input JSON
     use_msa = False
+    use_template = False
     with open(str(input_json), "r") as f:
         data = json.load(f)
     for key, value in data[0].items():
@@ -131,9 +160,10 @@ def generate_protenix_command(
                 if "proteinChain" in entry:
                     if "msa" in entry["proteinChain"]:
                         use_msa = True
-                        break
+                    if entry["proteinChain"].get("templatesPath"):
+                        use_template = True
 
-    return [
+    cmd = [
         "python",
         "-m",
         "runner.inference",
@@ -151,9 +181,33 @@ def generate_protenix_command(
         str(seed),
         "--use_msa",
         str(use_msa),
+        "--use_template",
+        str(use_template),
         "--need_atom_confidence",
         "True"
     ]
+
+    if use_template:
+        if template_mmcif_dir is not None:
+            cmd += [
+                "--data.template.prot_template_mmcif_dir",
+                str(Path(template_mmcif_dir).resolve()),
+            ]
+        if release_dates_path is not None:
+            cmd += [
+                "--data.template.release_dates_path",
+                str(Path(release_dates_path).resolve()),
+            ]
+        if obsolete_pdbs_path is not None:
+            cmd += [
+                "--data.template.obsolete_pdbs_path",
+                str(Path(obsolete_pdbs_path).resolve()),
+            ]
+
+    if checkpoint_dir is not None:
+        cmd += ["--load_checkpoint_dir", str(checkpoint_dir)]
+
+    return cmd
 
 
 def generate_protenix_test_command() -> list:

@@ -58,20 +58,31 @@ def setup_environments(args, config: dict) -> None:
     if args.chai1:
         selected.append("Chai-1")
         logger.info("[dry-run] Setting up Chai-1 environment...")
-        from abcfold.chai1.check_install import ensure_chai_env
+        import os
+
+        from abcfold.chai1.check_install import (ensure_chai_env,
+                                                 resolve_chai_downloads_dir)
         from abcfold.chai1.run_chai1 import generate_chai_test_command
 
         env = ensure_chai_env(config=config)
+        chai_downloads_dir = resolve_chai_downloads_dir(config)
+        chai_downloads_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["CHAI_DOWNLOADS_DIR"] = str(chai_downloads_dir)
         env.run(generate_chai_test_command(), quiet=True)
 
     if args.protenix:
         selected.append("Protenix")
-        logger.info("[dry-run] Setting up Protenix environment...")
-        from abcfold.protenix.check_install import ensure_protenix_env
+        logger.info("[dry-run] Setting up Protenix environment + checkpoint...")
+        from abcfold.protenix.check_install import (ensure_protenix_checkpoint,
+                                                    ensure_protenix_env)
         from abcfold.protenix.run_protenix import \
             generate_protenix_test_command
 
         env = ensure_protenix_env(config=config)
+        cache_path = _weight_dir(
+            config, "protenix_weights", Path.home().joinpath("checkpoint")
+        )
+        ensure_protenix_checkpoint(cache_path, config["protenix_model"])
         env.run(generate_protenix_test_command(), quiet=True)
 
     if args.openfold3:

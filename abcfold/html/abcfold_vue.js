@@ -55,6 +55,9 @@ Vue.component('abc-table', {
                 { key: 'reactifptm_score', label: 'reactifPTM', type: 'scores',
                   title: 'The best reactifPTM (interface pTM over residues in '
                        + 'contact) for each interface' },
+                { key: 'ligand_plddt', label: 'Ligand pLDDT', type: 'scores',
+                  title: 'The average pLDDT score for each ligand chain in '
+                       + 'the model' },
                 { key: 'affinity_pred_value',
                   label: 'Boltz-2 affinity', type: 'decimal',
                   decimals: 3,

@@ -345,6 +345,7 @@ def run(args, config, defaults, config_file):
         indicies = get_gap_indicies(*cif_models)
         index_counter = 0
 
+        ligand_chain = getattr(args, "ligand_chain", None)
         affinity_scores: Dict[str, Dict[str, Any]] = {}
         if getattr(args, "ligand_smiles", None) or getattr(
             args, "ligand_ccd", None
@@ -360,7 +361,7 @@ def run(args, config, defaults, config_file):
                 args.output_dir,
                 smiles=args.ligand_smiles,
                 ccd=args.ligand_ccd,
-                ligand_chain=getattr(args, "ligand_chain", None),
+                ligand_chain=ligand_chain,
                 msa=affinity_msa,
             )
 
@@ -390,6 +391,7 @@ def run(args, config, defaults, config_file):
                             score_file,
                             args.output_dir,
                             affinity_scores=affinity_scores,
+                            ligand_chain=ligand_chain,
                         )
                         alphafold_models["models"].append(model_data)
 
@@ -418,6 +420,7 @@ def run(args, config, defaults, config_file):
                             score_file,
                             args.output_dir,
                             affinity_scores=affinity_scores,
+                            ligand_chain=ligand_chain,
                         )
                         boltz_models["models"].append(model_data)
 
@@ -447,6 +450,7 @@ def run(args, config, defaults, config_file):
                                 score_file,
                                 args.output_dir,
                                 affinity_scores=affinity_scores,
+                                ligand_chain=ligand_chain,
                             )
                             chai_models["models"].append(model_data)
 
@@ -476,6 +480,7 @@ def run(args, config, defaults, config_file):
                                 score_file,
                                 args.output_dir,
                                 affinity_scores=affinity_scores,
+                                ligand_chain=ligand_chain,
                             )
                             openfold_models["models"].append(model_data)
 
@@ -505,6 +510,7 @@ def run(args, config, defaults, config_file):
                                 score_file,
                                 args.output_dir,
                                 affinity_scores=affinity_scores,
+                                ligand_chain=ligand_chain,
                             )
                             protenix_models["models"].append(model_data)
 
@@ -534,6 +540,7 @@ def run(args, config, defaults, config_file):
                                 score_file,
                                 args.output_dir,
                                 affinity_scores=affinity_scores,
+                                ligand_chain=ligand_chain,
                             )
                             rosettafold_models["models"].append(model_data)
 

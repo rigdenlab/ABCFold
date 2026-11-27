@@ -131,5 +131,10 @@ def run_boltz_affinity(
             "affinity_probability_binary": row.get(
                 "affinity_probability_binary"
             ),
+            "ligand_chain": (
+                str(row["ligand_chain"])
+                if pd.notna(row.get("ligand_chain"))
+                else None
+            ),
         }
     return scores

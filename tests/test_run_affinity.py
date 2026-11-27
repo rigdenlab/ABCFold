@@ -71,8 +71,8 @@ def test_run_boltz_affinity_parses_results_csv(monkeypatch):
         affinity_dir = td / "affinity"
         affinity_dir.mkdir()
         (affinity_dir / "boltz_affinity_results.csv").write_text(
-            "input_model,affinity_pred_value,affinity_probability_binary\n"
-            f"{model.resolve()},1.5,0.8\n"
+            "input_model,affinity_pred_value,affinity_probability_binary,ligand_chain\n"
+            f"{model.resolve()},1.5,0.8,C\n"
         )
 
         # Stub the subprocess so no Boltz env / GPU is needed.
@@ -87,3 +87,4 @@ def test_run_boltz_affinity_parses_results_csv(monkeypatch):
         key = str(model.resolve())
         assert scores[key]["affinity_pred_value"] == 1.5
         assert scores[key]["affinity_probability_binary"] == 0.8
+        assert scores[key]["ligand_chain"] == "C"

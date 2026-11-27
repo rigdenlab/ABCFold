@@ -1,9 +1,10 @@
 import json
 import logging
 import random
+import re
 import string
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger("logger")
 
@@ -32,6 +33,252 @@ class ProtenixJson:
         self.__id_counter: int = 1
         self.__create_files = create_files
         self.protenix_dict: Dict = {}
+        self.template_mmcif_dir: Optional[Path] = None
+        self.release_dates_path: Optional[Path] = None
+        self.obsolete_pdbs_path: Optional[Path] = None
+        self._template_counter: int = 0
+        self._release_dates: Dict[str, Dict[str, str]] = {}
+
+    @staticmethod
+    def _normalise_template_cif(
+        mmcif: str, out_file: Path, default_date: str = "2000-01-01"
+    ) -> Optional[Tuple[Optional[str], str, str, str]]:
+        """
+        Write a normalised mmCIF file for Protenix's TemplateHitFeaturizer.
+
+        Args:
+            mmcif (str): Inline mmCIF string from the AF3 input JSON
+            out_file (Path): Output path for the normalised mmCIF file
+            default_date (str): Fallback release date (YYYY-MM-DD) used for
+                custom templates without a PDB release date
+
+        Returns:
+            Optional[Tuple[Optional[str], str, str, str]]: Tuple of
+            (pdb_id, chain_id, template_sequence, release_date) for the first
+            polymer chain, or None if the mmCIF could not be parsed
+        """
+        try:
+            import gemmi
+
+            doc = gemmi.cif.read_string(mmcif)
+            in_block = doc[0]
+
+            # Extract real 4-char PDB ID if present (_entry.id or data_ block)
+            real_pdb_id: Optional[str] = None
+            entry_val = in_block.find_value("_entry.id")
+            for candidate in (
+                entry_val.strip("'\" ") if entry_val else None,
+                in_block.name.strip() if in_block.name else None,
+            ):
+                if candidate and re.fullmatch(r"[0-9][a-zA-Z0-9]{3}", candidate):
+                    real_pdb_id = candidate.lower()
+                    break
+
+            # Extract earliest release date (YYYY-MM-DD) from input mmCIF
+            rev_dates = [
+                v.strip("'\" ")
+                for v in in_block.find_values(
+                    "_pdbx_audit_revision_history.revision_date"
+                )
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v.strip("'\" "))
+            ]
+            release_date = (
+                min(rev_dates) if (real_pdb_id and rev_dates) else default_date
+            )
+
+            st = gemmi.make_structure_from_block(in_block)
+            if len(st) == 0:
+                raise ValueError("template mmCIF has no models")
+            st.setup_entities()
+
+            model0 = st[0]
+            chain_id = None
+            res_names: List[str] = []
+            for entity in st.entities:
+                if entity.entity_type.name != "Polymer":
+                    continue
+                if not entity.subchains:
+                    continue
+                first_subchain = entity.subchains[0]
+                seq = [
+                    residue.name
+                    for chain in model0
+                    for residue in chain
+                    if residue.subchain == first_subchain
+                ]
+                if seq and not entity.full_sequence:
+                    entity.full_sequence = seq
+                if chain_id is None and seq:
+                    for chain in model0:
+                        if any(r.subchain == first_subchain for r in chain):
+                            chain_id = chain.name
+                            res_names = seq
+                            break
+
+            if not chain_id or not res_names:
+                raise ValueError("template mmCIF has no polymer chain")
+
+            out_doc = st.make_mmcif_document()
+            out_block = out_doc[0]
+            if not out_block.find_values(
+                "_pdbx_audit_revision_history.revision_date"
+            ):
+                out_block.set_pair("_pdbx_audit_revision_history.ordinal", "1")
+                out_block.set_pair(
+                    "_pdbx_audit_revision_history.revision_date", release_date
+                )
+            # Protenix's TemplateParser._get_protein_chains requires
+            # _chem_comp.type containing "peptide" for each polymer monomer
+            # (gemmi.make_mmcif_document writes "." placeholders by default)
+            existing_types = list(out_block.find_values("_chem_comp.type"))
+            if not any("peptide" in v.lower() for v in existing_types):
+                cc_loop = out_block.init_loop("_chem_comp.", ["id", "type"])
+                for comp_id in sorted(set(res_names)):
+                    cc_loop.add_row([comp_id, "'L-peptide linking'"])
+            out_doc.write_file(str(out_file))
+            tmpl_seq = gemmi.one_letter_code(res_names)
+            return real_pdb_id, chain_id, tmpl_seq, release_date
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not prepare Protenix template CIF: %s", exc)
+            return None
+
+    @staticmethod
+    def _build_a3m_alignment(
+        query_seq: str,
+        tmpl_seq: str,
+        query_indices: Optional[List[int]] = None,
+        template_indices: Optional[List[int]] = None,
+    ) -> Optional[Tuple[str, int, int]]:
+        """
+        Build an hmmsearch-style A3M alignment string from AF3 index maps.
+
+        Args:
+            query_seq (str): Target query protein sequence
+            tmpl_seq (str): Template polymer sequence
+            query_indices (Optional[List[int]]): 0-based aligned query indices
+            template_indices (Optional[List[int]]): 0-based aligned template
+                indices
+
+        Returns:
+            Optional[Tuple[str, int, int]]: Tuple of
+            (aligned_seq, start_1based, end_1based), or None if no valid
+            aligned residues exist
+        """
+        q_len = len(query_seq)
+        t_len = len(tmpl_seq)
+        if q_len == 0 or t_len == 0:
+            return None
+
+        if query_indices and template_indices:
+            raw_pairs = sorted(
+                (int(q), int(t))
+                for q, t in zip(query_indices, template_indices)
+                if 0 <= int(q) < q_len and 0 <= int(t) < t_len
+            )
+            # Keep strictly increasing (q, t) pairs for a valid linear A3M
+            pairs: List[Tuple[int, int]] = []
+            last_q, last_t = -1, -1
+            for q, t in raw_pairs:
+                if q > last_q and t > last_t:
+                    pairs.append((q, t))
+                    last_q, last_t = q, t
+        else:
+            n = min(q_len, t_len)
+            pairs = [(i, i) for i in range(n)]
+
+        if not pairs:
+            return None
+
+        q_to_t = dict(pairs)
+        start_t = pairs[0][1]
+        end_t = pairs[-1][1]
+        expected_t = start_t
+        chars: List[str] = []
+
+        for q in range(q_len):
+            if q not in q_to_t:
+                chars.append("-")
+            else:
+                t = q_to_t[q]
+                if t > expected_t:
+                    chars.append(tmpl_seq[expected_t:t].lower())
+                chars.append(tmpl_seq[t].upper())
+                expected_t = t + 1
+
+        return "".join(chars), start_t + 1, end_t + 1
+
+    def _write_templates_a3m(
+        self, query_seq: str, templates: list
+    ) -> Optional[Path]:
+        """
+        Stage inline AF3 templates as local mmCIFs and a Protenix A3M file.
+
+        Args:
+            query_seq (str): Target query protein sequence
+            templates (list): List of AF3 template dicts containing inline
+                mmCIF strings and optional index mappings
+
+        Returns:
+            Optional[Path]: Path to the written A3M file, or None if no valid
+            templates could be staged
+        """
+        if not self.__create_files:
+            return None
+
+        if self.template_mmcif_dir is None:
+            self.template_mmcif_dir = Path(self.working_dir) / "template_mmcif"
+            self.template_mmcif_dir.mkdir(parents=True, exist_ok=True)
+
+        a3m_entries: List[str] = []
+        for template in templates:
+            if not isinstance(template, dict):
+                continue
+            mmcif = template.get("mmcif")
+            if not mmcif:
+                continue
+
+            # Write to a temporary path first, then rename to the real 4-char
+            # PDB ID if present (or a synthetic xNNN ID for custom templates).
+            tmp_cif = self.template_mmcif_dir / f"_tmp_{self._template_counter}.cif"
+            parsed = self._normalise_template_cif(mmcif, tmp_cif)
+            if parsed is None:
+                tmp_cif.unlink(missing_ok=True)
+                continue
+            real_pdb_id, chain_id, tmpl_seq, release_date = parsed
+
+            if real_pdb_id and real_pdb_id not in self._release_dates:
+                pdb_id = real_pdb_id
+            else:
+                pdb_id = f"x{self._template_counter:03d}"
+                self._template_counter += 1
+            cif_file = self.template_mmcif_dir / f"{pdb_id}.cif"
+            tmp_cif.replace(cif_file)
+
+            aligned = self._build_a3m_alignment(
+                query_seq,
+                tmpl_seq,
+                template.get("queryIndices"),
+                template.get("templateIndices"),
+            )
+            if aligned is None:
+                cif_file.unlink(missing_ok=True)
+                continue
+            aligned_seq, start, end = aligned
+
+            self._release_dates[pdb_id] = {"release_date": release_date}
+            header = (
+                f">{pdb_id}_{chain_id}/{start}-{end} "
+                f"mol:protein length:{len(tmpl_seq)}"
+            )
+            a3m_entries.append(f"{header}\n{aligned_seq}\n")
+
+        if not a3m_entries:
+            return None
+
+        rand_tag = "".join(random.choices(string.ascii_letters, k=5))
+        a3m_path = Path(self.working_dir) / f"templates_{rand_tag}.a3m"
+        a3m_path.write_text("".join(a3m_entries))
+        return a3m_path
 
     @property
     def chain_ids(self) -> Dict:
@@ -104,6 +351,16 @@ class ProtenixJson:
 
         self.protenix_dict["sequences"] = protenix_sequences
 
+        if self._release_dates and self.__create_files:
+            self.release_dates_path = (
+                Path(self.working_dir) / "template_release_dates.json"
+            )
+            self.release_dates_path.write_text(json.dumps(self._release_dates))
+            self.obsolete_pdbs_path = (
+                Path(self.working_dir) / "template_obsolete_pdbs.json"
+            )
+            self.obsolete_pdbs_path.write_text("{}")
+
         return self.protenix_dict
 
     def convert_protein(self, seq_dict) -> Dict[str, Any]:
@@ -156,6 +413,12 @@ class ProtenixJson:
                 "precomputed_msa_dir": msa_dir.as_posix(),
                 "pairing_db": "uniref100"
             }
+
+        templates = seq_dict.get("templates")
+        if templates and self.__create_files:
+            a3m_path = self._write_templates_a3m(sequence, templates)
+            if a3m_path is not None:
+                protein_chain["templatesPath"] = a3m_path.resolve().as_posix()
 
         return {
             "proteinChain": protein_chain
