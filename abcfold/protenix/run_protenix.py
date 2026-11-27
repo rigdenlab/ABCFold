@@ -193,8 +193,6 @@ def generate_protenix_command(
             cmd += [
                 "--data.template.prot_template_mmcif_dir",
                 str(Path(template_mmcif_dir).resolve()),
-                "--data.template.fetch_remote",
-                "False",
             ]
         if release_dates_path is not None:
             cmd += [

@@ -101,6 +101,5 @@ def test_generate_protenix_command_with_templates(test_data):
 
         assert cmd[cmd.index("--use_template") + 1] == "True"
         assert "--data.template.prot_template_mmcif_dir" in cmd
-        assert cmd[cmd.index("--data.template.fetch_remote") + 1] == "False"
         assert "--data.template.release_dates_path" in cmd
         assert "--data.template.obsolete_pdbs_path" in cmd
