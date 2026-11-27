@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import re
 import string
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -40,24 +41,50 @@ class ProtenixJson:
 
     @staticmethod
     def _normalise_template_cif(
-        mmcif: str, out_file: Path
-    ) -> Optional[Tuple[str, str]]:
+        mmcif: str, out_file: Path, default_date: str = "2000-01-01"
+    ) -> Optional[Tuple[Optional[str], str, str, str]]:
         """Write a normalised mmCIF for Protenix's TemplateHitFeaturizer.
 
         Uses gemmi to regenerate ``_entity``/``_entity_poly_seq``/``_struct_asym``
-        records (which BioPython-written mmCIFs omit) and ensures a pre-cutoff
-        ``_pdbx_audit_revision_history.revision_date`` header is present so
-        Protenix's mmCIF parser accepts both PDB and custom templates.
+        records (which BioPython-written mmCIFs omit) and preserves the real
+        PDB ID and release date when present (falling back to ``None`` /
+        ``default_date`` for custom templates).
 
         Returns:
-            Tuple of ``(chain_id, one_letter_sequence)`` for the first polymer
-            chain, or ``None`` if the mmCIF could not be parsed.
+            Tuple of ``(real_pdb_id_or_None, chain_id, one_letter_sequence,
+            release_date)`` for the first polymer chain, or ``None`` if the
+            mmCIF could not be parsed.
         """
         try:
             import gemmi
 
             doc = gemmi.cif.read_string(mmcif)
-            st = gemmi.make_structure_from_block(doc[0])
+            in_block = doc[0]
+
+            # Extract real 4-char PDB ID if present (_entry.id or data_ block)
+            real_pdb_id: Optional[str] = None
+            entry_val = in_block.find_value("_entry.id")
+            for candidate in (
+                entry_val.strip("'\" ") if entry_val else None,
+                in_block.name.strip() if in_block.name else None,
+            ):
+                if candidate and re.fullmatch(r"[0-9][a-zA-Z0-9]{3}", candidate):
+                    real_pdb_id = candidate.lower()
+                    break
+
+            # Extract earliest release date (YYYY-MM-DD) from input mmCIF
+            rev_dates = [
+                v.strip("'\" ")
+                for v in in_block.find_values(
+                    "_pdbx_audit_revision_history.revision_date"
+                )
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v.strip("'\" "))
+            ]
+            release_date = (
+                min(rev_dates) if (real_pdb_id and rev_dates) else default_date
+            )
+
+            st = gemmi.make_structure_from_block(in_block)
             if len(st) == 0:
                 raise ValueError("template mmCIF has no models")
             st.setup_entities()
@@ -90,15 +117,17 @@ class ProtenixJson:
                 raise ValueError("template mmCIF has no polymer chain")
 
             out_doc = st.make_mmcif_document()
-            block = out_doc[0]
-            if not block.find_values("_pdbx_audit_revision_history.revision_date"):
-                block.set_pair("_pdbx_audit_revision_history.ordinal", "1")
-                block.set_pair(
-                    "_pdbx_audit_revision_history.revision_date", "2000-01-01"
+            out_block = out_doc[0]
+            if not out_block.find_values(
+                "_pdbx_audit_revision_history.revision_date"
+            ):
+                out_block.set_pair("_pdbx_audit_revision_history.ordinal", "1")
+                out_block.set_pair(
+                    "_pdbx_audit_revision_history.revision_date", release_date
                 )
             out_doc.write_file(str(out_file))
             tmpl_seq = gemmi.one_letter_code(res_names)
-            return chain_id, tmpl_seq
+            return real_pdb_id, chain_id, tmpl_seq, release_date
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not prepare Protenix template CIF: %s", exc)
             return None
@@ -178,14 +207,22 @@ class ProtenixJson:
             if not mmcif:
                 continue
 
-            pdb_id = f"tmpl{self._template_counter:04d}"
-            self._template_counter += 1
-            cif_file = self.template_mmcif_dir / f"{pdb_id}.cif"
-
-            parsed = self._normalise_template_cif(mmcif, cif_file)
+            # Write to a temporary path first, then rename to the real 4-char
+            # PDB ID if present (or a synthetic xNNN ID for custom templates).
+            tmp_cif = self.template_mmcif_dir / f"_tmp_{self._template_counter}.cif"
+            parsed = self._normalise_template_cif(mmcif, tmp_cif)
             if parsed is None:
+                tmp_cif.unlink(missing_ok=True)
                 continue
-            chain_id, tmpl_seq = parsed
+            real_pdb_id, chain_id, tmpl_seq, release_date = parsed
+
+            if real_pdb_id and real_pdb_id not in self._release_dates:
+                pdb_id = real_pdb_id
+            else:
+                pdb_id = f"x{self._template_counter:03d}"
+                self._template_counter += 1
+            cif_file = self.template_mmcif_dir / f"{pdb_id}.cif"
+            tmp_cif.replace(cif_file)
 
             aligned = self._build_a3m_alignment(
                 query_seq,
@@ -198,7 +235,7 @@ class ProtenixJson:
                 continue
             aligned_seq, start, end = aligned
 
-            self._release_dates[pdb_id] = {"release_date": "2000-01-01"}
+            self._release_dates[pdb_id] = {"release_date": release_date}
             header = (
                 f">{pdb_id}_{chain_id}/{start}-{end} "
                 f"mol:protein length:{len(tmpl_seq)}"

@@ -269,10 +269,18 @@ def test_af3_to_protenix_templates(test_data):
                     "sequence": query_seq,
                     "templates": [
                         {
+                            # Real PDB mmCIF (6BJ9) should preserve its PDB code
                             "mmcif": minimal_cif,
                             "queryIndices": q_idx,
                             "templateIndices": t_idx,
-                        }
+                        },
+                        {
+                            # Custom mmCIF without a 4-char PDB id gets x000
+                            "mmcif": minimal_cif.replace("data_6BJ9", "data_custom")
+                            .replace("6BJ9", "CUSTOM"),
+                            "queryIndices": q_idx,
+                            "templateIndices": t_idx,
+                        },
                     ],
                 }
             }
@@ -288,25 +296,33 @@ def test_af3_to_protenix_templates(test_data):
         a3m_path = Path(pchain["templatesPath"])
         assert a3m_path.exists()
         assert pj.template_mmcif_dir is not None
-        assert (pj.template_mmcif_dir / "tmpl0000.cif").exists()
+        assert (pj.template_mmcif_dir / "6bj9.cif").exists()
+        assert (pj.template_mmcif_dir / "x000.cif").exists()
         assert pj.release_dates_path is not None
         rel_dates = json.loads(pj.release_dates_path.read_text())
-        assert rel_dates["tmpl0000"]["release_date"] == "2000-01-01"
+        assert "6bj9" in rel_dates
+        assert rel_dates["x000"]["release_date"] == "2000-01-01"
         assert pj.obsolete_pdbs_path is not None
         assert json.loads(pj.obsolete_pdbs_path.read_text()) == {}
 
-        # Verify the A3M matches Protenix's HmmsearchA3MParser regex and indexing
+        # Verify the A3M matches Protenix's HmmsearchA3MParser and
+        # get_pdb_id_and_chain regexes and indexing
         lines = a3m_path.read_text().strip().splitlines()
-        assert len(lines) == 2
-        header, aligned = lines
+        assert len(lines) == 4
+        header, aligned, custom_header, _ = lines
         assert "mol:protein" in header
         pattern = r"^>?([a-z0-9]+)_(\w+)/([0-9]+)-([0-9]+).*protein length:([0-9]+) *(.*)$"
         m = re.match(pattern, header)
         assert m is not None
-        assert m[1] == "tmpl0000"
+        assert m[1] == "6bj9"
+        assert re.match(r"([a-zA-Z\d]{4})_([a-zA-Z0-9.]+)", f"{m[1]}_{m[2]}") is not None
         assert int(m[3]) == 1
         assert int(m[4]) == 10
         assert int(m[5]) == len(tmpl_seq)
+
+        m_custom = re.match(pattern, custom_header)
+        assert m_custom is not None
+        assert m_custom[1] == "x000"
 
         # Trace HmmsearchA3MParser._get_indices(aligned, start - 1)
         indices = []
