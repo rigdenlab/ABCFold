@@ -210,12 +210,14 @@ def get_model_data(model,
 
     # Boltz-2 affinity, looked up from the batched pre-computed results.
     affinity = (affinity_scores or {}).get(str(full_model_path.resolve()), {})
-    resolved_ligand_chain = ligand_chain or affinity.get("ligand_chain")
-    ligand_plddt = model.get_average_ligand_plddt(
-        ligand_chain=resolved_ligand_chain
-    )
-    if ligand_plddt is None and resolved_ligand_chain is not None:
-        ligand_plddt = model.get_average_ligand_plddt()
+
+    # Per-ligand mean pLDDT formatted like ipSAE/reactifPTM ("C:84.75,D:71.20")
+    # so multi-ligand predictions show every ligand chain independently, even
+    # when Boltz-2 affinity scoring is not enabled.
+    ligand_plddt_scores = [
+        f"{chain_id}:{score:.2f}"
+        for chain_id, score in model.get_average_ligand_plddts().items()
+    ]
 
     # PAE plots may be skipped (e.g. ccp4cloud mode), in which case there's no
     # entry for this model in plot_dict -- leave pae_path unset.
@@ -237,7 +239,7 @@ def get_model_data(model,
         "iptm_score": iptm_score,
         "ipsae_score": ",".join(ipsae_score),
         "reactifptm_score": ",".join(reactifptm_score),
-        "ligand_plddt": ligand_plddt,
+        "ligand_plddt": ",".join(ligand_plddt_scores),
         "affinity_pred_value": affinity.get("affinity_pred_value"),
         "affinity_probability_binary": affinity.get(
             "affinity_probability_binary"

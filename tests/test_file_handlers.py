@@ -244,11 +244,10 @@ def test_ligand_plddt_with_and_without_ligand(test_data):
             m_with, {}, "AlphaFold3", m_with.residue_plddts,
             pae_obj, score_obj, tmp_dir,
         )
-        assert data_with["ligand_plddt"] == pytest.approx(
-            cif_with_lig.average_ligand_plddt
-        )
+        assert data_with["ligand_plddt"] == f"C:{c_only:.2f},D:{d_only:.2f}"
 
-        # Auto-selected ligand_chain from affinity_scores restricts to chain C
+        # Per-ligand scores are still all reported even when affinity_scores
+        # targets a single ligand chain
         aff = {
             str(cif_copy.resolve()): {
                 "affinity_pred_value": -1.5,
@@ -256,15 +255,15 @@ def test_ligand_plddt_with_and_without_ligand(test_data):
                 "ligand_chain": "C",
             }
         }
-        data_chain_c = get_model_data(
+        data_with_aff = get_model_data(
             m_with, {}, "AlphaFold3", m_with.residue_plddts,
             pae_obj, score_obj, tmp_dir, affinity_scores=aff,
         )
-        assert data_chain_c["ligand_plddt"] == pytest.approx(c_only)
+        assert data_with_aff["ligand_plddt"] == f"C:{c_only:.2f},D:{d_only:.2f}"
 
         m_without = file_handlers.CifFile(cif_copy, protein_only_params)
         data_without = get_model_data(
             m_without, {}, "AlphaFold3", m_without.residue_plddts,
             pae_obj, score_obj, tmp_dir,
         )
-        assert data_without["ligand_plddt"] is None
+        assert data_without["ligand_plddt"] == ""

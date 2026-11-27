@@ -236,6 +236,24 @@ class CifFile(FileBase):
         self.__ligand_plddts = self.get_plddt_per_ligand()
         return self.__ligand_plddts
 
+    def get_average_ligand_plddts(self) -> Dict[str, float]:
+        """
+        Get the mean pLDDT score for each ligand chain in the model.
+
+        Returns:
+            Dict[str, float]: Mapping of ``{ligand_chain_id: mean_plddt}`` for
+            each ligand chain with atoms, or an empty dict if no ligands are
+            specified in ``input_params``.
+        """
+        per_ligand = self.ligand_plddts
+        if not per_ligand:
+            return {}
+        return {
+            chain_id: float(np.mean(scores))
+            for chain_id, scores in per_ligand.items()
+            if scores
+        }
+
     @property
     def average_ligand_plddt(self) -> Optional[float]:
         """
