@@ -298,6 +298,10 @@ def test_af3_to_protenix_templates(test_data):
         assert pj.template_mmcif_dir is not None
         assert (pj.template_mmcif_dir / "6bj9.cif").exists()
         assert (pj.template_mmcif_dir / "x000.cif").exists()
+        from Bio.PDB.MMCIF2Dict import MMCIF2Dict
+        cc_dict = MMCIF2Dict(str(pj.template_mmcif_dir / "6bj9.cif"))
+        assert "_chem_comp.type" in cc_dict
+        assert all("peptide" in t for t in cc_dict["_chem_comp.type"])
         assert pj.release_dates_path is not None
         rel_dates = json.loads(pj.release_dates_path.read_text())
         assert "6bj9" in rel_dates

@@ -125,6 +125,14 @@ class ProtenixJson:
                 out_block.set_pair(
                     "_pdbx_audit_revision_history.revision_date", release_date
                 )
+            # Protenix's TemplateParser._get_protein_chains requires
+            # _chem_comp.type containing "peptide" for each polymer monomer
+            # (gemmi.make_mmcif_document writes "." placeholders by default)
+            existing_types = list(out_block.find_values("_chem_comp.type"))
+            if not any("peptide" in v.lower() for v in existing_types):
+                cc_loop = out_block.init_loop("_chem_comp.", ["id", "type"])
+                for comp_id in sorted(set(res_names)):
+                    cc_loop.add_row([comp_id, "'L-peptide linking'"])
             out_doc.write_file(str(out_file))
             tmpl_seq = gemmi.one_letter_code(res_names)
             return real_pdb_id, chain_id, tmpl_seq, release_date
