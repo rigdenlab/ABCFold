@@ -238,3 +238,86 @@ def test_protenix_write_json(test_data):
 
 
         assert written_data == reference
+
+
+def test_af3_to_protenix_templates(test_data):
+    import re
+
+    minimal_cif = Path(test_data.test_6BJ9A_cif).read_text()
+    # Extract a short sequence from the CIF using gemmi so query/template match
+    import gemmi
+
+    doc = gemmi.cif.read_string(minimal_cif)
+    st = gemmi.make_structure_from_block(doc[0])
+    st.setup_entities()
+    chain0 = st[0][0]
+    res_names = [r.name for r in chain0 if r.entity_type.name == "Polymer"]
+    tmpl_seq = gemmi.one_letter_code(res_names)
+
+    # Query has a gap at pos 0 and a skipped residue at template pos 3
+    query_seq = "A" + tmpl_seq[:3] + tmpl_seq[4:10]
+    q_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    t_idx = [0, 1, 2, 4, 5, 6, 7, 8, 9]
+
+    af3_dict = {
+        "name": "tmpl_test",
+        "modelSeeds": [42],
+        "sequences": [
+            {
+                "protein": {
+                    "id": ["A"],
+                    "sequence": query_seq,
+                    "templates": [
+                        {
+                            "mmcif": minimal_cif,
+                            "queryIndices": q_idx,
+                            "templateIndices": t_idx,
+                        }
+                    ],
+                }
+            }
+        ],
+    }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pj = ProtenixJson(temp_dir)
+        data = pj.json_to_json(af3_dict)
+
+        pchain = data["sequences"][0]["proteinChain"]
+        assert "templatesPath" in pchain
+        a3m_path = Path(pchain["templatesPath"])
+        assert a3m_path.exists()
+        assert pj.template_mmcif_dir is not None
+        assert (pj.template_mmcif_dir / "tmpl0000.cif").exists()
+        assert pj.release_dates_path is not None
+        rel_dates = json.loads(pj.release_dates_path.read_text())
+        assert rel_dates["tmpl0000"]["release_date"] == "2000-01-01"
+        assert pj.obsolete_pdbs_path is not None
+        assert json.loads(pj.obsolete_pdbs_path.read_text()) == {}
+
+        # Verify the A3M matches Protenix's HmmsearchA3MParser regex and indexing
+        lines = a3m_path.read_text().strip().splitlines()
+        assert len(lines) == 2
+        header, aligned = lines
+        assert "mol:protein" in header
+        pattern = r"^>?([a-z0-9]+)_(\w+)/([0-9]+)-([0-9]+).*protein length:([0-9]+) *(.*)$"
+        m = re.match(pattern, header)
+        assert m is not None
+        assert m[1] == "tmpl0000"
+        assert int(m[3]) == 1
+        assert int(m[4]) == 10
+        assert int(m[5]) == len(tmpl_seq)
+
+        # Trace HmmsearchA3MParser._get_indices(aligned, start - 1)
+        indices = []
+        counter = int(m[3]) - 1
+        for ch in aligned:
+            if ch == "-":
+                indices.append(-1)
+            elif ch.islower():
+                counter += 1
+            else:
+                indices.append(counter)
+                counter += 1
+        assert len(indices) == len(query_seq)
+        assert indices == [-1] + t_idx

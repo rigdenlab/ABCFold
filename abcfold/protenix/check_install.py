@@ -142,7 +142,11 @@ def ensure_protenix_env(config: dict) -> MicromambaEnv:
     else:
         logger.info("Protenix is already up-to-date (%s)", PROTENIX_ENV)
 
-    # 3. Ensure runtime deps you *actually* need
+    # 3. Ensure kalign is available for template alignment
+    if not env.which("kalign"):
+        env.conda_install(["kalign2"], channels=["conda-forge", "bioconda"])
+
+    # 4. Ensure runtime deps you *actually* need
     env.ensure_package("numpy")
     env.ensure_package("typer")
     env.ensure_package("matplotlib")

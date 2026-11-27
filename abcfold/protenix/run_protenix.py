@@ -84,6 +84,9 @@ def run_protenix(
                     num_recycles,
                     seed=seed,
                     checkpoint_dir=checkpoint_dir,
+                    template_mmcif_dir=protenix_json.template_mmcif_dir,
+                    release_dates_path=protenix_json.release_dates_path,
+                    obsolete_pdbs_path=protenix_json.obsolete_pdbs_path,
                 )
                 if not test
                 else generate_protenix_test_command()
@@ -119,6 +122,9 @@ def generate_protenix_command(
     num_recycles: int,
     seed: int,
     checkpoint_dir: Optional[Union[str, Path]] = None,
+    template_mmcif_dir: Optional[Union[str, Path]] = None,
+    release_dates_path: Optional[Union[str, Path]] = None,
+    obsolete_pdbs_path: Optional[Union[str, Path]] = None,
 ) -> list:
     """
     Generate the Protenix command
@@ -130,17 +136,23 @@ def generate_protenix_command(
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of recycles
         seed (int): Random seed
-        config (dict): Configuration dictionary
         checkpoint_dir (Union[str, Path]): Directory containing the Protenix
             checkpoint, passed through as --load_checkpoint_dir. If not given,
             protenix falls back to its own default (~/checkpoint).
+        template_mmcif_dir (Union[str, Path]): Directory containing staged
+            template mmCIF files when templates are present.
+        release_dates_path (Union[str, Path]): Path to JSON mapping staged
+            template IDs to release dates.
+        obsolete_pdbs_path (Union[str, Path]): Path to JSON mapping obsolete
+            PDB IDs.
 
     Returns:
         list: The Protenix command
     """
 
-    # Determine if MSA is present in the input JSON
+    # Determine if MSA and/or templates are present in the input JSON
     use_msa = False
+    use_template = False
     with open(str(input_json), "r") as f:
         data = json.load(f)
     for key, value in data[0].items():
@@ -149,7 +161,8 @@ def generate_protenix_command(
                 if "proteinChain" in entry:
                     if "msa" in entry["proteinChain"]:
                         use_msa = True
-                        break
+                    if entry["proteinChain"].get("templatesPath"):
+                        use_template = True
 
     cmd = [
         "python",
@@ -169,9 +182,30 @@ def generate_protenix_command(
         str(seed),
         "--use_msa",
         str(use_msa),
+        "--use_template",
+        str(use_template),
         "--need_atom_confidence",
         "True"
     ]
+
+    if use_template:
+        if template_mmcif_dir is not None:
+            cmd += [
+                "--data.template.prot_template_mmcif_dir",
+                str(Path(template_mmcif_dir).resolve()),
+                "--data.template.fetch_remote",
+                "False",
+            ]
+        if release_dates_path is not None:
+            cmd += [
+                "--data.template.release_dates_path",
+                str(Path(release_dates_path).resolve()),
+            ]
+        if obsolete_pdbs_path is not None:
+            cmd += [
+                "--data.template.obsolete_pdbs_path",
+                str(Path(obsolete_pdbs_path).resolve()),
+            ]
 
     if checkpoint_dir is not None:
         cmd += ["--load_checkpoint_dir", str(checkpoint_dir)]

@@ -61,3 +61,46 @@ def test_generate_protenix_command(test_data):
         assert "42" in cmd
         assert "--use_msa" in cmd
         assert "True" in cmd
+        assert "--use_template" in cmd
+        assert cmd[cmd.index("--use_template") + 1] == "False"
+
+
+def test_generate_protenix_command_with_templates(test_data):
+    minimal_cif = Path(test_data.test_6BJ9A_cif).read_text()
+    af3_dict = {
+        "name": "tmpl_cmd_test",
+        "modelSeeds": [42],
+        "sequences": [
+            {
+                "protein": {
+                    "id": ["A"],
+                    "sequence": "ACDEFGHIKL",
+                    "templates": [{"mmcif": minimal_cif}],
+                }
+            }
+        ],
+    }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        protenix_json = ProtenixJson(temp_dir)
+        protenix_json.json_to_json(af3_dict)
+        protenix_json_path = Path(temp_dir) / "protenix_tmpl.json"
+        protenix_json.write_json(protenix_json_path)
+
+        cmd = generate_protenix_command(
+            input_json=protenix_json_path,
+            output_dir="/road/to/nowhere",
+            config=test_data.config_dict,
+            number_of_models=5,
+            num_recycles=3,
+            seed=42,
+            template_mmcif_dir=protenix_json.template_mmcif_dir,
+            release_dates_path=protenix_json.release_dates_path,
+            obsolete_pdbs_path=protenix_json.obsolete_pdbs_path,
+        )
+
+        assert cmd[cmd.index("--use_template") + 1] == "True"
+        assert "--data.template.prot_template_mmcif_dir" in cmd
+        assert cmd[cmd.index("--data.template.fetch_remote") + 1] == "False"
+        assert "--data.template.release_dates_path" in cmd
+        assert "--data.template.obsolete_pdbs_path" in cmd

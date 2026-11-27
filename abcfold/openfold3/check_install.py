@@ -7,7 +7,7 @@ from abcfold.backend_envs import MicromambaEnv
 logger = logging.getLogger("logger")
 
 OPENFOLD_BUCKET = "openfold3-data"
-CHECKPOINT_NAME = "of3-p2-155k.pt"
+CHECKPOINT_NAME = "of3-ob-2025-06-30-174k.pt"
 S3_KEY = f"openfold3-parameters/{CHECKPOINT_NAME}"
 HTTPS_URL = (
     f"https://{OPENFOLD_BUCKET}.s3.amazonaws.com/{S3_KEY}"
@@ -50,7 +50,7 @@ def ensure_openfold_env(config: dict) -> MicromambaEnv:
     env = MicromambaEnv(OPENFOLD_ENV)
 
     # 1. Ensure env exists
-    env.create(python_version="3.11")
+    env.create(python_version="3.12")
 
     # 2. Check installed openfold version
     installed = env.get_installed_version("openfold3")
