@@ -136,15 +136,14 @@ def generate_protenix_command(
         number_of_models (int): Number of models to generate
         num_recycles (int): Number of recycles
         seed (int): Random seed
-        checkpoint_dir (Union[str, Path]): Directory containing the Protenix
-            checkpoint, passed through as --load_checkpoint_dir. If not given,
-            protenix falls back to its own default (~/checkpoint).
-        template_mmcif_dir (Union[str, Path]): Directory containing staged
-            template mmCIF files when templates are present.
-        release_dates_path (Union[str, Path]): Path to JSON mapping staged
-            template IDs to release dates.
-        obsolete_pdbs_path (Union[str, Path]): Path to JSON mapping obsolete
-            PDB IDs.
+        checkpoint_dir (Optional[Union[str, Path]]): Directory containing the
+            Protenix checkpoint, passed through as --load_checkpoint_dir
+        template_mmcif_dir (Optional[Union[str, Path]]): Directory containing
+            staged template mmCIF files when templates are present
+        release_dates_path (Optional[Union[str, Path]]): Path to JSON mapping
+            staged template IDs to release dates
+        obsolete_pdbs_path (Optional[Union[str, Path]]): Path to JSON mapping
+            obsolete PDB IDs
 
     Returns:
         list: The Protenix command

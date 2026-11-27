@@ -241,9 +241,8 @@ class CifFile(FileBase):
         Get the mean pLDDT score for each ligand chain in the model.
 
         Returns:
-            Dict[str, float]: Mapping of ``{ligand_chain_id: mean_plddt}`` for
-            each ligand chain with atoms, or an empty dict if no ligands are
-            specified in ``input_params``.
+            Dict[str, float]: Mapping of ligand chain ID to mean pLDDT score,
+            or an empty dict if no ligands are specified in input_params
         """
         per_ligand = self.ligand_plddts
         if not per_ligand:
@@ -270,12 +269,11 @@ class CifFile(FileBase):
 
         Args:
             ligand_chain (Optional[str]): Optional chain ID restricting the
-                average to a specific ligand chain (matching ``--ligand_chain``
-                for Boltz-2 affinity scoring).
+                average to a specific ligand chain
 
         Returns:
             Optional[float]: Mean ligand atom pLDDT, or None if no ligand is
-                specified in ``input_params`` (or no matching atoms exist).
+            specified in input_params
         """
         per_ligand = self.ligand_plddts
         if not per_ligand:
@@ -830,9 +828,14 @@ for reordering"
     def _fix_openfold_mmcif(infile: Union[str, Path],
                             outfile: Union[str, Path]) -> None:
         """
-        Convert OpenFold3-style mmCIF into a BioPython-compatible mmCIF
-        using column names from the input file (independent of _atom_site
-        column ordering across OpenFold3 versions).
+        Convert an OpenFold3 mmCIF file into a BioPython-compatible mmCIF file.
+
+        Args:
+            infile (Union[str, Path]): Path to the input OpenFold3 mmCIF file
+            outfile (Union[str, Path]): Path to write the fixed mmCIF file
+
+        Returns:
+            None
         """
         mmcif_dict = MMCIF2Dict(str(infile))
         groups = mmcif_dict.get("_atom_site.group_PDB", [])

@@ -43,17 +43,19 @@ class ProtenixJson:
     def _normalise_template_cif(
         mmcif: str, out_file: Path, default_date: str = "2000-01-01"
     ) -> Optional[Tuple[Optional[str], str, str, str]]:
-        """Write a normalised mmCIF for Protenix's TemplateHitFeaturizer.
+        """
+        Write a normalised mmCIF file for Protenix's TemplateHitFeaturizer.
 
-        Uses gemmi to regenerate ``_entity``/``_entity_poly_seq``/``_struct_asym``
-        records (which BioPython-written mmCIFs omit) and preserves the real
-        PDB ID and release date when present (falling back to ``None`` /
-        ``default_date`` for custom templates).
+        Args:
+            mmcif (str): Inline mmCIF string from the AF3 input JSON
+            out_file (Path): Output path for the normalised mmCIF file
+            default_date (str): Fallback release date (YYYY-MM-DD) used for
+                custom templates without a PDB release date
 
         Returns:
-            Tuple of ``(real_pdb_id_or_None, chain_id, one_letter_sequence,
-            release_date)`` for the first polymer chain, or ``None`` if the
-            mmCIF could not be parsed.
+            Optional[Tuple[Optional[str], str, str, str]]: Tuple of
+            (pdb_id, chain_id, template_sequence, release_date) for the first
+            polymer chain, or None if the mmCIF could not be parsed
         """
         try:
             import gemmi
@@ -147,11 +149,20 @@ class ProtenixJson:
         query_indices: Optional[List[int]] = None,
         template_indices: Optional[List[int]] = None,
     ) -> Optional[Tuple[str, int, int]]:
-        """Build an hmmsearch-style A3M alignment string from AF3 index maps.
+        """
+        Build an hmmsearch-style A3M alignment string from AF3 index maps.
+
+        Args:
+            query_seq (str): Target query protein sequence
+            tmpl_seq (str): Template polymer sequence
+            query_indices (Optional[List[int]]): 0-based aligned query indices
+            template_indices (Optional[List[int]]): 0-based aligned template
+                indices
 
         Returns:
-            Tuple of ``(aligned_seq, start_1based, end_1based)`` or ``None`` if
-            no valid aligned residues exist.
+            Optional[Tuple[str, int, int]]: Tuple of
+            (aligned_seq, start_1based, end_1based), or None if no valid
+            aligned residues exist
         """
         q_len = len(query_seq)
         t_len = len(tmpl_seq)
@@ -199,7 +210,18 @@ class ProtenixJson:
     def _write_templates_a3m(
         self, query_seq: str, templates: list
     ) -> Optional[Path]:
-        """Stage inline AF3 templates as local mmCIFs + a Protenix A3M file."""
+        """
+        Stage inline AF3 templates as local mmCIFs and a Protenix A3M file.
+
+        Args:
+            query_seq (str): Target query protein sequence
+            templates (list): List of AF3 template dicts containing inline
+                mmCIF strings and optional index mappings
+
+        Returns:
+            Optional[Path]: Path to the written A3M file, or None if no valid
+            templates could be staged
+        """
         if not self.__create_files:
             return None
 

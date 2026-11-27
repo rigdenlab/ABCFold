@@ -139,10 +139,6 @@ def get_model_data(model,
     """
     regions = get_plddt_regions(plddt_scores)
     ptm_score, iptm_score = parse_scores(score_file)
-    # ipTM is only defined for multi-chain complexes. Non-AF3 predictors report
-    # 0.0 for single-chain (monomer) predictions rather than omitting it, which
-    # keeps a meaningless all-zero column visible. Normalise to None for
-    # monomers so the front end hides the column (matching AF3's behaviour).
     if sum(1 for _ in model.get_chains()) < 2:
         iptm_score = None
     full_model_path = Path(model.pathway)
@@ -172,18 +168,9 @@ def get_model_data(model,
                          verbose=False,
                          output_csv=ipsae_out)
 
-    # reactifPTM: interface pTM restricted to residues in contact (like ipsae,
-    # a pure-PAE/structure metric). Best per unordered chain pair.
     reactifptm_score = []
     if Reactifptm is not None:
         try:
-            # Feed reactifptm the *processed* AF3-style PAE ABCFold already
-            # built (ipsae.pae_data: converted matrix + token_chain_ids/
-            # token_res_ids), not the raw per-predictor PAE file. The raw file
-            # varies by predictor (e.g. Boltz .npz) and can't always be reloaded
-            # or aligned by reactifptm; the AF3 json is the format it expects.
-            # reactifptm also prints progress / "Results saved to:" to stdout;
-            # swallow it so only ABCFold's own log messages show.
             with contextlib.redirect_stdout(io.StringIO()):
                 pae_json = (
                     full_model_path.parent
@@ -195,8 +182,6 @@ def get_model_data(model,
                     reactif = Reactifptm(pae_json, full_model_path)
                     reactif.compute_reactifptm()
                     for pair, v in (reactif.reactifptm_pairwise_max or {}).items():
-                        # reactifptm keys chain pairs "A-B"; ipSAE uses "AB".
-                        # Drop the dash so both columns label interfaces alike.
                         pair_label = str(pair).replace("-", "")
                         reactifptm_score.append(f"{pair_label}:{np.round(v, 4)}")
                     reactif.save_results(
@@ -208,19 +193,13 @@ def get_model_data(model,
         except Exception as exc:  # noqa: BLE001
             logger.warning("reactifPTM failed for %s: %s", model.name, exc)
 
-    # Boltz-2 affinity, looked up from the batched pre-computed results.
     affinity = (affinity_scores or {}).get(str(full_model_path.resolve()), {})
 
-    # Per-ligand mean pLDDT formatted like ipSAE/reactifPTM ("C:84.75,D:71.20")
-    # so multi-ligand predictions show every ligand chain independently, even
-    # when Boltz-2 affinity scoring is not enabled.
     ligand_plddt_scores = [
         f"{chain_id}:{score:.2f}"
         for chain_id, score in model.get_average_ligand_plddts().items()
     ]
 
-    # PAE plots may be skipped (e.g. ccp4cloud mode), in which case there's no
-    # entry for this model in plot_dict -- leave pae_path unset.
     pae_plot = plot_dict.get(model.pathway.as_posix())
     pae_path = (
         Path(pae_plot).relative_to(output_dir).as_posix()
@@ -246,8 +225,6 @@ def get_model_data(model,
         ),
         "residue_clashes": model.clashes_residues,
         "atom_clashes": model.clashes,
-        # None when PAE plots weren't generated (e.g. ccp4cloud mode); the
-        # front end omits the visualisations column in that case.
         "pae_path": pae_path,
     }
     return model_data
